@@ -6,9 +6,9 @@ from typing import TYPE_CHECKING, Callable
 from bokeh.models import Image
 from bokeh.models.sources import ColumnDataSource
 
-from aperture.display.display_base import DisplayBase
-from aperture.display.utils import slider_step_size
-from aperture.display.utils import colormaps as cmaps
+from .display_base import DisplayBase
+from .utils import slider_step_size
+from .utils import colormaps as cmaps
 from bokeh.models.widgets import RangeSlider
 from bokeh.models import CustomJS
 

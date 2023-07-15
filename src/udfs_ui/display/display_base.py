@@ -11,8 +11,8 @@ from bokeh.models.sources import ColumnDataSource
 from bokeh.models.glyphs import Line, Scatter, Circle, Annulus, Rect
 from bokeh.models.tools import PointDrawTool, BoxEditTool
 
-from aperture.utils import pop_from_list
-from aperture.udf_ui.masks import clip_posxy_array
+from ..utils import pop_from_list
+from ..components.masks import clip_posxy_array
 
 
 if TYPE_CHECKING:

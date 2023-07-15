@@ -1,5 +1,5 @@
 import panel as pn
-from aperture.display.image_db import BokehImage
+from ..display.image_db import BokehImage
 from bokeh.plotting import figure
 from libertem.viz.base import Live2DPlot
 
