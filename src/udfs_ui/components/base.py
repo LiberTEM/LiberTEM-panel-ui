@@ -120,6 +120,10 @@ class UIWindow:
     def results_manager(self):
         return self._ui_context.results_manager
 
+    @property
+    def logger(self):
+        return self._ui_context.logger
+
     def build_header_layout(self) -> pn.layout.ListPanel:
         # default implementation, to override in mixin
         return pn.Row(pn.pane.Markdown(object=f'### {self.title_md}'))
