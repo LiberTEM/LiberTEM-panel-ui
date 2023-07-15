@@ -501,4 +501,8 @@ class UIContext:
             window_res = tuple(next(res_iter) for _ in job.udfs)
             results = job.window.set_results(run_record.run_id, job, window_res, damage=damage)
             all_results.extend(results)
-            job.window.set_results(run_record.run_id, job, window_res, damage=damage)
+
+        self.notify_new_results(*all_results)
+
+    def notify_new_results(self, *results: ResultRow):
+        ...
