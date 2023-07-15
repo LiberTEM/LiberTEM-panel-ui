@@ -14,7 +14,7 @@ pn.extension('tabulator', 'jsoneditor')
 
 if TYPE_CHECKING:
     from .base import UIWindow
-    from.result_containers import ResultContainer
+    from .result_containers import ResultContainer
 
 
 class ResultRow(NamedTuple):

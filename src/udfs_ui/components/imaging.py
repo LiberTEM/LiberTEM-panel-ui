@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     import libertem.api as lt
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import BufferWrapper, UDFResultDict
+    from .results import ResultRow
 
 
 def get_initial_pos(shape: tuple[int, int]):
@@ -116,12 +117,13 @@ class SingleImagingUDFWindow(RunnableUIWindow):
         job: UDFWindowJob,
         results: tuple[UDFResultDict],
         damage: BufferWrapper | None = None
-    ):
+    ) -> tuple[ResultRow, ...]:
         window_row = self.results_manager.new_window_run(self, run_id, params=job.params)
         image: np.ndarray = results[1]['intensity'].data[..., 0]
         rc = Numpy2DResultContainer('intensity', image)
-        self.results_manager.new_result(rc, run_id, window_row.window_id)
+        result = self.results_manager.new_result(rc, run_id, window_row.window_id)
         self._sig_plot.new_data(results[0], damage, force=True)
+        return (result,)
 
 
 class PointImagingWindow(SingleImagingUDFWindow, ui_type=UIType.ANALYSIS):

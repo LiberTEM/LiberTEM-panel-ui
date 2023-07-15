@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from libertem.common.buffers import BufferWrapper
     from libertem.io.dataset.base.tiling import DataTile
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
+    from .results import ResultRow
 
 
 class PickNoROIUDF(UDF):
@@ -186,7 +187,7 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
             progress=False
         )
         self._last_pick = (res, {'cx': x, 'cy': y})
-        if self.can_save:        
+        if self.can_save:
             self._save_btn.disabled = False
 
     def set_results(
@@ -195,10 +196,11 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         job: UDFWindowJob,
         results: tuple[UDFResultDict],
         damage: BufferWrapper | None = None
-    ):
+    ) -> tuple[ResultRow, ...]:
         if len(job.udfs) <= 1:
             return
         window_row = self.results_manager.new_window_run(self, run_id, params=job.params)
         image: np.ndarray = results[1]['intensity'].data
         rc = Numpy2DResultContainer('intensity', image)
-        self.results_manager.new_result(rc, run_id, window_row.window_id)
+        result = self.results_manager.new_result(rc, run_id, window_row.window_id)
+        return (result,)

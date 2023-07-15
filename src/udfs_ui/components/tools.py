@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     import libertem.api as lt
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import BufferWrapper, UDFResultDict
+    from .results import ResultRow
 
 
 class ROIWindow(ActivateableUIWindow, ui_type=UIType.TOOL):
@@ -94,7 +95,7 @@ class RecordWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         job: UDFWindowJob,
         results: tuple[UDFResultDict],
         damage: BufferWrapper | None = None
-    ):
+    ) -> tuple[ResultRow, ...]:
         udfs = job.udfs
         if not udfs:
             return
@@ -109,7 +110,8 @@ class RecordWindow(RunnableUIWindow, ui_type=UIType.TOOL):
 
         window_row = self.results_manager.new_window_run(self, run_id)
         rc = RecordResultContainer('recording', str(filepath), params=params)
-        self.results_manager.new_result(rc, run_id, window_row)
+        result = self.results_manager.new_result(rc, run_id, window_row)
+        return (result,)
 
     def set_state(self, old_state: UIState, new_state: UIState):
         self._last_active[old_state] = self.is_active

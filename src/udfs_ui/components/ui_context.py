@@ -9,7 +9,7 @@ import libertem.api as lt
 import libertem_live.api as ltl
 
 from .progress import PanelProgressReporter
-from .base import UIWindow, RunnableUIWindow, UIType, UIState
+from .base import UIWindow, RunnableUIWindow, UIType, UIState, UDFWindowJob
 from .lifecycles import (
     UILifecycle,
     OfflineLifecycle,
@@ -20,7 +20,7 @@ from .lifecycles import (
 from .resources import LiveResources, OfflineResources
 from .result_containers import Numpy2DResultContainer
 from .tools import ROIWindow
-from .results import ResultsManager
+from .results import ResultsManager, ResultRow
 from .terminal_logger import UILog
 from ..utils.notebook_tools import get_ipyw_reload_button
 
@@ -440,8 +440,9 @@ class UIContext:
         if windows is None:
             windows = list(self.runnable_windows.values())
 
-        to_run = [job for window in windows
-                  if (job := window.get_run(self._state, ds, roi)) is not None]
+        to_run: list[UDFWindowJob] = [job for window in windows
+                                      if (job := window.get_run(self._state, ds, roi))
+                                      is not None]
 
         if not to_run:
             self.logger.info('No jobs to run')
@@ -495,6 +496,9 @@ class UIContext:
         damage = udfs_res.damage
         buffers = udfs_res.buffers
         res_iter = iter(buffers)
+        all_results: list[ResultRow] = []
         for job in to_run:
             window_res = tuple(next(res_iter) for _ in job.udfs)
+            results = job.window.set_results(run_record.run_id, job, window_res, damage=damage)
+            all_results.extend(results)
             job.window.set_results(run_record.run_id, job, window_res, damage=damage)

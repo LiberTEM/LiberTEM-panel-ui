@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from libertem.udf.base import UDF
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import BufferWrapper, UDFResultDict
+    from .results import ResultRow
 
 
 class SimpleUDFUIWindow(RunnableUIWindow):
@@ -46,12 +47,13 @@ class SimpleUDFUIWindow(RunnableUIWindow):
         job: UDFWindowJob,
         results: tuple[UDFResultDict],
         damage: BufferWrapper | None = None
-    ):
+    ) -> tuple[ResultRow, ...]:
         window_row = self.results_manager.new_window_run(self, run_id, params=job.params)
         channel = self._plot.channel
         image: np.ndarray = results[0][channel].data
         rc = Numpy2DResultContainer(channel, image)
-        self.results_manager.new_result(rc, run_id, window_row.window_id)
+        result = self.results_manager.new_result(rc, run_id, window_row.window_id)
+        return (result,)
 
 
 class SumUDFWindow(SimpleUDFUIWindow, ui_type=UIType.ANALYSIS):

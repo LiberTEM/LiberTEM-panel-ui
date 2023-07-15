@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import UDF, BufferWrapper, UDFResultDict
     from .ui_context import UIContext
+    from .results import ResultRow
 
 
 TWindow = TypeVar("TWindow", bound="UIWindow")
@@ -202,7 +203,7 @@ class RunnableUIWindow(ActivateableUIWindow):
         job: UDFWindowJob,
         results: tuple[UDFResultDict],
         damage: BufferWrapper | None = None
-    ):
+    ) -> tuple[ResultRow, ...]:
         pass
 
 
