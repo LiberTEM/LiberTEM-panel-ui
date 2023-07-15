@@ -4,7 +4,7 @@ import uuid
 import time
 import numpy as np
 import panel as pn
-from typing import Callable, TYPE_CHECKING
+from typing import Callable, TYPE_CHECKING, Type
 import libertem.api as lt
 import libertem_live.api as ltl
 
@@ -194,18 +194,19 @@ class UIContext:
     def results_manager(self):
         return self._results_manager
 
-    def _add(self, dropdown: pn.widgets.Select, ui_type: UIType) -> UIWindow:
-        mapper = UIWindow.get_implementations(ui_type)
-        cls = mapper[dropdown.value]
+    def add(
+        self,
+        window_cls: Type[UIWindow],
+    ) -> UIWindow:
         window_id = str(uuid.uuid4())[:5]
-        window: UIWindow = cls(self, window_id)
+        window: UIWindow = window_cls(self, window_id)
         self._windows[window_id] = window
         assert window.ident == window_id
         self._layout.append(window.layout())
         self.logger.info(f'Added window {window.title_md} - {window.ident}')
-        if window.is_unique:
-            dropdown.options = [o for o in dropdown.options if o != window.name]
-            self._removed_from_options[window.name] = dropdown
+        window.initialize(
+            self._resources.get_ds_for_init(self._state, self.current_ds_ident)
+        )
         return window
 
     def _remove(self, window: UIWindow):
@@ -265,26 +266,26 @@ class UIContext:
                 await self.run_replay(*e, windows=windows)
 
     async def _add_analysis_handler(self, *e):
-        try:
-            self._add(
-                self._tools.add_analysis_dropdown,
-                UIType.ANALYSIS
-            ).initialize(
-                self._resources.get_ds_for_init(self._state, self.current_ds_ident)
-            )
-        except Exception as err:
-            self._logger.log_from_exception(err, reraise=True)
+        dropdown = self._tools.add_analysis_dropdown
+        mapper = UIWindow.get_implementations(UIType.ANALYSIS)
+        await self._add_from_dropdown(dropdown, mapper)
 
     async def _add_tool_handler(self, *e):
+        dropdown = self._tools.add_tool_dropdown
+        mapper = UIWindow.get_implementations(UIType.TOOL)
+        await self._add_from_dropdown(dropdown, mapper)
+
+    async def _add_from_dropdown(self, dropdown, mapper):
+        window_cls = mapper[dropdown.value]
         try:
-            self._add(
-                self._tools.add_tool_dropdown,
-                UIType.TOOL
-            ).initialize(
-                self._resources.get_ds_for_init(self._state, self.current_ds_ident)
+            window = self.add(
+                window_cls
             )
         except Exception as err:
             self._logger.log_from_exception(err, reraise=True)
+        if window.is_unique:
+            dropdown.options = [o for o in dropdown.options if o != window.name]
+            self._removed_from_options[window.name] = dropdown
 
     async def _mode_handler(self, *e):
         if self._state == UIState.LIVE:
@@ -467,7 +468,7 @@ class UIContext:
                 ui_lifecycle.during()
                 if not self._continue_running:
                     self.logger.info(f'Early stop of UDF run after {part_completed} '
-                                    'partitions completed')
+                                     'partitions completed')
                     # Must handle not awaiting for full acqisition!
                     break
         except Exception as err:

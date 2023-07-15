@@ -57,7 +57,7 @@ class RemoveActivateHeaderMixin:
             name='Active',
             value=True,
             align='center',
-            width_policy='min',
+            min_width=50,
         )
         return pn.Row(
             self._title_text,
