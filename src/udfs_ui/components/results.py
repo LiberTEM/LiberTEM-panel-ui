@@ -2,7 +2,7 @@ from __future__ import annotations
 import datetime
 import uuid
 import json
-from typing import Any, NamedTuple, TYPE_CHECKING, Protocol
+from typing import Any, NamedTuple, TYPE_CHECKING, Protocol, Iterator
 import os
 
 import panel as pn
@@ -469,7 +469,7 @@ class ResultsManager:
         *tags,
         match_all: bool = False,
         from_rows: tuple[ResultRow] | None = None,
-    ):
+    ) -> Iterator[ResultRow]:
         tags = set(tags)
         if not tags:
             raise ValueError('Need at least one tag to search')
@@ -493,5 +493,5 @@ class ResultsManager:
         self,
         *result_type: type[ResultContainer],
         from_rows: tuple[ResultRow] | None = None,
-    ):
+    ) -> Iterator[ResultRow]:
         raise NotImplementedError
