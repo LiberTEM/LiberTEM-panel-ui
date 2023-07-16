@@ -2,7 +2,7 @@ from __future__ import annotations
 import datetime
 import uuid
 import json
-from typing import Any, NamedTuple, TYPE_CHECKING
+from typing import Any, NamedTuple, TYPE_CHECKING, Protocol
 import os
 
 import panel as pn
@@ -15,6 +15,11 @@ pn.extension('tabulator', 'jsoneditor')
 if TYPE_CHECKING:
     from .base import UIWindow
     from .result_containers import ResultContainer
+
+
+class ResultWatcher(Protocol):
+    def notify_deleted_results(self, *results: ResultRow):
+        ...
 
 
 class ResultRow(NamedTuple):
@@ -56,9 +61,13 @@ class ResultsManager:
         self._windows: list[WindowRow] = []
         self._results: list[ResultRow] = []
         self._result_data: dict[str, ResultContainer] = {}
+        self._watchers: list[ResultWatcher] = []
 
         self._show_area = pn.Column(min_height=400)
         self._layout = pn.Column()
+
+    def add_watcher(self, watcher: ResultWatcher):
+        self._watchers.append(watcher)
 
     def _next_run_id(self) -> int:
         try:
