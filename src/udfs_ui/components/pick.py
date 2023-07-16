@@ -266,7 +266,10 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
             self._select_result_name(r): r
             for r in new_nav_results
         })
-        self.nav_select_box.options = list(self._nav_select_options.keys())
+        self.nav_select_box.options = list(reversed(sorted(
+            self._nav_select_options.keys(),
+            key=lambda x: self._nav_select_options[x].run_id
+        )))
         if self._nav_plot_displayed is None:
             # Initialize plot from first nav-tagged result
             self.nav_select_box.value = self.nav_select_box.options[0]
