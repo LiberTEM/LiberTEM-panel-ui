@@ -193,6 +193,7 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
             plots=self._udf_plots,
             progress=False
         )
+        self.pick_plot.fig.title.text = f'{self.pick_plot.title} - {(y, x)}'
         self._last_pick = (res, {'cx': x, 'cy': y})
         if self.can_save:
             self._save_btn.disabled = False

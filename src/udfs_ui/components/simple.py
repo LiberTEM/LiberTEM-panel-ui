@@ -27,7 +27,11 @@ class SimpleUDFUIWindow(RunnableUIWindow):
         self._plot: AperturePlot = None
 
     def initialize(self, dataset: lt.DataSet):
-        self._plot = AperturePlot.new(dataset, self._udf)
+        self._plot = AperturePlot.new(
+            dataset,
+            self._udf,
+            title=self.title_md,
+        )
         self.inner_layout.append(self._plot.pane)
         return self
 
