@@ -280,50 +280,63 @@ class PointSet(DisplayBase):
         drag: bool = True,
         tool_name: str = 'default',
     ):
-        """
-        If figs is empty, add to all registered figures
-        If no figures, raise
-        If no compatible figures, raise ?
-        If fig in figs does not have this DisplayBase on it, raise
+        return make_editable(
+            self, *figs, add=add, drag=drag, tool_name=tool_name, glyph_name='points'
+        )
 
-        If fig has
 
-        # TODO Need to handle both the case of .make_editable before
-        .on and .make_editable after .on. Assume that if we make_editable
-        before .on then the caller wants the displaybase to be editable
-        on all future figures. This ties into the idea of re-adding renderers
-        onto tools on a figure if the displaybase was removed but previously
-        editable on that figure
-        """
-        all_figs = self.is_on()
-        if figs and not all(f in all_figs for f in figs):
-            raise ValueError('Cannot make DiplayBase editable on a '
-                             'figure before adding it to that figure')
-        elif not figs:
-            if not all_figs:
-                raise ValueError('Cannot make DiplayBase editable before adding to figures')
-            figs = all_figs
+def make_editable(
+    display_base: DisplayBase,
+    *figs: BkFigure,
+    add: bool = True,
+    drag: bool = True,
+    tool_name: str = 'default',
+    glyph_name: str = 'points',
+):
+    """
+    If figs is empty, add to all registered figures
+    If no figures, raise
+    If no compatible figures, raise ?
+    If fig in figs does not have this DisplayBase on it, raise
 
-        if not (add or drag):
-            raise ValueError('Cannot make editable without one of add or drag')
+    If fig has
 
-        for fig in figs:
-            matching_tools = [t for t in fig.tools
-                              if (isinstance(t, PointDrawTool)
-                                  and tool_name in t.tags)]
-            if matching_tools:
-                tool = matching_tools[0]
-                # check if add/drag etc are matching
-                # raise if non-matching ??
-            else:
-                tool = get_point_tool(add=add, drag=drag, tool_name=tool_name)
-                fig.add_tools(tool)
+    # TODO Need to handle both the case of .make_editable before
+    .on and .make_editable after .on. Assume that if we make_editable
+    before .on then the caller wants the displaybase to be editable
+    on all future figures. This ties into the idea of re-adding renderers
+    onto tools on a figure if the displaybase was removed but previously
+    editable on that figure
+    """
+    all_figs = display_base.is_on()
+    if figs and not all(f in all_figs for f in figs):
+        raise ValueError('Cannot make DiplayBase editable on a '
+                         'figure before adding it to that figure')
+    elif not figs:
+        if not all_figs:
+            raise ValueError('Cannot make DiplayBase editable before adding to figures')
+        figs = all_figs
 
-            renderers = self.renderers_for_fig('points', fig)
-            for renderer in renderers:
-                tool.renderers.append(renderer)
+    if not (add or drag):
+        raise ValueError('Cannot make editable without one of add or drag')
 
-        return self
+    for fig in figs:
+        matching_tools = [t for t in fig.tools
+                          if (isinstance(t, PointDrawTool)
+                              and tool_name in t.tags)]
+        if matching_tools:
+            tool = matching_tools[0]
+            # check if add/drag etc are matching
+            # raise if non-matching ??
+        else:
+            tool = get_point_tool(add=add, drag=drag, tool_name=tool_name)
+            fig.add_tools(tool)
+
+        renderers = display_base.renderers_for_fig(glyph_name, fig)
+        for renderer in renderers:
+            tool.renderers.append(renderer)
+
+    return display_base
 
 
 class PointSetCons:
@@ -424,13 +437,24 @@ class DiskSet(DisplayBase):
         for fig in self.is_on():
             child.on(fig)
         return self
-    
+
     @property
     def points(self) -> PointSet:
         try:
             return self._children['points'][0]
         except (KeyError, IndexError):
-            raise AttributeError('Must use .add_points() before accessing Points')        
+            raise AttributeError('Must use .add_points() before accessing Points')
+
+    def make_editable(
+        self,
+        *figs: BkFigure,
+        add: bool = True,
+        drag: bool = True,
+        tool_name: str = 'default',
+    ):
+        return make_editable(
+            self, *figs, add=add, drag=drag, tool_name=tool_name, glyph_name='disks'
+        )
 
 
 class DiskSetCons:
