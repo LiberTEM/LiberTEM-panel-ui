@@ -441,7 +441,7 @@ class UIContext:
             windows = list(self.runnable_windows.values())
 
         to_run: list[UDFWindowJob] = [job for window in windows
-                                      if (job := window.get_run(self._state, ds, roi))
+                                      if (job := window.get_job(self._state, ds, roi))
                                       is not None]
 
         if not to_run:
@@ -499,7 +499,7 @@ class UIContext:
         all_results: list[ResultRow] = []
         for job in to_run:
             window_res = tuple(next(res_iter) for _ in job.udfs)
-            results = job.window.set_results(run_record.run_id, job, window_res, damage=damage)
+            results = job.window.complete_job(run_record.run_id, job, window_res, damage=damage)
             all_results.extend(results)
 
         self.notify_new_results(*all_results)

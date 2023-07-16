@@ -112,7 +112,7 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         self._save_btn.on_click(_save_frame)
         self.toolbox.append(self._save_btn)
 
-    def get_run(
+    def get_job(
         self,
         state: UIState,
         dataset: lt.DataSet | AcquisitionProtocol,
@@ -190,15 +190,15 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         if self.can_save:
             self._save_btn.disabled = False
 
-    def set_results(
+    def complete_job(
         self,
         run_id: str,
         job: UDFWindowJob,
         results: tuple[UDFResultDict],
         damage: BufferWrapper | None = None
     ) -> tuple[ResultRow, ...]:
-        if len(job.udfs) <= 1:
-            return
+        if not job.udfs:
+            return tuple()
         window_row = self.results_manager.new_window_run(self, run_id, params=job.params)
         image: np.ndarray = results[1]['intensity'].data
         rc = Numpy2DResultContainer('intensity', image)

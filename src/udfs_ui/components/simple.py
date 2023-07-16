@@ -31,7 +31,7 @@ class SimpleUDFUIWindow(RunnableUIWindow):
         self.inner_layout.append(self._plot.pane)
         return self
 
-    def get_run(
+    def get_job(
         self,
         state: UIState,
         dataset: lt.DataSet | AcquisitionProtocol,
@@ -41,7 +41,7 @@ class SimpleUDFUIWindow(RunnableUIWindow):
             raise RuntimeError('Must initialise plot with .initialize(dataset) before run')
         return UDFWindowJob(self, [self._udf], [self._plot])
 
-    def set_results(
+    def complete_job(
         self,
         run_id: str,
         job: UDFWindowJob,

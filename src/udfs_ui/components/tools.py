@@ -56,7 +56,7 @@ class RecordWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         # Track previous active for a given state
         self._last_active: dict[UIState, bool] = {}
 
-    def get_run(
+    def get_job(
         self,
         state: UIState,
         dataset: lt.DataSet | AcquisitionProtocol,
@@ -89,7 +89,7 @@ class RecordWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         self.inner_layout.append(self.save_dir)
         return self
 
-    def set_results(
+    def complete_job(
         self,
         run_id: str,
         job: UDFWindowJob,

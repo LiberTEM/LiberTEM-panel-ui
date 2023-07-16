@@ -189,7 +189,7 @@ class RunnableUIWindow(ActivateableUIWindow):
         finally:
             self._run_btn.disabled = False
 
-    def get_run(
+    def get_job(
         self,
         state: UIState,
         dataset: lt.DataSet | AcquisitionProtocol,
@@ -197,14 +197,14 @@ class RunnableUIWindow(ActivateableUIWindow):
     ) -> UDFWindowJob | None:
         raise NotImplementedError
 
-    def set_results(
+    def complete_job(
         self,
         run_id: str,
         job: UDFWindowJob,
         results: tuple[UDFResultDict],
         damage: BufferWrapper | None = None
     ) -> tuple[ResultRow, ...]:
-        pass
+        return tuple()
 
 
 class UDFWindowJob(NamedTuple):

@@ -94,7 +94,7 @@ class SingleImagingUDFWindow(RunnableUIWindow):
         self._imaging_plot.udf = self._imaging_udf
         return params
 
-    def get_run(
+    def get_job(
         self,
         state: UIState,
         dataset: lt.DataSet | AcquisitionProtocol,
@@ -111,7 +111,7 @@ class SingleImagingUDFWindow(RunnableUIWindow):
             params=params,
         )
 
-    def set_results(
+    def complete_job(
         self,
         run_id: str,
         job: UDFWindowJob,
