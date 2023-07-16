@@ -73,3 +73,11 @@ class LogSumUDFWindow(SimpleUDFUIWindow, ui_type=UIType.ANALYSIS):
     name = 'logsum_over_frames'
     title_md = 'LogsumUDF'
     udf_class = LogsumUDF
+
+
+class SumBothWindow(RunnableUIWindow, ui_type=UIType.ANALYSIS):
+    name = 'sum_both'
+    title_md = 'Sum dimensions'
+
+    def initialize(self, dataset):
+        raise NotImplementedError('Sum both sig and nav for convenience')
