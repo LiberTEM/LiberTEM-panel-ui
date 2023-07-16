@@ -73,6 +73,20 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         self.nav_plot.fig.toolbar.active_drag = self.nav_plot.fig.tools[-1]
         self.nav_plot.fig.title = 'Scan grid'
 
+        self.nav_select_box = pn.widgets.Select(
+            name='Nav image',
+            options=[],
+        )
+        self.nav_load_btn = pn.widgets.Button(
+            name='Load nav image',
+        )
+        self.nav_load_btn.on_click(self.load_nav_image)
+
+        self._header_layout.extend((
+            self.nav_select_box,
+            self.nav_load_btn,
+        ))
+
         self.toolbox = pn.Column()
         self.inner_layout.extend((
             pn.Column(
@@ -122,8 +136,8 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         cx = int(self._nav_cursor.cds.data['cx'][0])
         cy = int(self._nav_cursor.cds.data['cy'][0])
         pick_idx = np.ravel_multi_index(([cy], [cx]), dataset.shape.nav).item()
-        udfs = [self._udf_sumsig]
-        plots = [self.nav_plot]
+        udfs = []
+        plots = []
         params = {
             'cx': cx,
             'cy': cy,
@@ -200,7 +214,34 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         if not job.udfs:
             return tuple()
         window_row = self.results_manager.new_window_run(self, run_id, params=job.params)
-        image: np.ndarray = results[1]['intensity'].data
+        image: np.ndarray = results[0]['intensity'].data
         rc = Numpy2DResultContainer('intensity', image)
         result = self.results_manager.new_result(rc, run_id, window_row.window_id)
         return (result,)
+
+    def on_results_registered(
+        self,
+        *results: ResultRow,
+    ):
+        new_nav_results_iter = self.results_manager.yield_with_tag('nav', from_rows=results)
+        ids = list(r.result_id for r in new_nav_results_iter)
+        if ids:
+            self.nav_select_box.options = self.nav_select_box.options + ids
+
+    def on_results_deleted(
+        self,
+        *results: ResultRow,
+    ):
+        ids = list(r.result_id for r in results)
+        if set(ids).intersection(self.nav_select_box.options):
+            self.nav_select_box.options = [r
+                                           for r in self.nav_select_box.options
+                                           if r not in ids]
+
+    def load_nav_image(self, *e):
+        selected = self.nav_select_box.value
+        if not selected:
+            return
+        rc = self.results_manager.get_result(selected)
+        self.nav_plot.im.update(rc.data)
+        pn.io.notebook.push_notebook(self.nav_plot.pane)
