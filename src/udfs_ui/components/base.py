@@ -240,13 +240,14 @@ class ImageResultTracker:
         plot: AperturePlot,
         tags: tuple[str, ...],
         select_text: str,
-        plot_initialized: str | None = None,
+        plot_initialized: bool | str = False,
+        auto_refresh: bool = True,
     ):
         self.window = ui_window
         self.plot = plot
         self.tags = tags
         # Records the fact we initialised from a zeros-array
-        self._plot_initialized = plot_initialized
+        self._plot_displayed = plot_initialized
 
         divider = pn.pane.HTML(
             R"""<div></div>""",
@@ -276,7 +277,7 @@ class ImageResultTracker:
         self.load_btn.on_click(self.load_image)
         self.refresh_cbox = pn.widgets.Checkbox(
             name='Auto-refresh',
-            value=True,
+            value=auto_refresh,
             align='center',
         )
 
@@ -309,13 +310,13 @@ class ImageResultTracker:
             self._select_options.keys(),
             key=lambda x: self._select_options[x].run_id
         )))
-        if self._plot_initialized is None:
+        if not self._plot_displayed:
             # Initialize plot from first nav-tagged result
             self.select_box.value = self.select_box.options[0]
             self.load_image()
             return
         if self.refresh_cbox.value:
-            current_display_id = self._plot_initialized
+            current_display_id = self._plot_displayed
             current = self.window.results_manager.get_result_row(current_display_id)
             if current is None:
                 # Result must have been deleted
