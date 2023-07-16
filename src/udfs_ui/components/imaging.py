@@ -6,12 +6,10 @@ import panel as pn
 from libertem.analysis.point import PointMaskAnalysis
 from libertem.analysis.disk import DiskMaskAnalysis
 from libertem.analysis.ring import RingMaskAnalysis
-from libertem.udf.masks import ApplyMasksUDF
 from libertem.udf.sum import SumUDF
-from libertem.udf.logsum import LogsumUDF
 
 from .live_plot import AperturePlot
-from .base import RunnableUIWindow, UIType, UIState, UDFWindowJob
+from .base import RunnableUIWindow, UIType, UIState, UDFWindowJob, ImageResultTracker
 from ..display.display_base import Cursor
 from .result_containers import Numpy2DResultContainer
 
@@ -37,35 +35,36 @@ class SingleImagingUDFWindow(RunnableUIWindow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._imaging_udf: ApplyMasksUDF = None
-        self._view_plot: AperturePlot = None
-        self._imaging_plot: AperturePlot = None
-
-        self._view_udfs = {
-            'Sum': (SumUDF(), 'intensity'),
-            'LogSum': (LogsumUDF(), 'logsum'),
-        }
-        self._view_select = pn.widgets.Select(
-            name='View UDF select',
-            options=list(self._view_udfs.keys()),
-            value='Sum',
-        )
-        self._view_udf: LogsumUDF | SumUDF = self._view_udfs[self._view_select.value][0]
         self._toolbox = pn.Column()
         self.inner_layout.append(self._toolbox)
-        self.toolbox.append(self._view_select)
 
     @property
     def toolbox(self):
         return self._toolbox
 
     def initialize(self, dataset: lt.DataSet):
-        self._sig_plot = AperturePlot.new(dataset, self._view_udf)
+        self._sig_plot = AperturePlot.new(
+            dataset,
+            SumUDF(),
+            title='Sig',
+        )
         self.setup_cursor(dataset)
         mask_analysis = self.analysis_class(dataset, self._get_analysis_params())
         self._imaging_udf = mask_analysis.get_udf()
-        self._imaging_plot = AperturePlot.new(dataset, self._imaging_udf)
+        self._imaging_plot = AperturePlot.new(
+            dataset,
+            self._imaging_udf,
+            title='Virtual image',
+        )
         self.inner_layout.extend((self._sig_plot.pane, self._imaging_plot.pane))
+
+        self.sig_plot_tracker = ImageResultTracker(
+            self,
+            self._sig_plot,
+            tags=('sig',),
+            select_text='Sig image',
+        )
+
         return self
 
     def _get_analysis_params(self):
@@ -82,11 +81,6 @@ class SingleImagingUDFWindow(RunnableUIWindow):
         self._sig_cursor.make_editable()
         fig_sig.toolbar.active_drag = fig_sig.tools[-1]
 
-    def update_view_udf(self):
-        self._view_udf, channel = self._view_udfs[self._view_select.value]
-        self._sig_plot.udf = self._view_udf
-        self._sig_plot.channel = channel
-
     def update_imaging_udf(self, ds):
         params = self._get_analysis_params()
         analysis = self.analysis_class(ds, params)
@@ -102,11 +96,10 @@ class SingleImagingUDFWindow(RunnableUIWindow):
     ):
         if self._imaging_plot is None:
             raise RuntimeError('Must initialise plot with .initialize(dataset) before run')
-        self.update_view_udf()
         params = self.update_imaging_udf(dataset)
         return UDFWindowJob(
             self,
-            [self._view_udf, self._imaging_udf],
+            [self._imaging_udf],
             [self._imaging_plot],
             params=params,
         )
@@ -119,12 +112,23 @@ class SingleImagingUDFWindow(RunnableUIWindow):
         damage: BufferWrapper | None = None
     ) -> tuple[ResultRow, ...]:
         window_row = self.results_manager.new_window_run(self, run_id, params=job.params)
-        buffer = results[1]['intensity']
+        buffer = results[0]['intensity']
         image: np.ndarray = buffer.data[..., 0]
         rc = Numpy2DResultContainer('intensity', image, params={'tags': (buffer.kind,)})
         result = self.results_manager.new_result(rc, run_id, window_row.window_id)
-        self._sig_plot.new_data(results[0], damage, force=True)
         return (result,)
+
+    def on_results_registered(
+        self,
+        *results: ResultRow,
+    ):
+        self.sig_plot_tracker.on_results_registered(*results)
+
+    def on_results_deleted(
+        self,
+        *results: ResultRow,
+    ):
+        self.sig_plot_tracker.on_results_deleted(*results)
 
 
 class PointImagingWindow(SingleImagingUDFWindow, ui_type=UIType.ANALYSIS):
