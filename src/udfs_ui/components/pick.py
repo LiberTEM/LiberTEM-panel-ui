@@ -3,14 +3,13 @@ import numpy as np
 from typing import TYPE_CHECKING
 
 import panel as pn
-from bidict import bidict
 import libertem.api as lt
 from libertem.udf.raw import PickUDF
 from libertem.udf.sumsigudf import SumSigUDF
 from libertem.udf.base import UDF, UDFResultDict
 
 from .live_plot import AperturePlot
-from .base import RunnableUIWindow, UIType, UIState, UDFWindowJob
+from .base import RunnableUIWindow, UIType, UIState, UDFWindowJob, ImageResultTracker
 from ..display.display_base import Cursor
 from .imaging import get_initial_pos
 from .result_containers import Numpy2DResultContainer
@@ -67,8 +66,6 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
             self._udf_sumsig,
             title='Scan grid',
         )
-        # Records the fact we initialised from a zeros-array
-        self._nav_plot_displayed: str | None = None
 
         (ny, nx), _, _ = get_initial_pos(dataset.shape.nav)
         self._nav_cursor = Cursor.new().from_pos(nx, ny)
@@ -76,46 +73,6 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         self._nav_cursor.make_editable()
         self._nav_cursor.cds.on_change('data', self._run_pick)
         self.nav_plot.fig.toolbar.active_drag = self.nav_plot.fig.tools[-1]
-
-        nav_divider = pn.pane.HTML(
-            R"""<div></div>""",
-            styles={
-                'border-left': '2px solid #757575',
-                'height': '35px',
-            }
-        )
-        nav_select_text = pn.widgets.StaticText(
-            value='Nav display:',
-            align='center',
-            margin=(5, 5, 5, 5),
-        )
-        self._nav_select_options: bidict[str, ResultRow] = bidict({})
-        self.nav_select_box = pn.widgets.Select(
-            options=list(self._nav_select_options.keys()),
-            width=200,
-            max_width=300,
-            width_policy='min',
-            align='center',
-        )
-        self.nav_load_btn = pn.widgets.Button(
-            name='Load image',
-            align='center',
-            button_type='primary',
-        )
-        self.nav_load_btn.on_click(self.load_nav_image)
-        self.nav_refresh_cbox = pn.widgets.Checkbox(
-            name='Auto-refresh',
-            value=True,
-            align='center',
-        )
-
-        self._header_layout.extend((
-            nav_divider,
-            nav_select_text,
-            self.nav_select_box,
-            self.nav_load_btn,
-            self.nav_refresh_cbox,
-        ))
 
         self.toolbox = pn.Column()
         self.inner_layout.extend((
@@ -130,6 +87,13 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
 
         if self.can_save:
             self.add_save()
+
+        self.nav_plot_tracker = ImageResultTracker(
+            self,
+            self.nav_plot,
+            ('nav',),
+            'Nav image',
+        )
 
         return self
 
@@ -249,68 +213,14 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         result = self.results_manager.new_result(rc, run_id, window_row.window_id)
         return (result,)
 
-    def _select_result_name(self, result: ResultRow):
-        return (f'[{result.run_id}]: {result.result_id}, '
-                f'{self.results_manager.get_window(result.window_id).window_name}')
-
     def on_results_registered(
         self,
         *results: ResultRow,
     ):
-        new_nav_results = tuple(
-            self.results_manager.yield_with_tag('nav', from_rows=results)
-        )
-        if not new_nav_results:
-            return
-        self._nav_select_options.update({
-            self._select_result_name(r): r
-            for r in new_nav_results
-        })
-        self.nav_select_box.options = list(reversed(sorted(
-            self._nav_select_options.keys(),
-            key=lambda x: self._nav_select_options[x].run_id
-        )))
-        if self._nav_plot_displayed is None:
-            # Initialize plot from first nav-tagged result
-            self.nav_select_box.value = self.nav_select_box.options[0]
-            self.load_image()
-            return
-        if self.nav_refresh_cbox.value:
-            current_display_id = self._nav_plot_displayed
-            current = self.results_manager.get_result_row(current_display_id)
-            if current is None:
-                # Result must have been deleted
-                return
-            possible_results = tuple(
-                r for r in new_nav_results
-                if (r.window_id == current.window_id) and (r.name == current.name)
-            )
-            if not possible_results:
-                return
-            # Take the first, result names are supposed to be unique!
-            self.nav_select_box.value = self._nav_select_options.inverse[possible_results[0]]
-            self.load_image()
+        self.nav_plot_tracker.on_results_registered(*results)
 
     def on_results_deleted(
         self,
         *results: ResultRow,
     ):
-        for r in results:
-            _ = self._nav_select_options.inverse.pop(r, None)
-        self.nav_select_box.options = list(self._nav_select_options.keys())
-        self.logger.info(self.nav_select_box.options)
-
-    def load_image(self, *e):
-        selected: str = self.nav_select_box.value
-        if not selected:
-            return
-        result_row = self._nav_select_options.get(selected, None)
-        if result_row is None:
-            return
-        rc = self.results_manager.get_result_container(result_row.result_id)
-        if rc is None:
-            return
-        self.nav_plot.im.update(rc.data)
-        self.nav_plot.fig.title.text = f'Scan grid - {result_row.result_id}'
-        self._nav_plot_displayed = result_row.result_id
-        pn.io.notebook.push_notebook(self.nav_plot.pane)
+        self.nav_plot_tracker.on_results_deleted(*results)
