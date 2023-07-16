@@ -54,9 +54,9 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
             dataset,
             self._udf_pick,
             roi=roi,
-            channel=('intensity', lambda buffer: buffer.squeeze())
+            channel=('intensity', lambda buffer: buffer.squeeze()),
+            title='Pick frame',
         )
-        self.pick_plot.fig.title = 'Pick frame'
         self._last_pick = (None, None)
         self._udf_plots = [self.pick_plot]
 
@@ -64,9 +64,10 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         self.nav_plot = AperturePlot.new(
             dataset,
             self._udf_sumsig,
+            title='Scan grid',
         )
         # Records the fact we initialised from a zeros-array
-        self._nav_plot_init = False
+        self._nav_plot_displayed: str | None = None
 
         (ny, nx), _, _ = get_initial_pos(dataset.shape.nav)
         self._nav_cursor = Cursor.new().from_pos(nx, ny)
@@ -74,7 +75,6 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         self._nav_cursor.make_editable()
         self._nav_cursor.cds.on_change('data', self._run_pick)
         self.nav_plot.fig.toolbar.active_drag = self.nav_plot.fig.tools[-1]
-        self.nav_plot.fig.title = 'Scan grid'
 
         nav_divider = pn.pane.HTML(
             R"""<div></div>""",
@@ -256,14 +256,13 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         if not ids:
             return
         self.nav_select_box.options = self.nav_select_box.options + ids
-        if not self._nav_plot_init:
+        if self._nav_plot_displayed is None:
             # Initialize plot from first nav-tagged result
             self.nav_select_box.value = ids[0]
             self.load_nav_image()
-            self._nav_plot_init = True
             return
         if self.nav_refresh_cbox.value:
-            current_display_id = self.nav_select_box.value
+            current_display_id = self._nav_plot_displayed
             current = self.results_manager.get_result_row(current_display_id)
             if current is None:
                 # Result must have been deleted
@@ -289,11 +288,13 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
                                            if r not in ids]
 
     def load_nav_image(self, *e):
-        selected = self.nav_select_box.value
+        selected: str = self.nav_select_box.value
         if not selected:
             return
         rc = self.results_manager.get_result_container(selected)
         if rc is None:
             return
         self.nav_plot.im.update(rc.data)
+        self.nav_plot.fig.title.text = f'Scan grid - {selected}'
+        self._nav_plot_displayed = selected
         pn.io.notebook.push_notebook(self.nav_plot.pane)

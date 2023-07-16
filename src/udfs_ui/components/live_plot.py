@@ -62,9 +62,21 @@ class AperturePlot(Live2DPlot):
         self._im = im
 
     @classmethod
-    def new(cls, dataset, udf, maxdim=400, mindim=20, roi=None, channel=None):
-        plot = cls(dataset, udf, roi=roi, channel=channel)
-        fig = figure()
+    def new(
+        cls,
+        dataset,
+        udf,
+        *,
+        maxdim=400,
+        mindim=20,
+        roi=None,
+        channel=None,
+        title=''
+    ):
+        # Live plot gets a None title if not specified so it keeps its default
+        plot = cls(dataset, udf, roi=roi, channel=channel, title=title if len(title) else None)
+        # Bokeh needs a string title, however, so gets the default ''
+        fig = figure(title=title)
         im = BokehImage.new().from_numpy(plot.data)
         im.on(fig)
         plot.set_plot(fig=fig, im=im)
