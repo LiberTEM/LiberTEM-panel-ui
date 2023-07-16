@@ -73,16 +73,35 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         self.nav_plot.fig.toolbar.active_drag = self.nav_plot.fig.tools[-1]
         self.nav_plot.fig.title = 'Scan grid'
 
+        nav_divider = pn.pane.HTML(
+            R"""<div></div>""",
+            styles={
+                'border-left': '2px solid #757575',
+                'height': '35px',
+            }
+        )
+        nav_select_text = pn.widgets.StaticText(
+            value='Nav display:',
+            align='center',
+            margin=(5, 5, 5, 5),
+        )
         self.nav_select_box = pn.widgets.Select(
-            name='Nav image',
             options=[],
+            width=200,
+            max_width=300,
+            width_policy='min',
+            align='center',
         )
         self.nav_load_btn = pn.widgets.Button(
             name='Load nav image',
+            align='center',
+            button_type='primary',
         )
         self.nav_load_btn.on_click(self.load_nav_image)
 
         self._header_layout.extend((
+            nav_divider,
+            nav_select_text,
             self.nav_select_box,
             self.nav_load_btn,
         ))

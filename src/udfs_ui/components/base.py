@@ -36,7 +36,10 @@ class RemoveActivateHeaderMixin:
     be removable or be disable/activate-able
     """
     def build_header_layout(self):
-        self._title_text = pn.pane.Markdown(object=f'### {self.title_md}')
+        self._title_text = pn.pane.Markdown(
+            object=f'### {self.title_md}',
+            align='center',
+        )
         self._id_text = pn.widgets.StaticText(
             value=f'(<b>{self._ident}</b>)',
             align='center',
