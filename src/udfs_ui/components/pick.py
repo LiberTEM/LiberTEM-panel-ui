@@ -101,12 +101,18 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
             button_type='primary',
         )
         self.nav_load_btn.on_click(self.load_nav_image)
+        self.nav_refresh_cbox = pn.widgets.Checkbox(
+            name='Auto-refresh',
+            value=True,
+            align='center',
+        )
 
         self._header_layout.extend((
             nav_divider,
             nav_select_text,
             self.nav_select_box,
             self.nav_load_btn,
+            self.nav_refresh_cbox,
         ))
 
         self.toolbox = pn.Column()
@@ -245,8 +251,8 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         self,
         *results: ResultRow,
     ):
-        new_nav_results_iter = self.results_manager.yield_with_tag('nav', from_rows=results)
-        ids = list(r.result_id for r in new_nav_results_iter)
+        new_nav_results = tuple(self.results_manager.yield_with_tag('nav', from_rows=results))
+        ids = list(r.result_id for r in new_nav_results)
         if not ids:
             return
         self.nav_select_box.options = self.nav_select_box.options + ids
@@ -255,6 +261,22 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
             self.nav_select_box.value = ids[0]
             self.load_nav_image()
             self._nav_plot_init = True
+            return
+        if self.nav_refresh_cbox.value:
+            current_display_id = self.nav_select_box.value
+            current = self.results_manager.get_result_row(current_display_id)
+            if current is None:
+                # Result must have been deleted
+                return
+            possible_results = tuple(
+                r for r in new_nav_results
+                if (r.window_id == current.window_id) and (r.name == current.name)
+            )
+            if not possible_results:
+                return
+            # Take the first, result names are supposed to be unique!
+            self.nav_select_box.value = possible_results[0].result_id
+            self.load_nav_image()
 
     def on_results_deleted(
         self,
@@ -270,7 +292,7 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         selected = self.nav_select_box.value
         if not selected:
             return
-        rc = self.results_manager.get_result(selected)
+        rc = self.results_manager.get_result_container(selected)
         if rc is None:
             return
         self.nav_plot.im.update(rc.data)

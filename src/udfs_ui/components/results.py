@@ -217,8 +217,14 @@ class ResultsManager:
             except (IndexError, KeyError):
                 yield fill_value
 
-    def get_result(self, result_id: str) -> ResultContainer | None:
+    def get_result_container(self, result_id: str) -> ResultContainer | None:
         return self._result_data.get(result_id, None)
+
+    def get_result_row(self, result_id: str) -> ResultRow | None:
+        for row in self._results:
+            if row.result_id == result_id:
+                return row
+        return None
 
     def delete_result(self, result_id: str) -> ResultContainer | None:
         rc = self._result_data.pop(result_id, None)
@@ -235,7 +241,7 @@ class ResultsManager:
         include_empty: bool = True
     ) -> dict[str, Any] | None:
         combined_params = {}
-        rc = self.get_result(result_id)
+        rc = self.get_result_container(result_id)
         if rc is None:
             return
         result_row = tuple(r for r in self._results if r.result_id == result_id)[0]
@@ -336,7 +342,7 @@ class ResultsManager:
             if e.column != 'show_btn':
                 return
             row: pd.Series = df_widget.value.iloc[e.row]
-            rc = self.get_result(row.name)
+            rc = self.get_result_container(row.name)
             if rc is None:
                 return
             _do_clear_show(e)
