@@ -235,6 +235,12 @@ class ResultsManager:
                 return row
         return None
 
+    def get_window(self, window_id: str) -> WindowRow | None:
+        for row in self._windows:
+            if row.window_id == window_id:
+                return row
+        return None
+
     def delete_result(self, result_id: str) -> ResultContainer | None:
         rc = self._result_data.pop(result_id, None)
         if rc is None:

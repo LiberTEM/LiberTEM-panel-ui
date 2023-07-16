@@ -2,8 +2,9 @@ from __future__ import annotations
 import numpy as np
 from typing import TYPE_CHECKING
 
-import libertem.api as lt
 import panel as pn
+from bidict import bidict
+import libertem.api as lt
 from libertem.udf.raw import PickUDF
 from libertem.udf.sumsigudf import SumSigUDF
 from libertem.udf.base import UDF, UDFResultDict
@@ -88,8 +89,9 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
             align='center',
             margin=(5, 5, 5, 5),
         )
+        self._nav_select_options: bidict[str, ResultRow] = bidict({})
         self.nav_select_box = pn.widgets.Select(
-            options=[],
+            options=list(self._nav_select_options.keys()),
             width=200,
             max_width=300,
             width_policy='min',
@@ -247,18 +249,27 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         result = self.results_manager.new_result(rc, run_id, window_row.window_id)
         return (result,)
 
+    def _select_result_name(self, result: ResultRow):
+        return (f'[{result.run_id}]: {result.result_id}, '
+                f'{self.results_manager.get_window(result.window_id).window_name}')
+
     def on_results_registered(
         self,
         *results: ResultRow,
     ):
-        new_nav_results = tuple(self.results_manager.yield_with_tag('nav', from_rows=results))
-        ids = list(r.result_id for r in new_nav_results)
-        if not ids:
+        new_nav_results = tuple(
+            self.results_manager.yield_with_tag('nav', from_rows=results)
+        )
+        if not new_nav_results:
             return
-        self.nav_select_box.options = self.nav_select_box.options + ids
+        self._nav_select_options.update({
+            self._select_result_name(r): r
+            for r in new_nav_results
+        })
+        self.nav_select_box.options = list(self._nav_select_options.keys())
         if self._nav_plot_displayed is None:
             # Initialize plot from first nav-tagged result
-            self.nav_select_box.value = ids[0]
+            self.nav_select_box.value = self.nav_select_box.options[0]
             self.load_nav_image()
             return
         if self.nav_refresh_cbox.value:
@@ -274,27 +285,29 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
             if not possible_results:
                 return
             # Take the first, result names are supposed to be unique!
-            self.nav_select_box.value = possible_results[0].result_id
+            self.nav_select_box.value = self._nav_select_options.inverse[possible_results[0]]
             self.load_nav_image()
 
     def on_results_deleted(
         self,
         *results: ResultRow,
     ):
-        ids = list(r.result_id for r in results)
-        if set(ids).intersection(self.nav_select_box.options):
-            self.nav_select_box.options = [r
-                                           for r in self.nav_select_box.options
-                                           if r not in ids]
+        for r in results:
+            _ = self._nav_select_options.inverse.pop(r, None)
+        self.nav_select_box.options = list(self._nav_select_options.keys())
+        self.logger.info(self.nav_select_box.options)
 
     def load_nav_image(self, *e):
         selected: str = self.nav_select_box.value
         if not selected:
             return
-        rc = self.results_manager.get_result_container(selected)
+        result_row = self._nav_select_options.get(selected, None)
+        if result_row is None:
+            return
+        rc = self.results_manager.get_result_container(result_row.result_id)
         if rc is None:
             return
         self.nav_plot.im.update(rc.data)
-        self.nav_plot.fig.title.text = f'Scan grid - {selected}'
-        self._nav_plot_displayed = selected
+        self.nav_plot.fig.title.text = f'Scan grid - {result_row.result_id}'
+        self._nav_plot_displayed = result_row.result_id
         pn.io.notebook.push_notebook(self.nav_plot.pane)
