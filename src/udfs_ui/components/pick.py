@@ -60,10 +60,9 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         self._last_pick = (None, None)
         self._udf_plots = [self.pick_plot]
 
-        self._udf_sumsig = SumSigUDF()
         self.nav_plot = AperturePlot.new(
             dataset,
-            self._udf_sumsig,
+            SumSigUDF(),
             title='Scan grid',
         )
 
