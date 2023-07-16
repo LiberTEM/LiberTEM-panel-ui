@@ -32,6 +32,15 @@ class ResultRow(NamedTuple):
     result_type: type[ResultContainer]
     result_repr: str
 
+    def __hash__(self) -> int:
+        return hash(self.result_id)
+
+    def __eq__(self, other) -> bool:
+        try:
+            self.result_id == other.result_id
+        except AttributeError:
+            raise NotImplementedError('Cannot compare')
+
 
 class WindowRow(NamedTuple):
     window_id: str
