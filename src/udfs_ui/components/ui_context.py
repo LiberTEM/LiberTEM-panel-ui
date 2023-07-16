@@ -132,6 +132,7 @@ class UIContext:
         self._continuous_acquire = False
         self._removed_from_options: dict[str, pn.widgets.Select] = {}
         self._results_manager = ResultsManager()
+        self._results_manager.add_watcher(self)
         self._logger = UILog()
 
     def log_window(self, with_reload: bool = True):
