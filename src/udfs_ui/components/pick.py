@@ -65,6 +65,9 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
             dataset,
             self._udf_sumsig,
         )
+        # Records the fact we initialised from a zeros-array
+        self._nav_plot_init = False
+
         (ny, nx), _, _ = get_initial_pos(dataset.shape.nav)
         self._nav_cursor = Cursor.new().from_pos(nx, ny)
         self._nav_cursor.on(self.nav_plot.fig)
@@ -244,8 +247,14 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
     ):
         new_nav_results_iter = self.results_manager.yield_with_tag('nav', from_rows=results)
         ids = list(r.result_id for r in new_nav_results_iter)
-        if ids:
-            self.nav_select_box.options = self.nav_select_box.options + ids
+        if not ids:
+            return
+        self.nav_select_box.options = self.nav_select_box.options + ids
+        if not self._nav_plot_init:
+            # Initialize plot from first nav-tagged result
+            self.nav_select_box.value = ids[0]
+            self.load_nav_image()
+            self._nav_plot_init = True
 
     def on_results_deleted(
         self,
@@ -262,5 +271,7 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         if not selected:
             return
         rc = self.results_manager.get_result(selected)
+        if rc is None:
+            return
         self.nav_plot.im.update(rc.data)
         pn.io.notebook.push_notebook(self.nav_plot.pane)
