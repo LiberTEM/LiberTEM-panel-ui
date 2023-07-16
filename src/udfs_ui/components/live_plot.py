@@ -1,3 +1,4 @@
+from __future__ import annotations
 import panel as pn
 from ..display.image_db import BokehImage
 from bokeh.plotting import figure
@@ -28,19 +29,37 @@ def adapt_figure(fig, im, shape, mindim, maxdim):
 class AperturePlot(Live2DPlot):
     def __init__(self, *args, min_delta=0.25, **kwargs):
         super().__init__(*args, min_delta=min_delta, **kwargs)
-        self.pane = None
-        self.fig = None
-        self.im = None
+        self._pane: pn.pane.Bokeh | None = None
+        self._fig: figure | None = None
+        self._im: BokehImage | None = None
 
-    def set_plot(self, *, plot=None, fig=None, im=None):
+    @property
+    def pane(self) -> pn.pane.Bokeh | None:
+        return self._pane
+
+    @property
+    def fig(self) -> figure | None:
+        return self._fig
+
+    @property
+    def im(self) -> BokehImage | None:
+        return self._im
+
+    def set_plot(
+        self,
+        *,
+        plot: 'AperturePlot' | None = None,
+        fig: figure | None = None,
+        im: BokehImage | None = None
+    ):
         if plot is not None:
-            self.pane = plot.pane
+            self._pane = plot.pane
             fig = plot.fig
             im = plot.im
         else:
-            self.pane = pn.pane.Bokeh(fig)
-        self.fig = fig
-        self.im = im
+            self._pane = pn.pane.Bokeh(fig)
+        self._fig = fig
+        self._im = im
 
     @classmethod
     def new(cls, dataset, udf, maxdim=400, mindim=20, roi=None, channel=None):
