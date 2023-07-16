@@ -50,8 +50,9 @@ class SimpleUDFUIWindow(RunnableUIWindow):
     ) -> tuple[ResultRow, ...]:
         window_row = self.results_manager.new_window_run(self, run_id, params=job.params)
         channel = self._plot.channel
-        image: np.ndarray = results[0][channel].data
-        rc = Numpy2DResultContainer(channel, image)
+        buffer = results[0][channel]
+        image: np.ndarray = buffer.data
+        rc = Numpy2DResultContainer(channel, image, {'tags': (buffer.kind,)})
         result = self.results_manager.new_result(rc, run_id, window_row.window_id)
         return (result,)
 

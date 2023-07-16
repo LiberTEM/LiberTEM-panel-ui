@@ -119,8 +119,9 @@ class SingleImagingUDFWindow(RunnableUIWindow):
         damage: BufferWrapper | None = None
     ) -> tuple[ResultRow, ...]:
         window_row = self.results_manager.new_window_run(self, run_id, params=job.params)
-        image: np.ndarray = results[1]['intensity'].data[..., 0]
-        rc = Numpy2DResultContainer('intensity', image)
+        buffer = results[1]['intensity']
+        image: np.ndarray = buffer.data[..., 0]
+        rc = Numpy2DResultContainer('intensity', image, params={'tags': (buffer.kind,)})
         result = self.results_manager.new_result(rc, run_id, window_row.window_id)
         self._sig_plot.new_data(results[0], damage, force=True)
         return (result,)
