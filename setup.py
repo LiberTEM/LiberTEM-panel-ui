@@ -26,6 +26,7 @@ setup(
         "libertem @ git+https://github.com/LiberTEM/LiberTEM.git@master",
         "libertem-live",
         "humanize",
+        "bidict",
     ],
     extra_requires={
         "lt": [
