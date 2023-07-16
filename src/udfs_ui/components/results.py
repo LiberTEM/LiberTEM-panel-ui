@@ -463,3 +463,35 @@ class ResultsManager:
             min_height=250,
             width=400,
         )
+
+    def yield_with_tag(
+        self,
+        *tags,
+        match_all: bool = False,
+        from_rows: tuple[ResultRow] | None = None,
+    ):
+        tags = set(tags)
+        if not tags:
+            raise ValueError('Need at least one tag to search')
+        result_iter = self._results
+        if from_rows is not None:
+            assert len(from_rows) > 0, "Must supply rows to search"
+            result_iter = from_rows
+        for result in result_iter:
+            result_tags = set(result.params.get('tags', []))
+            if not result_tags:
+                continue
+            intersection = tags.intersection(result_tags)
+            if not intersection:
+                continue
+            elif match_all and len(intersection) != len(tags):
+                continue
+            else:
+                yield result
+
+    def yield_of_type(
+        self,
+        *result_type: type[ResultContainer],
+        from_rows: tuple[ResultRow] | None = None,
+    ):
+        raise NotImplementedError
