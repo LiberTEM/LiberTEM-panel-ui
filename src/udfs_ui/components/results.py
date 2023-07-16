@@ -224,7 +224,10 @@ class ResultsManager:
         rc = self._result_data.pop(result_id, None)
         if rc is None:
             return
+        deleted_rows = list(r for r in self._results if r.result_id == result_id)
         self._results = list(r for r in self._results if r.result_id != result_id)
+        for w in self._watchers:
+            w.notify_deleted_results(*deleted_rows)
         return rc
 
     def get_combined_params(
