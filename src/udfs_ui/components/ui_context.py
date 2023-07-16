@@ -505,4 +505,9 @@ class UIContext:
         self.notify_new_results(*all_results)
 
     def notify_new_results(self, *results: ResultRow):
-        ...
+        for window in self._windows.values():
+            window.on_results_registered(*results)
+
+    def notify_deleted_results(self, *results: ResultRow):
+        for window in self._windows.values():
+            window.on_results_deleted(*results)

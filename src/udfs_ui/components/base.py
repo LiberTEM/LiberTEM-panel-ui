@@ -155,6 +155,18 @@ class UIWindow:
         # to initialize itself
         raise NotImplementedError
 
+    def on_results_registered(
+        self,
+        *results: ResultRow,
+    ):
+        pass
+
+    def on_results_deleted(
+        self,
+        *results: ResultRow,
+    ):
+        pass
+
 
 class ActivateableUIWindow(RemoveActivateHeaderMixin, UIWindow):
     ...
