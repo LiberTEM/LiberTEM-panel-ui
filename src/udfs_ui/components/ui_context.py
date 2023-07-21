@@ -491,7 +491,11 @@ class UIContext:
         if self._continue_running:
             proc_time = time.time() - tstart
             # Does not account for any ROI
-            data_rate = (ds.meta.shape.size * np.dtype(ds.meta.raw_dtype).itemsize) / proc_time
+            try:
+                data_rate = (ds.meta.shape.size * np.dtype(ds.meta.raw_dtype).itemsize) / proc_time
+            except (TypeError, ValueError, AttributeError):
+                # Missing or wrong values on dataset implementation
+                data_rate = float('nan')
             self.logger.info(f'End run, completed in {proc_time:.3f} seconds '
                              f'({naturalsize(data_rate)}/s)')
 
