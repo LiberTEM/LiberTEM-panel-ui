@@ -2,6 +2,7 @@ from __future__ import annotations
 import asyncio
 import uuid
 import time
+from humanize import naturalsize
 import numpy as np
 import panel as pn
 from typing import Callable, TYPE_CHECKING, Type
@@ -488,7 +489,11 @@ class UIContext:
             self._logger.log_from_exception(err, reraise=True)
 
         if self._continue_running:
-            self.logger.info(f'End run, completed in {time.time() - tstart:.3f} seconds')
+            proc_time = time.time() - tstart
+            # Does not account for any ROI
+            data_rate = (ds.meta.shape.size * np.dtype(ds.meta.raw_dtype).itemsize) / proc_time
+            self.logger.info(f'End run, completed in {proc_time:.3f} seconds '
+                             f'({naturalsize(data_rate)}/s)')
 
         run_record = self.results_manager.new_run(
             has_roi=roi is not None,
