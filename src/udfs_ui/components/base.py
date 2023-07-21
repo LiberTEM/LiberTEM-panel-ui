@@ -1,5 +1,6 @@
 from __future__ import annotations
 import uuid
+import asyncio
 from enum import Enum
 from typing import TYPE_CHECKING, TypeVar, NamedTuple, Any
 
@@ -204,6 +205,9 @@ class RunnableUIWindow(ActivateableUIWindow):
             await self._ui_context._run_handler(*e, windows=[self])
         finally:
             self._run_btn.disabled = False
+
+    def run_this_bk(self, attr, old, new):
+        asyncio.gather(self.run_this())
 
     def get_job(
         self,
