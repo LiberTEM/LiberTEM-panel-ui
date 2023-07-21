@@ -6,7 +6,6 @@ import panel as pn
 import libertem.api as lt
 from libertem.udf.raw import PickUDF
 from libertem.udf.sumsigudf import SumSigUDF
-from libertem.udf.base import UDF, UDFResultDict
 
 from .live_plot import AperturePlot
 from .base import RunnableUIWindow, UIType, UIState, UDFWindowJob, ImageResultTracker
@@ -15,34 +14,16 @@ from .imaging import get_initial_pos
 from .result_containers import Numpy2DResultContainer
 
 if TYPE_CHECKING:
+    from libertem.udf.base import UDFResultDict
     from libertem.common.buffers import BufferWrapper
-    from libertem.io.dataset.base.tiling import DataTile
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from .results import ResultRow
-
-
-class PickNoROIUDF(UDF):
-    def get_result_buffers(self) -> dict[str, BufferWrapper]:
-        return {
-            'intensity': self.buffer(kind='sig'),
-        }
-
-    def process_tile(self, tile: DataTile):
-        sl = self.meta.slice
-        nav_start = sl.origin[0]
-        nav_end = nav_start + sl.shape[0]  # check for +1 ??
-        # Expects self.params.pick_idx to already be in ROI-reduced form
-        if nav_start <= self.params.pick_idx < nav_end:
-            self.results.intensity[:] += tile[self.params.pick_idx - nav_start, ...]
-
-    def merge(self, dest, src):
-        dest.intensity += src.intensity
 
 
 class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
     name = 'pick_frame'
     title_md = 'PickUDF'
-    can_self_run = False
+    can_self_run = True
     can_save = True
     pick_cls = PickUDF
 
@@ -70,7 +51,7 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         self._nav_cursor = Cursor.new().from_pos(nx, ny)
         self._nav_cursor.on(self.nav_plot.fig)
         self._nav_cursor.make_editable()
-        self._nav_cursor.cds.on_change('data', self._run_pick)
+        self._nav_cursor.cds.on_change('data', self.run_this_bk)
         self.nav_plot.fig.toolbar.active_drag = self.nav_plot.fig.tools[-1]
 
         self.toolbox = pn.Column()
@@ -125,32 +106,44 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         dataset: lt.DataSet | AcquisitionProtocol,
         roi: np.ndarray | None,
     ):
+        if state == UIState.LIVE:
+            return
 
-        cx = int(self._nav_cursor.cds.data['cx'][0])
-        cy = int(self._nav_cursor.cds.data['cy'][0])
-        pick_idx = np.ravel_multi_index(([cy], [cx]), dataset.shape.nav).item()
-        udfs = []
-        plots = []
+        # Proceed even if ROI is not None, if this is the only window
+        # then the global ROI, if any, will be ignored
+        # if roi is not None:
+        #     return
+
+        coords = self._should_pick(dataset, self._nav_cursor.cds.data)
+        if not coords:
+            return
+        cx, cy = coords
+
+        # import sparse
+        # roi = sparse.COO(
+        #     np.asarray([(cy,), (cx,)]),
+        #     True,
+        #     shape=dataset.shape.nav,
+        # )
+        # sparse deactivated because of import / first-run lag
+        roi = np.zeros(
+            dataset.shape.nav,
+            dtype=bool,
+        )
+        roi[cy, cx] = True
+
         params = {
             'cx': cx,
             'cy': cy,
         }
 
-        if roi is not None:
-            if roi[cy, cx]:
-                # This is quite untested!
-                pick_idx = np.cumsum(roi.ravel())[pick_idx] - 1
-            else:
-                pick_idx = None
-
-        if pick_idx is not None:
-            udfs.append(PickNoROIUDF(pick_idx=pick_idx))
-            plots.append(self.pick_plot)
-            self.pick_plot.udf = udfs[-1]
-            if self.can_save:
-                self._save_btn.disabled = True
-
-        return UDFWindowJob(self, udfs, plots, params=params)
+        return UDFWindowJob(
+            self,
+            [self.pick_plot.udf],
+            [self.pick_plot],
+            params=params,
+            roi=roi,
+        )
 
     @staticmethod
     def _should_pick(ds: lt.DataSet, data: dict):
@@ -164,40 +157,6 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
             return False
         return (x, y)
 
-    def _run_pick(self, attr, old, new):
-        ui_state = self._ui_context._state
-        if ui_state == UIState.LIVE:
-            return
-
-        ctx = self._ui_context._resources.get_ctx(ui_state)
-        ds = self._ui_context._resources.get_ds_for_run(
-            ui_state,
-            self._ui_context.current_ds_ident
-        )
-        if ds is None:
-            return
-
-        coords = self._should_pick(ds, new)
-        if not coords:
-            return
-        x, y = coords
-        roi = np.zeros(ds.shape.nav, dtype=bool)
-        roi[y, x] = True
-        # progress causes notable lag
-        self.pick_plot.udf = self._udf_pick
-        res = ctx.run_udf(
-            dataset=ds,
-            udf=self._udf_pick,
-            roi=roi,
-            sync=True,
-            plots=self._udf_plots,
-            progress=False
-        )
-        self.pick_plot.fig.title.text = f'{self.pick_plot.title} - {(y, x)}'
-        self._last_pick = (res, {'cx': x, 'cy': y})
-        if self.can_save:
-            self._save_btn.disabled = False
-
     def complete_job(
         self,
         run_id: str,
@@ -207,11 +166,26 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
     ) -> tuple[ResultRow, ...]:
         if not job.udfs:
             return tuple()
-        window_row = self.results_manager.new_window_run(self, run_id, params=job.params)
-        image: np.ndarray = results[0]['intensity'].data
-        rc = Numpy2DResultContainer('intensity', image)
-        result = self.results_manager.new_result(rc, run_id, window_row.window_id)
-        return (result,)
+
+        cy, cx = job.params['cy'], job.params['cx']
+        self._last_pick = (results[0]['intensity'].data.squeeze(axis=0), {'cx': cx, 'cy': cy})
+        self.pick_plot.fig.title.text = f'{self.pick_plot.title} - {(cy, cx)}'
+        # if self.can_save:
+        #    self._save_btn.disabled = False
+
+        # Pick frame saving needs re-working to
+        # avoid piling up lots of frames
+        # now that everything goes via a job
+        # Probably save all necessary to run the below
+        # lines, but only run then when the save button is pressed
+        # remember to set the 'sig' tag !
+
+        # window_row = self.results_manager.new_window_run(self, run_id, params=job.params)
+        # image: np.ndarray = results[0]['intensity'].data.squeeze(axis=0)
+        # rc = Numpy2DResultContainer('intensity', image)
+        # result = self.results_manager.new_result(rc, run_id, window_row.window_id)
+
+        return tuple()  # (result,)
 
     def on_results_registered(
         self,

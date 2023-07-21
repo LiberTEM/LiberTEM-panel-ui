@@ -232,6 +232,7 @@ class UDFWindowJob(NamedTuple):
     udfs: list[UDF]
     plots: list[AperturePlot]
     params: dict[str, Any] | None = None
+    roi: np.ndarray | None = None
 
     # Could consider adding the result-handing callback
     # to the job object to allow this to be customised

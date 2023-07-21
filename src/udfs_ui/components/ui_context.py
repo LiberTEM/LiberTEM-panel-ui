@@ -1,8 +1,8 @@
 from __future__ import annotations
 import asyncio
 import uuid
-import time
-from humanize import naturalsize
+import datetime
+from humanize import naturalsize, precisedelta
 import numpy as np
 import panel as pn
 from typing import Callable, TYPE_CHECKING, Type
@@ -456,25 +456,43 @@ class UIContext:
         to_run: list[UDFWindowJob] = [job for window in windows
                                       if (job := window.get_job(self._state, ds, roi))
                                       is not None]
+        num_jobs = len(to_run)
 
-        if not to_run:
+        if num_jobs == 0:
             self.logger.info('No jobs to run')
             return
+        elif num_jobs == 1:
+            # Single job, gets ROI priority
+            if roi is not None:
+                self.logger.info('Global ROI being overwritten by window ROI')
+            roi = to_run[0].roi
+        else:
+            dropped_windows = tuple(j.window.ident for j in to_run if j.roi is not None)
+            to_run = [j for j in to_run if j.roi is None]
+            if len(dropped_windows):
+                self.logger.info('Found conflicting ROIs, deactivating '
+                                 f'the following windows: {dropped_windows}.')
 
+        n_frames = ds.meta.shape.nav.size
+        if roi is not None:
+            n_frames = roi.sum()
+
+        roi_message = f" with ROI of {n_frames} frames" if roi is not None else ", no ROI"
         self.logger.info(f'Start run, state {self._state.value.upper()} '
-                         f'on {len(to_run)} jobs{" with roi" if roi is not None else ""}')
+                         f'on {len(to_run)} jobs{roi_message}')
 
         # maybe do some backend optimisation to reduce the number
         # of SumUDF, LogsumUDF instances that run? Might need
         # to be careful about plots, though
-        tstart = time.time()
+        tstart = datetime.datetime.now()
         part_completed = 0
         try:
             async for udfs_res in ctx.run_udf_iter(
                 dataset=ds,
                 udf=tuple(udf for job in to_run for udf in job.udfs),
                 plots=tuple(plot for job in to_run for plot in job.plots),
-                progress=self._p_reporter,
+                # Special optimisation for progress bar when using single-frame ROI
+                progress=False if (n_frames <= 1 and roi is not None) else self._p_reporter,
                 sync=False,
                 roi=roi,
             ):
@@ -489,14 +507,16 @@ class UIContext:
             self._logger.log_from_exception(err, reraise=True)
 
         if self._continue_running:
-            proc_time = time.time() - tstart
-            # Does not account for any ROI
+            proc_time = datetime.datetime.now() - tstart
             try:
-                data_rate = (ds.meta.shape.size * np.dtype(ds.meta.raw_dtype).itemsize) / proc_time
+                data_rate = (
+                    n_frames * np.dtype(ds.meta.raw_dtype).itemsize
+                ) / proc_time.total_seconds()
             except (TypeError, ValueError, AttributeError):
                 # Missing or wrong values on dataset implementation
                 data_rate = float('nan')
-            self.logger.info(f'End run, completed in {proc_time:.3f} seconds '
+            self.logger.info('End run, completed in '
+                             f'{precisedelta(proc_time, minimum_unit="milliseconds")} '
                              f'({naturalsize(data_rate)}/s)')
 
         run_record = self.results_manager.new_run(
@@ -508,9 +528,6 @@ class UIContext:
             }
         )
         self.logger.info(f'Results saved with run_id: {run_record.run_id}')
-        if roi is not None:
-            rc = Numpy2DResultContainer('ROI', roi)
-            self.results_manager.new_result(rc, run_record)
 
         # Unpack results back to their window objects
         udfs_res: UDFResults
