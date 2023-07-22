@@ -8,7 +8,7 @@ from libertem.udf.raw import PickUDF
 from libertem.udf.sumsigudf import SumSigUDF
 
 from .live_plot import AperturePlot
-from .base import RunnableUIWindow, UIType, UIState, UDFWindowJob
+from .base import UIWindow, UIType, UIState, UDFWindowJob
 from .result_tracker import ImageResultTracker
 from ..display.display_base import Cursor
 from .imaging import get_initial_pos
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from .results import ResultRow
 
 
-class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
+class PickUDFWindow(UIWindow, ui_type=UIType.TOOL):
     name = 'pick_frame'
     title_md = 'PickUDF'
     pick_cls = PickUDF

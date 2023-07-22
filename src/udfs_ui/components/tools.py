@@ -11,7 +11,7 @@ from libertem_live.udf.monitor import SignalMonitorUDF
 from libertem.udf.sumsigudf import SumSigUDF
 
 from .live_plot import AperturePlot
-from .base import ActivateableUIWindow, RunnableUIWindow, UIType, UIState, UDFWindowJob
+from .base import UIWindow, UIType, UIState, UDFWindowJob
 from ..display.display_base import Rectangles
 from .simple import SimpleUDFUIWindow
 from .result_containers import RecordResultContainer
@@ -24,10 +24,11 @@ if TYPE_CHECKING:
     from .results import ResultRow
 
 
-class ROIWindow(ActivateableUIWindow, ui_type=UIType.TOOL):
+class ROIWindow(UIWindow, ui_type=UIType.TOOL):
     name = 'roi'
     title_md = 'ROI'
     is_unique = True
+    can_self_run = False
 
     def get_roi(self, dataset) -> np.ndarray | None:
         if self.is_active:
@@ -45,7 +46,7 @@ class ROIWindow(ActivateableUIWindow, ui_type=UIType.TOOL):
         return self
 
 
-class RecordWindow(RunnableUIWindow, ui_type=UIType.TOOL):
+class RecordWindow(UIWindow, ui_type=UIType.TOOL):
     name = 'record'
     title_md = 'Record'
     is_unique = True

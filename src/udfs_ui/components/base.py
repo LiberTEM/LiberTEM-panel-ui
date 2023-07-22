@@ -30,57 +30,11 @@ class UIType(Enum):
     TOOL = 'Tool'
 
 
-class RemoveActivateHeaderMixin:
-    """
-    This is on a mixin as not all windows should
-    be removable or be disable/activate-able
-    """
-    def build_header_layout(self):
-        self._title_text = pn.pane.Markdown(
-            object=f'### {self.title_md}',
-            align='center',
-        )
-        self._id_text = pn.widgets.StaticText(
-            value=f'(<b>{self._ident}</b>)',
-            align='center',
-        )
-        self._remove_btn = pn.widgets.Button(
-            name='Remove',
-            button_type='danger',
-            width_policy='min',
-            align='center',
-        )
-
-        def _remove_self(*e):
-            # Need to check if a window being removed while
-            # it is being run completes gracefully
-            self._ui_context._remove(self)
-
-        self._remove_btn.on_click(_remove_self)
-        self._active_cbox = pn.widgets.Checkbox(
-            name='Active',
-            value=True,
-            align='center',
-            min_width=50,
-        )
-        return pn.Row(
-            self._title_text,
-            self._id_text,
-            self._active_cbox,
-            self._remove_btn,
-        )
-
-    @property
-    def is_active(self) -> bool:
-        return self._active_cbox.value
-
-    def set_active(self, val: bool):
-        self._active_cbox.value = val
-
-
 class UIWindow:
     title_md = 'UI Window'
     is_unique = False
+    can_self_run = True
+    inner_container_cls = pn.Row
 
     _registry = {t: {} for t in UIType}
 
@@ -128,9 +82,50 @@ class UIWindow:
     def logger(self):
         return self._ui_context.logger
 
-    def build_header_layout(self) -> pn.layout.ListPanel:
-        # default implementation, to override in mixin
-        return pn.Row(pn.pane.Markdown(object=f'### {self.title_md}'))
+    def build_header_layout(self):
+        self._title_text = pn.pane.Markdown(
+            object=f'### {self.title_md}',
+            align='center',
+        )
+        self._id_text = pn.widgets.StaticText(
+            value=f'(<b>{self._ident}</b>)',
+            align='center',
+        )
+        self._remove_btn = pn.widgets.Button(
+            name='Remove',
+            button_type='danger',
+            width_policy='min',
+            align='center',
+        )
+
+        def _remove_self(*e):
+            # Need to check if a window being removed while
+            # it is being run completes gracefully
+            self._ui_context._remove(self)
+
+        self._remove_btn.on_click(_remove_self)
+        self._active_cbox = pn.widgets.Checkbox(
+            name='Active',
+            value=True,
+            align='center',
+            min_width=50,
+        )
+        self._run_btn = pn.widgets.Button(
+            name='Run this',
+            button_type='success',
+            width_policy='min',
+            align='center',
+            min_width=75,
+            visible=self.can_self_run,
+        )
+        self._run_btn.on_click(self.run_this)
+        return pn.Row(
+            self._title_text,
+            self._id_text,
+            self._active_cbox,
+            self._remove_btn,
+            self._run_btn,
+        )
 
     def build_outer_container(self, *objs) -> pn.layout.ListPanel:
         lo = pn.Column(pn.layout.Divider(), *objs, width_policy='max')
@@ -138,7 +133,7 @@ class UIWindow:
         return lo
 
     def build_inner_container(self, *objs) -> pn.layout.ListPanel:
-        return pn.Row(*objs)
+        return self.inner_container_cls(*objs)
 
     @property
     def inner_layout(self) -> pn.layout.ListPanel:
@@ -158,40 +153,12 @@ class UIWindow:
         # to initialize itself
         raise NotImplementedError
 
-    def on_results_registered(
-        self,
-        *results: ResultRow,
-    ):
-        pass
+    @property
+    def is_active(self) -> bool:
+        return self._active_cbox.value
 
-    def on_results_deleted(
-        self,
-        *results: ResultRow,
-    ):
-        pass
-
-
-class ActivateableUIWindow(RemoveActivateHeaderMixin, UIWindow):
-    ...
-
-
-class RunnableUIWindow(ActivateableUIWindow):
-    can_self_run = True
-
-    def build_header_layout(self) -> pn.layout.ListPanel:
-        lo = super().build_header_layout()
-
-        self._run_btn = pn.widgets.Button(
-            name='Run this',
-            button_type='success',
-            width_policy='min',
-            align='center',
-            min_width=75,
-            visible=self.can_self_run,
-        )
-        self._run_btn.on_click(self.run_this)
-        lo.append(self._run_btn)
-        return lo
+    def set_active(self, val: bool):
+        self._active_cbox.value = val
 
     async def run_this(self, *e):
         # The functionality here could allow running
@@ -212,7 +179,7 @@ class RunnableUIWindow(ActivateableUIWindow):
         dataset: lt.DataSet | AcquisitionProtocol,
         roi: np.ndarray | None,
     ) -> UDFWindowJob | None:
-        raise NotImplementedError
+        return None
 
     def complete_job(
         self,
@@ -223,9 +190,21 @@ class RunnableUIWindow(ActivateableUIWindow):
     ) -> tuple[ResultRow, ...]:
         return tuple()
 
+    def on_results_registered(
+        self,
+        *results: ResultRow,
+    ):
+        pass
+
+    def on_results_deleted(
+        self,
+        *results: ResultRow,
+    ):
+        pass
+
 
 class UDFWindowJob(NamedTuple):
-    window: RunnableUIWindow
+    window: UIWindow
     udfs: list[UDF]
     plots: list[Live2DPlot]
     params: dict[str, Any] | None = None

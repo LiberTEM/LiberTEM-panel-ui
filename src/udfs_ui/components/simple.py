@@ -5,7 +5,7 @@ from libertem.udf.sum import SumUDF
 from libertem.udf.logsum import LogsumUDF
 from libertem.udf.sumsigudf import SumSigUDF
 
-from .base import UIType, RunnableUIWindow, UIState, UDFWindowJob
+from .base import UIType, UIWindow, UIState, UDFWindowJob
 from .live_plot import AperturePlot
 from .result_containers import Numpy2DResultContainer
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from .results import ResultRow
 
 
-class SimpleUDFUIWindow(RunnableUIWindow):
+class SimpleUDFUIWindow(UIWindow):
     udf_class: type[UDF] = None
 
     def __init__(self, *args, **kwargs):
@@ -79,7 +79,7 @@ class LogSumUDFWindow(SimpleUDFUIWindow, ui_type=UIType.ANALYSIS):
     udf_class = LogsumUDF
 
 
-class SumBothWindow(RunnableUIWindow, ui_type=UIType.ANALYSIS):
+class SumBothWindow(UIWindow, ui_type=UIType.ANALYSIS):
     name = 'sum_both'
     title_md = 'Sum dimensions'
 
