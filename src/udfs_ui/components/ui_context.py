@@ -510,7 +510,7 @@ class UIContext:
             proc_time = datetime.datetime.now() - tstart
             try:
                 data_rate = (
-                    n_frames * np.dtype(ds.meta.raw_dtype).itemsize
+                    n_frames * ds.meta.shape.sig.size * np.dtype(ds.meta.raw_dtype).itemsize
                 ) / proc_time.total_seconds()
             except (TypeError, ValueError, AttributeError):
                 # Missing or wrong values on dataset implementation
