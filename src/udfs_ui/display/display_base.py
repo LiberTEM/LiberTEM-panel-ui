@@ -190,10 +190,10 @@ class DisplayBase(abc.ABC):
         except IndexError:
             return 0
 
-    def _update_filter_none(self, **data: np.ndarray | None):
+    def _update_filter_none(self, **data: np.ndarray | list | None):
         return {k: v for k, v in data.items() if v is not None}
 
-    def update(self, **data: np.ndarray):
+    def update(self, **data: np.ndarray | list):
         """
         Update some-or-all columns in the CDS
 
@@ -201,17 +201,39 @@ class DisplayBase(abc.ABC):
         - Checks that updates have same length
         - Checks that update length matches CDS length
           except where replacing all values
+
+        Will raise KeyError if trying to update non-existing columns
+        Will raise VauleError if column lengths do not match
         """
         data = self._update_filter_none(**data)
         if not data:
             return
-        if set(data.keys()).issubset(self.cds.column_names):
-            # Replacing only some columns, check matching lengths
-            assert unique_length(*data.values(), *self.cds.data.values())
-        else:
+        current = set(self.cds.column_names)
+        new = set(data.keys())
+        if new > current:
+            # This is a choice to prevent unexpected bugs
+            # Could have an .add method which doesn't do this check
+            raise KeyError('Cannot add columns using .update(), '
+                           f'current keys = {current}, '
+                           f'new keys = {new}.')
+        if new == current:
             # Replacing all columns, check new data lengths are consistent
-            assert unique_length(*data.values())
+            matching = unique_length(*data.values())
+        else:
+            # Replacing only some columns, check matching lengths
+            matching = unique_length(*data.values(), *self.cds.data.values())
+        if not matching:
+            raise ValueError('Mismatching column lengths')
         self.cds.data.update(data)
+
+    def clear(self):
+        """
+        Can bypass custom .update method as we keep the same keys
+
+        If clearing should be prevented, raise an exception in the subclass
+        """
+        empty = {k: [] for k in self.cds.data.keys()}
+        DisplayBase.update(self, **empty)
 
     def is_on(self) -> tuple[BkFigure]:
         figs = []
