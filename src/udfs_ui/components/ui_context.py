@@ -210,6 +210,15 @@ class UIContext:
     def add(
         self,
         window_cls: Type[UIWindow] | str,
+    ) -> UIContext:
+        # Add a window and return self to allow method chaining
+        # Internal methods use _add to get the created UIWindow
+        self._add(window_cls)
+        return self
+
+    def _add(
+        self,
+        window_cls: Type[UIWindow] | str,
     ) -> UIWindow:
         if isinstance(window_cls, str):
             window_cls = self._find_window_implem(window_cls)
@@ -293,7 +302,7 @@ class UIContext:
     async def _add_from_dropdown(self, dropdown, mapper):
         window_cls = mapper[dropdown.value]
         try:
-            window = self.add(
+            window = self._add(
                 window_cls
             )
         except Exception as err:
