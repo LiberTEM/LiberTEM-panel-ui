@@ -57,6 +57,12 @@ class SingleImagingUDFWindow(UIWindow):
             self._imaging_udf,
             title='Virtual image',
         )
+        # This is necessary to ensure annotations are added *before*
+        # the figure is inserted into the layout. Previous approach of calling
+        # super().initialize() then adding annotations meant that the
+        # annotations were not visible on the plot until the cell was
+        # reloaded, which in turn caused issues with clashing Bokeh models
+        self._add_annotation(dataset)
         self.inner_layout.extend((self._sig_plot.pane, self._imaging_plot.pane))
 
         self.sig_plot_tracker = ImageResultTracker(
@@ -68,6 +74,11 @@ class SingleImagingUDFWindow(UIWindow):
         self.sig_plot_tracker.initialize()
 
         return self
+
+    def _add_annotation(self, dataset: lt.DataSet):
+        # Used by subclasses to add elements to plots before
+        # they are inserted into the inner_layout
+        pass
 
     def _get_analysis_params(self):
         return {
@@ -165,8 +176,8 @@ class DiskImagingWindow(SingleImagingUDFWindow, ui_type=UIType.ANALYSIS):
         # of the mouse input when dragging, report upstream?
         return super().setup_cursor(ds, as_editable=False)
 
-    def initialize(self, dataset: lt.DataSet):
-        super().initialize(dataset)
+    def _add_annotation(self, dataset: lt.DataSet):
+        # called by the parent class .initialize()
         _, (_, r), max_dim = get_initial_pos(dataset.shape.sig)
         self._slider.end = max_dim
         self._slider.value = r
@@ -208,8 +219,8 @@ class RingImagingWindow(SingleImagingUDFWindow, ui_type=UIType.ANALYSIS):
         # of the mouse input when dragging, report upstream?
         return super().setup_cursor(ds, as_editable=False)
 
-    def initialize(self, dataset: lt.DataSet):
-        super().initialize(dataset)
+    def _add_annotation(self, dataset: lt.DataSet):
+        # called by the parent class .initialize()
         _, radii, max_dim = get_initial_pos(dataset.shape.sig)
         self._slider.end = max_dim
         self._slider.value = radii
