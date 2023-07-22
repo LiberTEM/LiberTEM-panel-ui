@@ -457,12 +457,12 @@ class UIContext:
             self.logger.info('No jobs to run')
             return
         elif num_jobs == 1:
-            # Single job, gets ROI priority
-            if roi is not None:
-                self.logger.info('Global ROI being overwritten by window ROI')
+            # Single job, gets ROI priority if provided
             window_roi = to_run[0].roi
             if window_roi is not None:
-                roi = to_run[0].roi
+                if roi is not None:
+                    self.logger.info('Global ROI being overwritten by window ROI')
+                roi = window_roi
         else:
             dropped_windows = tuple(j.window.ident for j in to_run if j.roi is not None)
             to_run = [j for j in to_run if j.roi is None]
