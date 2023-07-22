@@ -24,6 +24,7 @@ class PickUDFWindow(UIWindow, ui_type=UIType.TOOL):
     name = 'pick_frame'
     title_md = 'PickUDF'
     pick_cls = PickUDF
+    self_run_only = True
 
     def initialize(self, dataset: lt.DataSet):
         self._udf_pick = self.pick_cls()

@@ -34,6 +34,7 @@ class UIWindow:
     title_md = 'UI Window'
     is_unique = False
     can_self_run = True
+    self_run_only = False
     inner_container_cls = pn.Row
 
     _registry = {t: {} for t in UIType}

@@ -446,7 +446,7 @@ class UIContext:
             return
 
         if windows is None:
-            windows = self._windows.values()
+            windows = [w for w in self._windows.values() if (not w.self_run_only)]
 
         to_run: list[UDFWindowJob] = [job for window in windows
                                       if (job := window.get_job(self._state, ds, roi))
