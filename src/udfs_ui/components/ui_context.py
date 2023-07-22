@@ -467,8 +467,8 @@ class UIContext:
             dropped_windows = tuple(j.window.ident for j in to_run if j.roi is not None)
             to_run = [j for j in to_run if j.roi is None]
             if len(dropped_windows):
-                self.logger.info('Found conflicting ROIs, deactivating '
-                                 f'the following windows: {dropped_windows}.')
+                self.logger.info('Found conflicting ROIs, skipping '
+                                 f'the following windows: {dropped_windows} in run.')
 
         n_frames = ds.meta.shape.nav.size
         if roi is not None:
