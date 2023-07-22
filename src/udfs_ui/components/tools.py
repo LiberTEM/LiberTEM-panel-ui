@@ -41,6 +41,14 @@ class ROIWindow(UIWindow, ui_type=UIType.TOOL):
         self._plot.add_mask_tools(activate=True)
         self.inner_layout.append(self._plot.pane)
 
+        self._clear_btn = pn.widgets.Button(
+            name='Clear ROI',
+            button_type='primary',
+            width=150,
+        )
+        self._clear_btn.on_click(self._plot.clear_mask)
+        self.inner_layout.append(self._clear_btn)
+
         self.nav_plot_tracker = ImageResultTracker(
             self,
             self._plot,
