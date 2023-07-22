@@ -551,6 +551,17 @@ class RingSet(DisplayBase):
         data[self.rings.outer_radius] = outer_radius
         return super().update(**data)
 
+    def make_editable(
+        self,
+        *figs: BkFigure,
+        add: bool = True,
+        drag: bool = True,
+        tool_name: str = 'default',
+    ):
+        return make_editable(
+            self, *figs, add=add, drag=drag, tool_name=tool_name, glyph_name='rings'
+        )
+
 
 class RingSetCons:
     default_keys = ('cx', 'cy', 'r0', 'r1')
