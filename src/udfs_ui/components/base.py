@@ -33,9 +33,12 @@ class UIType(Enum):
 class UIWindow:
     title_md = 'UI Window'
     is_unique = False
+    inner_container_cls = pn.Row
+
+    header_activate = True
+    header_remove = True
     can_self_run = True
     self_run_only = False
-    inner_container_cls = pn.Row
 
     _registry = {t: {} for t in UIType}
 
@@ -97,6 +100,7 @@ class UIWindow:
             button_type='danger',
             width_policy='min',
             align='center',
+            visible=self.header_remove,
         )
 
         def _remove_self(*e):
@@ -110,6 +114,7 @@ class UIWindow:
             value=True,
             align='center',
             min_width=50,
+            visible=self.header_activate,
         )
         self._run_btn = pn.widgets.Button(
             name='Run this',
