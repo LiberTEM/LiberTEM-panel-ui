@@ -8,10 +8,10 @@ from libertem.udf.raw import PickUDF
 from libertem.udf.sumsigudf import SumSigUDF
 
 from .live_plot import AperturePlot
-from .base import RunnableUIWindow, UIType, UIState, UDFWindowJob, ImageResultTracker
+from .base import RunnableUIWindow, UIType, UIState, UDFWindowJob
+from .result_tracker import ImageResultTracker
 from ..display.display_base import Cursor
 from .imaging import get_initial_pos
-from .result_containers import Numpy2DResultContainer
 
 if TYPE_CHECKING:
     from libertem.udf.base import UDFResultDict

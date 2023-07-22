@@ -9,7 +9,8 @@ from libertem.analysis.ring import RingMaskAnalysis
 from libertem.udf.sum import SumUDF
 
 from .live_plot import AperturePlot
-from .base import RunnableUIWindow, UIType, UIState, UDFWindowJob, ImageResultTracker
+from .base import RunnableUIWindow, UIType, UIState, UDFWindowJob
+from .result_tracker import ImageResultTracker
 from ..display.display_base import Cursor
 from .result_containers import Numpy2DResultContainer
 
