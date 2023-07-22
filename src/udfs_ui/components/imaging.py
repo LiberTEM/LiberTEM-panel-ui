@@ -75,13 +75,15 @@ class SingleImagingUDFWindow(UIWindow):
             'cy': self._sig_cursor.cds.data['cy'][0],
         }
 
-    def setup_cursor(self, ds):
+    def setup_cursor(self, ds, as_editable: bool = True):
         fig_sig = self._sig_plot.fig
         (cy, cx), (ri, r), max_dim = get_initial_pos(ds.shape.sig)
         self._sig_cursor = Cursor.new().from_pos(cx, cy)
         self._sig_cursor.on(fig_sig)
-        self._sig_cursor.make_editable()
-        fig_sig.toolbar.active_drag = fig_sig.tools[-1]
+        if as_editable:
+            # To enable ring/disk glyphs to be draggable without bugs
+            self._sig_cursor.make_editable(tool_name='default')
+            fig_sig.toolbar.active_drag = fig_sig.tools[-1]
 
     def update_imaging_udf(self, ds):
         params = self._get_analysis_params()
@@ -149,7 +151,7 @@ class DiskImagingWindow(SingleImagingUDFWindow, ui_type=UIType.ANALYSIS):
         self._slider = pn.widgets.FloatSlider(
             name='Disk radius',
             value=10,
-            start=0.1,
+            start=0.3,
             end=100,
         )
         self.toolbox.append(self._slider)
@@ -158,13 +160,21 @@ class DiskImagingWindow(SingleImagingUDFWindow, ui_type=UIType.ANALYSIS):
         base_params = super()._get_analysis_params()
         return {**base_params, 'r': self._slider.value}
 
+    def setup_cursor(self, ds):
+        # Cannot have point itself editable as it causes doubling
+        # of the mouse input when dragging, report upstream?
+        return super().setup_cursor(ds, as_editable=False)
+
     def initialize(self, dataset: lt.DataSet):
         super().initialize(dataset)
         _, (_, r), max_dim = get_initial_pos(dataset.shape.sig)
         self._slider.end = max_dim
         self._slider.value = r
         self._sig_disk = self._sig_cursor.add_disk(r)
+        self._sig_disk.make_editable()
+        self._sig_plot.fig.toolbar.active_drag = self._sig_plot.fig.tools[-1]
         self._slider.param.watch(self._update_radius, 'value')
+        self._sig_cursor.cursor.line_alpha = 0.
 
     def _update_radius(self, e):
         self._sig_disk.update(radius=e.new)
@@ -180,7 +190,7 @@ class RingImagingWindow(SingleImagingUDFWindow, ui_type=UIType.ANALYSIS):
         self._slider = pn.widgets.RangeSlider(
             name='Ring radii',
             value=(5, 10),
-            start=0.1,
+            start=0.3,
             end=100,
         )
         self.toolbox.append(self._slider)
@@ -193,13 +203,21 @@ class RingImagingWindow(SingleImagingUDFWindow, ui_type=UIType.ANALYSIS):
             'ro': self._slider.value[1]
         }
 
+    def setup_cursor(self, ds):
+        # Cannot have point itself editable as it causes doubling
+        # of the mouse input when dragging, report upstream?
+        return super().setup_cursor(ds, as_editable=False)
+
     def initialize(self, dataset: lt.DataSet):
         super().initialize(dataset)
         _, radii, max_dim = get_initial_pos(dataset.shape.sig)
         self._slider.end = max_dim
         self._slider.value = radii
         self._sig_ring = self._sig_cursor.add_ring(*radii)
+        self._sig_ring.make_editable()
+        self._sig_plot.fig.toolbar.active_drag = self._sig_plot.fig.tools[-1]
         self._slider.param.watch(self._update_radius, 'value')
+        self._sig_cursor.cursor.line_alpha = 0.
 
     def _update_radius(self, e):
         r0, r1 = e.new
