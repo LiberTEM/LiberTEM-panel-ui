@@ -12,7 +12,6 @@ from libertem.udf.sumsigudf import SumSigUDF
 
 from .live_plot import AperturePlot
 from .base import UIWindow, UIType, UIState, UDFWindowJob
-from ..display.display_base import Rectangles
 from .simple import SimpleUDFUIWindow
 from .result_tracker import ImageResultTracker
 from .result_containers import RecordResultContainer
@@ -31,18 +30,15 @@ class ROIWindow(UIWindow, ui_type=UIType.TOOL):
     is_unique = True
     can_self_run = False
 
-    def get_roi(self, dataset) -> np.ndarray | None:
+    def get_roi(self, dataset: lt.DataSet) -> np.ndarray | None:
         if self.is_active:
-            return self._rectangles.as_mask(dataset.shape.nav)
+            return self._plot.get_mask(dataset.shape.nav.to_tuple())
         return None
 
     def initialize(self, dataset: lt.DataSet):
         udf = SumSigUDF()
         self._plot = AperturePlot.new(dataset, udf)
-        self._rectangles = Rectangles.new().empty()
-        self._rectangles.on(self._plot.fig)
-        self._rectangles.make_editable()
-        self._plot.fig.toolbar.active_drag = self._plot.fig.tools[-1]
+        self._plot.add_mask_tools(activate=True)
         self.inner_layout.append(self._plot.pane)
 
         self.nav_plot_tracker = ImageResultTracker(

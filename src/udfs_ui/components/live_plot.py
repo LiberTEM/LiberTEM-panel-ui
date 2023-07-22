@@ -1,8 +1,11 @@
 from __future__ import annotations
+import numpy as np
 import panel as pn
-from ..display.image_db import BokehImage
 from bokeh.plotting import figure
 from libertem.viz.base import Live2DPlot
+
+from ..display.image_db import BokehImage
+from ..display.display_base import Rectangles, DisplayBase
 
 
 def adapt_figure(fig, im, shape, mindim, maxdim):
@@ -32,6 +35,7 @@ class AperturePlot(Live2DPlot):
         self._pane: pn.pane.Bokeh | None = None
         self._fig: figure | None = None
         self._im: BokehImage | None = None
+        self._mask_glyphs: list[DisplayBase] = []
 
     @property
     def pane(self) -> pn.pane.Bokeh | None:
@@ -93,3 +97,31 @@ class AperturePlot(Live2DPlot):
         if self.fig is None:
             raise RuntimeError('Cannot display plot before set_plot called')
         return self.fig
+
+    def add_mask_tools(
+        self,
+        rectangles: bool = True,
+        activate: bool = True,
+    ):
+        if rectangles:
+            _rectangles = Rectangles.new().empty()
+            _rectangles.on(self.fig)
+            _rectangles.make_editable()
+            self._mask_glyphs.append(_rectangles)
+        if activate and len(self.fig.tools):
+            self.fig.toolbar.active_drag = self.fig.tools[-1]
+        return self
+
+    def get_mask(self, shape: tuple[int, int]) -> np.ndarray | None:
+        mask = None
+        for glyph in self._mask_glyphs:
+            try:
+                _mask = glyph.as_mask(shape)
+            except (AttributeError, NotImplementedError):
+                continue
+            if _mask is not None:
+                if mask is None:
+                    mask = _mask
+                else:
+                    mask = np.logical_or(mask, _mask)
+        return mask
