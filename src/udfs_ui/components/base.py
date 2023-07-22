@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     import libertem.api as lt
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import UDF, BufferWrapper, UDFResultDict
+    from libertem.viz.base import Live2DPlot
     from .ui_context import UIContext
     from .results import ResultRow
 
@@ -229,7 +230,7 @@ class RunnableUIWindow(ActivateableUIWindow):
 class UDFWindowJob(NamedTuple):
     window: RunnableUIWindow
     udfs: list[UDF]
-    plots: list[AperturePlot]
+    plots: list[Live2DPlot]
     params: dict[str, Any] | None = None
     roi: np.ndarray | None = None
 
