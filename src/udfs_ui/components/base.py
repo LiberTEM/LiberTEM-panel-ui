@@ -182,8 +182,6 @@ class RunnableUIWindow(ActivateableUIWindow):
 
     def build_header_layout(self) -> pn.layout.ListPanel:
         lo = super().build_header_layout()
-        if not self.can_self_run:
-            return lo
 
         self._run_btn = pn.widgets.Button(
             name='Run this',
@@ -191,6 +189,7 @@ class RunnableUIWindow(ActivateableUIWindow):
             width_policy='min',
             align='center',
             min_width=75,
+            visible=self.can_self_run,
         )
         self._run_btn.on_click(self.run_this)
         lo.append(self._run_btn)
