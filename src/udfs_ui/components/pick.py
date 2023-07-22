@@ -23,8 +23,6 @@ if TYPE_CHECKING:
 class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
     name = 'pick_frame'
     title_md = 'PickUDF'
-    can_self_run = True
-    can_save = True
     pick_cls = PickUDF
 
     def initialize(self, dataset: lt.DataSet):
@@ -65,9 +63,6 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
             )
         ))
 
-        if self.can_save:
-            self.add_save()
-
         self.nav_plot_tracker = ImageResultTracker(
             self,
             self.nav_plot,
@@ -76,29 +71,6 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         )
 
         return self
-
-    def add_save(self):
-        self._save_btn = pn.widgets.Button(
-            name='Save frame',
-            button_type='primary',
-            max_width=150,
-            align='start',
-            disabled=True,
-        )
-
-        def _save_frame(e):
-            channel = 'intensity'
-            res, params = self._last_pick
-            if res is None:
-                return
-            frame = res[channel].data.squeeze(axis=0)
-            run_row = self.results_manager.new_run()
-            window_row = self.results_manager.new_window_run(self, run_row, params)
-            rc = Numpy2DResultContainer(channel, frame)
-            self.results_manager.new_result(rc, run_row, window_row)
-
-        self._save_btn.on_click(_save_frame)
-        self.toolbox.append(self._save_btn)
 
     def get_job(
         self,
@@ -139,8 +111,8 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
 
         return UDFWindowJob(
             self,
-            [self.pick_plot.udf],
-            [self.pick_plot],
+            [self._udf_pick],
+            self._udf_plots,
             params=params,
             roi=roi,
         )
@@ -170,8 +142,6 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
         cy, cx = job.params['cy'], job.params['cx']
         self._last_pick = (results[0]['intensity'].data.squeeze(axis=0), {'cx': cx, 'cy': cy})
         self.pick_plot.fig.title.text = f'{self.pick_plot.title} - {(cy, cx)}'
-        # if self.can_save:
-        #    self._save_btn.disabled = False
 
         # Pick frame saving needs re-working to
         # avoid piling up lots of frames
