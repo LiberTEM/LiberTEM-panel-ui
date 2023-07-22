@@ -75,6 +75,10 @@ class ResultsManager:
         self._show_area = pn.Column(min_height=400)
         self._layout = pn.Column()
 
+    @property
+    def all_results(self):
+        return self._results
+
     def add_watcher(self, watcher: ResultWatcher):
         self._watchers.append(watcher)
 

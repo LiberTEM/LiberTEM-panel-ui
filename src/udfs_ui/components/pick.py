@@ -69,6 +69,7 @@ class PickUDFWindow(RunnableUIWindow, ui_type=UIType.TOOL):
             ('nav',),
             'Nav image',
         )
+        self.nav_plot_tracker.initialize()
 
         return self
 

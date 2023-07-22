@@ -64,6 +64,7 @@ class SingleImagingUDFWindow(RunnableUIWindow):
             tags=('sig',),
             select_text='Sig image',
         )
+        self.sig_plot_tracker.initialize()
 
         return self
 

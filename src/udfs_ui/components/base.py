@@ -298,6 +298,12 @@ class ImageResultTracker:
         return (f'[{result.run_id}]: {result.result_id}, '
                 f'{self.window.results_manager.get_window(result.window_id).window_name}')
 
+    def initialize(self):
+        if len(self.window.results_manager.all_results):
+            self.on_results_registered(
+                *self.window.results_manager.all_results
+            )
+
     def on_results_registered(
         self,
         *results: ResultRow,
