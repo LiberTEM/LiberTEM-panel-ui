@@ -35,7 +35,7 @@ class AperturePlot(Live2DPlot):
         self._pane: pn.pane.Bokeh | None = None
         self._fig: figure | None = None
         self._im: BokehImage | None = None
-        self._mask_glyphs: list[DisplayBase] = []
+        self._mask_elements: list[DisplayBase] = []
 
     @property
     def pane(self) -> pn.pane.Bokeh | None:
@@ -107,16 +107,16 @@ class AperturePlot(Live2DPlot):
             _rectangles = Rectangles.new().empty()
             _rectangles.on(self.fig)
             _rectangles.make_editable()
-            self._mask_glyphs.append(_rectangles)
+            self._mask_elements.append(_rectangles)
         if activate and len(self.fig.tools):
             self.fig.toolbar.active_drag = self.fig.tools[-1]
         return self
 
     def get_mask(self, shape: tuple[int, int]) -> np.ndarray | None:
         mask = None
-        for glyph in self._mask_glyphs:
+        for element in self._mask_elements:
             try:
-                _mask = glyph.as_mask(shape)
+                _mask = element.as_mask(shape)
             except (AttributeError, NotImplementedError):
                 continue
             if _mask is not None:
@@ -125,3 +125,8 @@ class AperturePlot(Live2DPlot):
                 else:
                     mask = np.logical_or(mask, _mask)
         return mask
+
+    def clear_mask(self, *e):
+        for element in self._mask_elements:
+            element.clear()
+        pn.io.push_notebook(self.pane)
