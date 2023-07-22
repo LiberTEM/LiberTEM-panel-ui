@@ -14,6 +14,7 @@ from .live_plot import AperturePlot
 from .base import UIWindow, UIType, UIState, UDFWindowJob
 from ..display.display_base import Rectangles
 from .simple import SimpleUDFUIWindow
+from .result_tracker import ImageResultTracker
 from .result_containers import RecordResultContainer
 
 if TYPE_CHECKING:
@@ -26,7 +27,7 @@ if TYPE_CHECKING:
 
 class ROIWindow(UIWindow, ui_type=UIType.TOOL):
     name = 'roi'
-    title_md = 'ROI'
+    title_md = 'Global ROI'
     is_unique = True
     can_self_run = False
 
@@ -43,7 +44,27 @@ class ROIWindow(UIWindow, ui_type=UIType.TOOL):
         self._rectangles.make_editable()
         self._plot.fig.toolbar.active_drag = self._plot.fig.tools[-1]
         self.inner_layout.append(self._plot.pane)
+
+        self.nav_plot_tracker = ImageResultTracker(
+            self,
+            self._plot,
+            ('nav',),
+            'Nav image',
+        )
+        self.nav_plot_tracker.initialize()
         return self
+
+    def on_results_registered(
+        self,
+        *results: ResultRow,
+    ):
+        self.nav_plot_tracker.on_results_registered(*results)
+
+    def on_results_deleted(
+        self,
+        *results: ResultRow,
+    ):
+        self.nav_plot_tracker.on_results_deleted(*results)
 
 
 class RecordWindow(UIWindow, ui_type=UIType.TOOL):
