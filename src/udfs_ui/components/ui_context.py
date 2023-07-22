@@ -184,11 +184,14 @@ class UIContext:
         self._set_state(UIState.OFFLINE)
         return self
 
-    def layout(self, with_reload: bool = True):
+    def layout(self, with_reload: bool = False):
         if with_reload:
             get_ipyw_reload_button()
         if self._state is None:
             raise ValueError('Must initialize UI before displaying')
+        # The potential to redraw the same layout by re-executing the cell
+        # can cause clashes with Bokeh models. This method should re-create
+        # the whole UI rather than just returning the existing layout
         return self._layout
 
     @property
