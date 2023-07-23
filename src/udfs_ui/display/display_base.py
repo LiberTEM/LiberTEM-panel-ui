@@ -182,6 +182,7 @@ class DisplayBase(abc.ABC):
             for _children in self._children.values():
                 for child in _children:
                     child.set_visible(visible, children=children)
+        return self
 
     @property
     def data_length(self):
@@ -254,6 +255,10 @@ class DisplayBase(abc.ABC):
     def renderers_for_fig(self, glyph_name: str, fig: BkFigure):
         return tuple(self._renderers_for_fig(glyph_name, fig))
 
+    @property
+    def glyph_names(self):
+        return tuple(self._glyphs.keys())
+
 
 class PointSet(DisplayBase):
     glyph_map = {
@@ -303,9 +308,10 @@ class PointSet(DisplayBase):
         drag: bool = True,
         tool_name: str = 'default',
     ):
-        return make_editable(
+        make_editable(
             self, *figs, add=add, drag=drag, tool_name=tool_name, glyph_name='points'
         )
+        return self
 
 
 def make_editable(
@@ -358,8 +364,6 @@ def make_editable(
         renderers = display_base.renderers_for_fig(glyph_name, fig)
         for renderer in renderers:
             tool.renderers.append(renderer)
-
-    return display_base
 
 
 class PointSetCons:
@@ -479,10 +483,11 @@ class DiskSet(DisplayBase):
         add: bool = True,
         drag: bool = True,
         tool_name: str = 'default',
-    ):
-        return make_editable(
+    ) -> DiskSet:
+        make_editable(
             self, *figs, add=add, drag=drag, tool_name=tool_name, glyph_name='disks'
         )
+        return self
 
 
 class DiskSetCons:
@@ -563,10 +568,11 @@ class RingSet(DisplayBase):
         add: bool = True,
         drag: bool = True,
         tool_name: str = 'default',
-    ):
-        return make_editable(
+    ) -> RingSet:
+        make_editable(
             self, *figs, add=add, drag=drag, tool_name=tool_name, glyph_name='rings'
         )
+        return self
 
 
 class RingSetCons:
