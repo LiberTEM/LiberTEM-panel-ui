@@ -5,7 +5,7 @@ from bokeh.plotting import figure
 from libertem.viz.base import Live2DPlot
 
 from ..display.image_db import BokehImage
-from ..display.display_base import Rectangles, DisplayBase
+from ..display.display_base import Rectangles, DisplayBase, Polygons
 
 
 def adapt_figure(fig, im, shape, mindim, maxdim):
@@ -101,13 +101,25 @@ class AperturePlot(Live2DPlot):
     def add_mask_tools(
         self,
         rectangles: bool = True,
+        polygons: bool = True,
         activate: bool = True,
     ):
+        if polygons:
+            self._mask_elements.append(
+                Polygons
+                .new()
+                .empty()
+                .on(self.fig)
+                .make_editable()
+            )
         if rectangles:
-            _rectangles = Rectangles.new().empty()
-            _rectangles.on(self.fig)
-            _rectangles.make_editable()
-            self._mask_elements.append(_rectangles)
+            self._mask_elements.append(
+                Rectangles
+                .new()
+                .empty()
+                .on(self.fig)
+                .make_editable()
+            )
         if activate and len(self.fig.tools):
             self.fig.toolbar.active_drag = self.fig.tools[-1]
         return self

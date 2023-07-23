@@ -6,10 +6,11 @@ import itertools
 import pandas as pd
 from typing import TYPE_CHECKING, Sequence, NamedTuple
 import colorcet as cc
+from skimage.draw import polygon as draw_polygon
 
 from bokeh.models.sources import ColumnDataSource
-from bokeh.models.glyphs import Line, Scatter, Circle, Annulus, Rect
-from bokeh.models.tools import PointDrawTool, BoxEditTool
+from bokeh.models.glyphs import Line, Scatter, Circle, Annulus, Rect, Patches
+from bokeh.models.tools import PointDrawTool, BoxEditTool, PolyDrawTool, PolyEditTool
 
 from ..utils import pop_from_list
 from ..components.masks import clip_posxy_array
@@ -375,10 +376,15 @@ class PointSetCons:
         cds = ColumnDataSource(data)
         return PointSet(cds)
 
+    @staticmethod
     def from_array(
         array: np.ndarray,
     ):
         ...
+
+    @staticmethod
+    def empty() -> PointSet:
+        return PointSetCons.from_vectors([], [])
 
 
 def get_point_tool(
@@ -1081,6 +1087,192 @@ class RectanglesCons:
         }
         cds = ColumnDataSource(data)
         return Rectangles(cds)
+
+
+class Polygons(DisplayBase):
+    glyph_map = {
+        'polys': [Patches],
+    }
+
+    def __init__(
+        self,
+        cds: ColumnDataSource,
+        xs='xs',
+        ys='ys',
+    ):
+        super().__init__(cds)
+        glyph = Patches(
+            xs=xs,
+            ys=ys,
+            fill_alpha=0.3,
+            fill_color='red',
+            line_color='red',
+            line_dash='dashed',
+        )
+        self._register_glyph('polys', glyph)
+        # This glyph is created when calling 'make_editable'
+        # There is an underlying PointSet but this could be
+        # shared with other instances of Polygons
+        self._vertices_glyph = None
+
+    def make_editable(
+        self,
+        *figs: BkFigure,
+        tool_name: str = 'default',
+    ):
+        """
+        If figs is empty, add to all registered figures
+        If no figures, raise
+        If no compatible figures, raise ?
+        If fig in figs does not have this DisplayBase on it, raise
+
+        If fig has
+
+        # TODO Need to handle both the case of .make_editable before
+        .on and .make_editable after .on. Assume that if we make_editable
+        before .on then the caller wants the displaybase to be editable
+        on all future figures. This ties into the idea of re-adding renderers
+        onto tools on a figure if the displaybase was removed but previously
+        editable on that figure
+        """
+        all_figs = self.is_on()
+        if figs and not all(f in all_figs for f in figs):
+            raise ValueError('Cannot make DiplayBase editable on a '
+                             'figure before adding it to that figure')
+        elif not figs:
+            if not all_figs:
+                raise ValueError('Cannot make DiplayBase editable before adding to figures')
+            figs = all_figs
+
+        # Need a PointSet child to allow editing
+        # This is one-renderer-per-tool so is potentially shared
+        # between different instances of Polygons
+        vertex_pointset = PointSet.new().empty()
+
+        for fig in figs:
+            renderers = self.renderers_for_fig('polys', fig)
+
+            matching_tools = [t for t in fig.tools
+                              if (isinstance(t, PolyDrawTool)
+                                  and tool_name in t.tags)]
+            if matching_tools:
+                tool = matching_tools[0]
+                vertex_renderer = tool.vertex_renderer
+            else:
+                # If we didn't find a matching tool assume
+                # that the corresponding vertex_renderer
+                # does not exist
+                vertex_renderer = (
+                    vertex_pointset
+                    .on(fig)
+                    .renderers_for_fig('points', fig)[0]
+                )
+                tool = PolyDrawTool(
+                    name='Polygon Draw',
+                    description='Draw polygons on figure',
+                    renderers=[],
+                    vertex_renderer=vertex_renderer,
+                    tags=[tool_name],
+                )
+                fig.add_tools(tool)
+
+            # This is set for the DB even if the underlying PointSet
+            # was created elsewhere, so that the .vertices property
+            # can have its properties modified for style
+            self._vertices_glyph = vertex_renderer.glyph
+            for renderer in renderers:
+                tool.renderers.append(renderer)
+
+            matching_tools = [t for t in fig.tools
+                              if (isinstance(t, PolyEditTool)
+                                  and tool_name in t.tags)]
+            if matching_tools:
+                tool = matching_tools[0]
+                # check if add/drag etc are matching
+                # raise if non-matching ??
+            else:
+                tool = PolyEditTool(
+                    name='Polygon Draw',
+                    description='Edit polygons on figure',
+                    renderers=[],
+                    tags=[tool_name],
+                    vertex_renderer=vertex_renderer,
+                )
+                fig.add_tools(tool)
+
+            for renderer in renderers:
+                tool.renderers.append(renderer)
+
+        return self
+
+    @property
+    def polys(self) -> Patches:
+        return self._glyphs['polys'][0].glyph
+
+    @property
+    def vertices(self) -> Scatter | None:
+        return self._vertices_glyph
+
+    @classmethod
+    def new(cls):
+        return PolygonsCons()
+
+    def update(
+        self,
+        xs: list[np.ndarray],
+        ys: list[np.ndarray],
+    ):
+        """
+        Need patch methods to adjust single polygons
+        Need a nicer api, too
+        """
+        assert all(len(x) == len(y) for x, y in zip(xs, ys))
+        data = {}
+        data[self.polys.xs] = xs
+        data[self.polys.ys] = ys
+        return super().update(**data)
+
+    def as_mask(self, shape: tuple[int, int]):
+        if self.data_length == 0:
+            return None
+        mask = np.zeros(shape, dtype=bool)
+        for _, row in self.cds.to_df().iterrows():
+            rr, cc = draw_polygon(
+                row[self.polys.ys],
+                row[self.polys.xs],
+                shape=shape,
+            )
+            mask[rr, cc] = True
+        return mask
+
+
+class PolygonsCons:
+    default_keys = ('xs', 'ys')
+
+    @classmethod
+    def from_pointlists(
+        cls,
+        *pointlists: list[tuple[float, float]],
+    ) -> Polygons:
+        """Note points are (x, y) pairs"""
+        xs = []
+        ys = []
+        for pointlist in pointlists:
+            xs.append([p[0] for p in pointlist])
+            ys.append([p[1] for p in pointlist])
+        data = {
+            k: v for k, v in zip(cls.default_keys, (xs, ys))
+        }
+        cds = ColumnDataSource(data)
+        return Polygons(cds)
+
+    @classmethod
+    def empty(cls):
+        data = {
+            k: [] for k in cls.default_keys
+        }
+        cds = ColumnDataSource(data)
+        return Polygons(cds)
 
 
 if __name__ == '__main__':
