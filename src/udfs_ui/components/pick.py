@@ -22,7 +22,10 @@ if TYPE_CHECKING:
 
 class PickUDFBaseWindow(UIWindow):
     def _pick_base(self, dataset: lt.DataSet):
-        self._udf_pick = self.pick_cls()
+        try:
+            self._udf_pick = self.pick_cls()
+        except AttributeError:
+            self._udf_pick = PickUDF()
         roi = np.zeros(dataset.shape.nav, dtype=bool)
         roi[0, 0] = True
         self.sig_plot = AperturePlot.new(
