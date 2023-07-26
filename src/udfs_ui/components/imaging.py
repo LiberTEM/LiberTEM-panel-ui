@@ -12,7 +12,7 @@ from libertem.udf.sumsigudf import SumSigUDF
 from libertem.udf.sum import SumUDF
 from libertem.udf.logsum import LogsumUDF
 
-from .base import UIType, UIState, UDFWindowJob
+from .base import UIType, UIState, UDFWindowJob, JobResults
 from .pick import PickUDFBaseWindow
 from .result_tracker import ImageResultTracker
 from ..display.display_base import DiskSet, RingSet, PointSet
@@ -195,10 +195,23 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
             self,
             [udf],
             [self.nav_plot],
-            result_handler=None,
+            result_handler=self.complete_job,
             params=params,
             roi=roi,
         )
+
+    def complete_job(self, job: UDFWindowJob, job_results: JobResults) -> tuple[ResultRow, ...]:
+        window_row = self.results_manager.new_window_run(
+            self,
+            job_results.run_id,
+            params=job.params,
+        )
+        channel = self.nav_plot.channel
+        buffer = job_results.udf_results[0][channel]
+        image: np.ndarray = buffer.data.squeeze()
+        rc = Numpy2DResultContainer(channel, image, {'tags': (buffer.kind,)})
+        result = self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
+        return (result,)
 
     def on_results_registered(
         self,
@@ -329,10 +342,23 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
             self,
             [udf],
             [self.sig_plot],
-            result_handler=None,
+            result_handler=self.complete_job,
             params=params,
             roi=roi,
         )
+
+    def complete_job(self, job: UDFWindowJob, job_results: JobResults) -> tuple[ResultRow, ...]:
+        window_row = self.results_manager.new_window_run(
+            self,
+            job_results.run_id,
+            params=job.params,
+        )
+        channel = self.sig_plot.channel
+        buffer = job_results.udf_results[0][channel]
+        image: np.ndarray = buffer.data.squeeze()
+        rc = Numpy2DResultContainer(channel, image, {'tags': (buffer.kind,)})
+        result = self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
+        return (result,)
 
     def on_results_registered(
         self,
