@@ -312,12 +312,11 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         clear_roi_button = self.nav_plot.get_clear_mask_btn()
 
         self.toolbox.extend((
-            clear_roi_button,
             self._mode_selector,
             self._radius_slider,
             self._radii_slider,
         )),
-        self._standard_layout()
+        self._standard_layout(left_before=(clear_roi_button,))
 
         self.sig_plot_tracker = ImageResultTracker(
             self,
@@ -418,3 +417,11 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         *results: ResultRow,
     ):
         self.sig_plot_tracker.on_results_deleted(*results)
+
+
+# raise NotImplementedError(
+#     'Add a frame-shaped result-generating window (pick + sum + logsum) '
+#     'Could re-integrate PickNoROI for "pick mode" on "Run all / Run this", and have '
+#     'normal frame-picking for offline datasets'
+#     'Also add ROI tools to the pick window'
+# )

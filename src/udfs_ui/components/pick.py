@@ -55,14 +55,24 @@ class PickUDFBaseWindow(UIWindow):
         self.nav_plot.fig.toolbar.active_drag = self.nav_plot.fig.tools[-1]
         self.toolbox = pn.Column()
 
-    def _standard_layout(self):
+    def _standard_layout(
+        self,
+        left_before=(),
+        left_after=(),
+        right_before=(),
+        right_after=(),
+    ):
         self.inner_layout.extend((
             pn.Column(
+                *left_before,
                 self.nav_plot.pane,
                 self.toolbox,
+                *left_after,
             ),
             pn.Column(
-                self.sig_plot.pane
+                *right_before,
+                self.sig_plot.pane,
+                *right_after,
             )
         ))
 
