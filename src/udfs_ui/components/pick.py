@@ -1,4 +1,5 @@
 from __future__ import annotations
+from functools import partial
 import numpy as np
 from typing import TYPE_CHECKING
 
@@ -8,30 +9,23 @@ from libertem.udf.raw import PickUDF
 from libertem.udf.sumsigudf import SumSigUDF
 
 from .live_plot import AperturePlot
-from .base import UIWindow, UIType, UIState, UDFWindowJob
+from .base import UIWindow, UIType, UIState, UDFWindowJob, JobResults
 from .result_tracker import ImageResultTracker
 from ..display.display_base import Cursor
-from .imaging import get_initial_pos
+from ..utils import get_initial_pos
+
 
 if TYPE_CHECKING:
-    from libertem.udf.base import UDFResultDict
-    from libertem.common.buffers import BufferWrapper
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from .results import ResultRow
 
 
-class PickUDFWindow(UIWindow, ui_type=UIType.TOOL):
-    name = 'pick_frame'
-    title_md = 'PickUDF'
-    pick_cls = PickUDF
-    self_run_only = True
-    header_activate = False
-
-    def initialize(self, dataset: lt.DataSet):
+class PickUDFBaseWindow(UIWindow):
+    def _pick_base(self, dataset: lt.DataSet):
         self._udf_pick = self.pick_cls()
         roi = np.zeros(dataset.shape.nav, dtype=bool)
         roi[0, 0] = True
-        self.pick_plot = AperturePlot.new(
+        self.sig_plot = AperturePlot.new(
             dataset,
             self._udf_pick,
             roi=roi,
@@ -39,7 +33,7 @@ class PickUDFWindow(UIWindow, ui_type=UIType.TOOL):
             title='Pick frame',
         )
         self._last_pick = (None, None)
-        self._udf_plots = [self.pick_plot]
+        self._udf_plots = [self.sig_plot]
 
         self.nav_plot = AperturePlot.new(
             dataset,
@@ -51,31 +45,37 @@ class PickUDFWindow(UIWindow, ui_type=UIType.TOOL):
         self._nav_cursor = Cursor.new().from_pos(nx, ny)
         self._nav_cursor.on(self.nav_plot.fig)
         self._nav_cursor.make_editable()
-        self._nav_cursor.cds.on_change('data', self.run_this_bk)
+        self._nav_cursor.cds.on_change(
+            'data',
+            partial(self.run_this_bk, run_from=self._cds_pick_job),
+        )
         self.nav_plot.fig.toolbar.active_drag = self.nav_plot.fig.tools[-1]
-
         self.toolbox = pn.Column()
+
+    def _standard_layout(self):
         self.inner_layout.extend((
             pn.Column(
                 self.nav_plot.pane,
                 self.toolbox,
             ),
             pn.Column(
-                self.pick_plot.pane
+                self.sig_plot.pane
             )
         ))
 
-        self.nav_plot_tracker = ImageResultTracker(
-            self,
-            self.nav_plot,
-            ('nav',),
-            'Nav image',
-        )
-        self.nav_plot_tracker.initialize()
+    @staticmethod
+    def _should_pick(ds: lt.DataSet, data: dict):
+        try:
+            x = int(data['cx'][0])
+            y = int(data['cy'][0])
+        except (KeyError, IndexError):
+            return False
+        h, w = ds.shape.nav
+        if not ((0 <= x < w) and (0 <= y < h)):
+            return False
+        return (x, y)
 
-        return self
-
-    def get_job(
+    def _cds_pick_job(
         self,
         state: UIState,
         dataset: lt.DataSet | AcquisitionProtocol,
@@ -116,35 +116,25 @@ class PickUDFWindow(UIWindow, ui_type=UIType.TOOL):
             self,
             [self._udf_pick],
             self._udf_plots,
+            self._complete_cds_pick_job,
             params=params,
             roi=roi,
         )
 
-    @staticmethod
-    def _should_pick(ds: lt.DataSet, data: dict):
-        try:
-            x = int(data['cx'][0])
-            y = int(data['cy'][0])
-        except (KeyError, IndexError):
-            return False
-        h, w = ds.shape.nav
-        if not ((0 <= x < w) and (0 <= y < h)):
-            return False
-        return (x, y)
-
-    def complete_job(
+    def _complete_cds_pick_job(
         self,
-        run_id: str,
         job: UDFWindowJob,
-        results: tuple[UDFResultDict],
-        damage: BufferWrapper | None = None
+        job_results: JobResults,
     ) -> tuple[ResultRow, ...]:
         if not job.udfs:
             return tuple()
 
         cy, cx = job.params['cy'], job.params['cx']
-        self._last_pick = (results[0]['intensity'].data.squeeze(axis=0), {'cx': cx, 'cy': cy})
-        self.pick_plot.fig.title.text = f'{self.pick_plot.title} - {(cy, cx)}'
+        self._last_pick = (
+            job_results.udf_results[0]['intensity'].data.squeeze(axis=0),
+            {'cx': cx, 'cy': cy},
+        )
+        self.sig_plot.fig.title.text = f'{self.sig_plot.title} - {(cy, cx)}'
 
         # Pick frame saving needs re-working to
         # avoid piling up lots of frames
@@ -160,6 +150,28 @@ class PickUDFWindow(UIWindow, ui_type=UIType.TOOL):
 
         return tuple()  # (result,)
 
+
+class PickUDFWindow(PickUDFBaseWindow, ui_type=UIType.TOOL):
+    name = 'pick_frame'
+    title_md = 'PickUDF'
+    pick_cls = PickUDF
+    self_run_only = True
+    header_activate = False
+
+    def initialize(self, dataset: lt.DataSet):
+        self._pick_base(dataset)
+        self._standard_layout()
+
+        self.nav_plot_tracker = ImageResultTracker(
+            self,
+            self.nav_plot,
+            ('nav',),
+            'Nav image',
+        )
+        self.nav_plot_tracker.initialize()
+
+        return self
+
     def on_results_registered(
         self,
         *results: ResultRow,
@@ -171,3 +183,18 @@ class PickUDFWindow(UIWindow, ui_type=UIType.TOOL):
         *results: ResultRow,
     ):
         self.nav_plot_tracker.on_results_deleted(*results)
+
+    def get_job(
+        self,
+        state: UIState,
+        dataset: lt.DataSet | AcquisitionProtocol,
+        roi: np.ndarray | None,
+    ):
+        return self._cds_pick_job(state, dataset, roi)
+
+    def complete_job(
+        self,
+        job: UDFWindowJob,
+        job_results: JobResults,
+    ):
+        return self._complete_cds_pick_job(job, job_results)
