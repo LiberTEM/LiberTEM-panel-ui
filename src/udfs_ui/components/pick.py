@@ -2,6 +2,7 @@ from __future__ import annotations
 from functools import partial
 import numpy as np
 from typing import TYPE_CHECKING
+from typing_extensions import Literal
 
 import panel as pn
 import libertem.api as lt
@@ -32,7 +33,7 @@ class PickUDFBaseWindow(UIWindow):
             dataset,
             self._udf_pick,
             roi=roi,
-            channel=('intensity', lambda buffer: buffer.squeeze()),
+            channel='intensity',
             title='Pick frame',
         )
         self._last_pick = (None, None)
@@ -77,7 +78,7 @@ class PickUDFBaseWindow(UIWindow):
         ))
 
     @staticmethod
-    def _should_pick(ds: lt.DataSet, data: dict):
+    def _should_pick(ds: lt.DataSet, data: dict) -> tuple[int, int] | Literal[False]:
         try:
             x = int(data['cx'][0])
             y = int(data['cy'][0])
