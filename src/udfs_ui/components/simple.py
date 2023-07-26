@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 
 from libertem.udf.sum import SumUDF
 from libertem.udf.logsum import LogsumUDF
-from libertem.udf.sumsigudf import SumSigUDF
 
 from .base import UIType, UIWindow, UIState, UDFWindowJob, JobResults
 from .live_plot import AperturePlot
@@ -66,12 +65,6 @@ class SumUDFWindow(SimpleUDFUIWindow, ui_type=UIType.ANALYSIS):
     name = 'sum_over_frames'
     title_md = 'SumUDF'
     udf_class = SumUDF
-
-
-class SumSigUDFWindow(SimpleUDFUIWindow, ui_type=UIType.ANALYSIS):
-    name = 'whole_frame_imaging'
-    title_md = 'SumSigUDF'
-    udf_class = SumSigUDF
 
 
 class LogSumUDFWindow(SimpleUDFUIWindow, ui_type=UIType.ANALYSIS):
