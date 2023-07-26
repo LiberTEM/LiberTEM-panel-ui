@@ -11,9 +11,12 @@ from libertem.udf.sumsigudf import SumSigUDF
 
 from .live_plot import AperturePlot
 from .base import UIWindow, UIType, UIState, UDFWindowJob
+from .pick import PickUDFBaseWindow
 from .result_tracker import ImageResultTracker
 from ..display.display_base import Cursor, DiskSet, RingSet, PointSet
 from .result_containers import Numpy2DResultContainer
+from ..utils import get_initial_pos
+
 
 if TYPE_CHECKING:
     import numpy as np
@@ -21,13 +24,6 @@ if TYPE_CHECKING:
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import BufferWrapper, UDFResultDict, UDF
     from .results import ResultRow
-
-
-def get_initial_pos(shape: tuple[int, int]):
-    h, w = shape
-    cy, cx = h // 2, w // 2
-    ri, r = h // 6, w // 4
-    return tuple(map(float, (cy, cx))), tuple(map(float, (ri, r))), float(max(h, w))
 
 
 class SingleImagingUDFWindow(UIWindow):
@@ -236,16 +232,12 @@ class RingImagingWindow(SingleImagingUDFWindow, ui_type=UIType.ANALYSIS):
         self._sig_ring.update(inner_radius=r0, outer_radius=r1)
 
 
-class ImagingWindow(UIWindow, ui_type=UIType.ANALYSIS):
+class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
     name = 'imaging'
-    title_md = 'Imaging'
+    title_md = 'Virtual Imaging'
 
     def initialize(self, dataset: lt.DataSet) -> ImagingWindow:
-        self._sig_plot = AperturePlot.new(
-            dataset,
-            SumUDF(),
-            title='Frame',
-        )
+        self._pick_base(dataset)
 
         (cy, cx), (ri, ro), max_dim = get_initial_pos(dataset.shape.sig)
         self._ring_db = (
@@ -257,7 +249,7 @@ class ImagingWindow(UIWindow, ui_type=UIType.ANALYSIS):
                 inner_radius=ri,
                 outer_radius=ro,
             )
-            .on(self._sig_plot.fig)
+            .on(self.sig_plot.fig)
             .make_editable(add=False)
             .set_visible(False)
         )
@@ -266,21 +258,21 @@ class ImagingWindow(UIWindow, ui_type=UIType.ANALYSIS):
                 self._ring_db.cds,
                 radius=self._ring_db.rings.outer_radius,
             )
-            .on(self._sig_plot.fig)
+            .on(self.sig_plot.fig)
             .make_editable(add=False)
         )
         self._point_db = (
             PointSet(
                 self._ring_db.cds,
             )
-            .on(self._sig_plot.fig)
+            .on(self.sig_plot.fig)
             .make_editable(add=False)
             .set_visible(False)
         )
-        self._edit_tool = self._sig_plot.fig.tools[-1]
+        self._edit_tool = self.sig_plot.fig.tools[-1]
         self._edit_tool.renderers.clear()
         self._disk_db.make_editable()
-        self._sig_plot.fig.toolbar.active_drag = self._edit_tool
+        self.sig_plot.fig.toolbar.active_drag = self._edit_tool
 
         widget_width = 350
         self._radius_slider = pn.widgets.FloatSlider(
@@ -316,20 +308,29 @@ class ImagingWindow(UIWindow, ui_type=UIType.ANALYSIS):
         )
         self._mode_selector.param.watch(self._toggle_visible, 'value')
 
-        self.inner_layout.append(
-            pn.Column(
-                self._mode_selector,
-                self._radius_slider,
-                self._radii_slider,
-            ),
+        self.nav_plot.add_mask_tools(activate=False)
+
+        self.toolbox.extend((
+            self._mode_selector,
+            self._radius_slider,
+            self._radii_slider,
+        )),
+        self._standard_layout()
+
+        self.sig_plot_tracker = ImageResultTracker(
+            self,
+            self.sig_plot,
+            ('sig',),
+            'Sig image',
         )
-        self.inner_layout.append(self._sig_plot.pane)
+        self.sig_plot_tracker.initialize()
+
         return self
 
     async def _toggle_visible(self, e):
         if e.new == e.old:
             return
-        sig_fig = self._sig_plot.fig
+        sig_fig = self.sig_plot.fig
         # This could be done with a 'remove_editable' method
         self._edit_tool.renderers.clear()
         db, widget = self._mode_mapping[e.new]
@@ -356,7 +357,7 @@ class ImagingWindow(UIWindow, ui_type=UIType.ANALYSIS):
                 db.set_visible(False)
             if widget is not None:
                 widget.visible = False
-        pn.io.notebook.push_notebook(self._sig_plot.pane)
+        pn.io.notebook.push_notebook(self.sig_plot.pane)
 
     def _update_radius(self, e):
         r = e.new
@@ -393,9 +394,25 @@ class ImagingWindow(UIWindow, ui_type=UIType.ANALYSIS):
         roi: np.ndarray | None,
     ):
         udf, params = self._get_udf(dataset)
+        self.nav_plot.udf = udf
+        roi = self.nav_plot.get_mask(dataset.shape.nav)
         return UDFWindowJob(
             self,
             [udf],
-            [],
+            [self.nav_plot],
+            result_handler=None,
             params=params,
+            roi=roi,
         )
+
+    def on_results_registered(
+        self,
+        *results: ResultRow,
+    ):
+        self.sig_plot_tracker.on_results_registered(*results)
+
+    def on_results_deleted(
+        self,
+        *results: ResultRow,
+    ):
+        self.sig_plot_tracker.on_results_deleted(*results)
