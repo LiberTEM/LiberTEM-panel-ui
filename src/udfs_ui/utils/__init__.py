@@ -197,3 +197,10 @@ def extract_from_dict(nest, *keys):
             if sub:
                 new_nest[k] = sub
     return new_nest
+
+
+def get_initial_pos(shape: tuple[int, int]):
+    h, w = shape
+    cy, cx = h // 2, w // 2
+    ri, r = h // 6, w // 4
+    return tuple(map(float, (cy, cx))), tuple(map(float, (ri, r))), float(max(h, w))
