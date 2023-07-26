@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
 
 class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
-    name = 'imaging'
+    name = 'virtual_imaging'
     title_md = 'Virtual Imaging'
 
     def initialize(self, dataset: lt.DataSet) -> ImagingWindow:
