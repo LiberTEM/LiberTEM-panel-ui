@@ -108,7 +108,7 @@ class UIWindow:
             align='center',
         )
         self._id_text = pn.widgets.StaticText(
-            value=f'(<b>{self._ident}</b>)',
+            value=f'[<b>{self._ident}</b>]',
             align='center',
         )
         self._remove_btn = pn.widgets.Button(
