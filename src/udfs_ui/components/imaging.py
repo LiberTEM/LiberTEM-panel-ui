@@ -21,7 +21,6 @@ from ..utils import get_initial_pos
 
 
 if TYPE_CHECKING:
-    import numpy as np
     import libertem.api as lt
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from .results import ResultRow
