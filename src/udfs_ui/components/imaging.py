@@ -1,12 +1,16 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import panel as pn
+import numpy as np
 
+from libertem.udf.base import UDF, DataTile
 from libertem.analysis.point import PointMaskAnalysis
 from libertem.analysis.disk import DiskMaskAnalysis
 from libertem.analysis.ring import RingMaskAnalysis
 from libertem.udf.sumsigudf import SumSigUDF
+from libertem.udf.sum import SumUDF
+from libertem.udf.logsum import LogsumUDF
 
 from .base import UIType, UIState, UDFWindowJob
 from .pick import PickUDFBaseWindow
@@ -20,13 +24,12 @@ if TYPE_CHECKING:
     import numpy as np
     import libertem.api as lt
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
-    from libertem.udf.base import UDF
     from .results import ResultRow
 
 
 class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
-    name = 'virtual_imaging'
-    title_md = 'Virtual Imaging'
+    name = 'virtual_detector'
+    title_md = 'Virtual Detector'
 
     def initialize(self, dataset: lt.DataSet) -> ImagingWindow:
         self._pick_base(dataset)
@@ -211,9 +214,135 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         self.sig_plot_tracker.on_results_deleted(*results)
 
 
-# raise NotImplementedError(
-#     'Add a frame-shaped result-generating window (pick + sum + logsum) '
-#     'Could re-integrate PickNoROI for "pick mode" on "Run all / Run this", and have '
-#     'normal frame-picking for offline datasets'
-#     'Also add ROI tools to the pick window'
-# )
+class PickNoROIUDF(UDF):
+    def get_result_buffers(self):
+        return {
+            'intensity': self.buffer(kind='sig'),
+        }
+
+    def process_tile(self, tile: DataTile):
+        sl = self.meta.slice
+        nav_start = sl.origin[0]
+        nav_end = nav_start + sl.shape[0]  # check for +1 ??
+        # Expects self.params.pick_idx to already be in ROI-reduced form
+        if nav_start <= self.params.pick_idx < nav_end:
+            self.results.intensity[:] += tile[self.params.pick_idx - nav_start, ...]
+
+    def merge(self, dest, src):
+        dest.intensity += src.intensity
+
+
+class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
+    name = 'frame_imaging'
+    title_md = 'Frame Imaging'
+
+    def initialize(self, dataset: lt.DataSet) -> ImagingWindow:
+        self._pick_base(dataset)
+
+        widget_width = 350
+        self._mode_selector = pn.widgets.RadioButtonGroup(
+            name='Imaging mode',
+            value='Pick',
+            options=['Pick', 'Sum', 'Logsum'],
+            button_type='default',
+            width=widget_width,
+        )
+        self._mode_selector.param.watch(self._toggle_visible, 'value')
+
+        self.nav_plot.add_mask_tools(activate=False)
+        clear_roi_button = self.nav_plot.get_clear_mask_btn()
+
+        self.toolbox.extend((
+            self._mode_selector,
+        )),
+        self._standard_layout(left_before=(clear_roi_button,))
+
+        self.nav_plot_tracker = ImageResultTracker(
+            self,
+            self.nav_plot,
+            ('nav',),
+            'Nav image',
+        )
+        self.nav_plot_tracker.initialize()
+
+        return self
+
+    async def _toggle_visible(self, e):
+        if e.new == e.old:
+            return
+        self._nav_cursor.set_visible(e.new == 'Pick')
+        pn.io.notebook.push_notebook(self.nav_plot.pane)
+
+    def _get_udf(self, dataset: lt.DataSet, roi: np.ndarray | None):
+        mode = self._mode_selector.value
+        params: dict[str, int | str] = {'mode': mode}
+        if mode == 'Pick':
+            should_pick = self._should_pick(dataset, self._nav_cursor.cds.data)
+            if should_pick is False:
+                return None, params
+            cx, cy = should_pick
+            pick_idx = np.ravel_multi_index(([cy], [cx]), dataset.shape.nav).item()
+            if roi is not None:
+                if roi[cy, cx]:
+                    pick_idx = np.cumsum(roi.ravel())[pick_idx] - 1
+                else:
+                    return None, params
+            udf = PickNoROIUDF(pick_idx=pick_idx)
+            params.update({
+                'cx': cx,
+                'cy': cy,
+                'pick_idx': pick_idx,
+            })
+            self.sig_plot.channel = 'intensity'
+        elif mode == 'Sum':
+            udf = SumUDF()
+            self.sig_plot.channel = 'intensity'
+        elif mode == 'Logsum':
+            udf = LogsumUDF()
+            self.sig_plot.channel = 'logsum'
+        else:
+            raise RuntimeError(f'Unrecognized mode {mode}')
+        return udf, params
+
+    def _cds_pick_job(
+        self,
+        state: UIState,
+        dataset: lt.DataSet | AcquisitionProtocol,
+        roi: np.ndarray | None,
+    ):
+        """Must reset plot--udf each time in case it was changed"""
+        self.sig_plot.udf = self._udf_pick
+        self.sig_plot.channel = 'intensity'
+        return super()._cds_pick_job(state, dataset, roi)
+
+    def get_job(
+        self,
+        state: UIState,
+        dataset: lt.DataSet | AcquisitionProtocol,
+        roi: np.ndarray | None,
+    ):
+        udf, params = self._get_udf(dataset, roi)
+        if udf is None:
+            return None
+        self.sig_plot.udf = udf
+        roi = self.nav_plot.get_mask(dataset.shape.nav)
+        return UDFWindowJob(
+            self,
+            [udf],
+            [self.sig_plot],
+            result_handler=None,
+            params=params,
+            roi=roi,
+        )
+
+    def on_results_registered(
+        self,
+        *results: ResultRow,
+    ):
+        self.nav_plot_tracker.on_results_registered(*results)
+
+    def on_results_deleted(
+        self,
+        *results: ResultRow,
+    ):
+        self.nav_plot_tracker.on_results_deleted(*results)
