@@ -59,15 +59,3 @@ class SimpleUDFUIWindow(UIWindow):
         rc = Numpy2DResultContainer(channel, image, {'tags': (buffer.kind,)})
         result = self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
         return (result,)
-
-
-class SumUDFWindow(SimpleUDFUIWindow, ui_type=UIType.ANALYSIS):
-    name = 'sum_over_frames'
-    title_md = 'SumUDF'
-    udf_class = SumUDF
-
-
-class LogSumUDFWindow(SimpleUDFUIWindow, ui_type=UIType.ANALYSIS):
-    name = 'logsum_over_frames'
-    title_md = 'LogsumUDF'
-    udf_class = LogsumUDF
