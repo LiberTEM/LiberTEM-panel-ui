@@ -149,5 +149,5 @@ class AperturePlot(Live2DPlot):
             button_type=button_type,
             width=width,
         )
-        clear_btn.on_click(self._plot.clear_mask)
+        clear_btn.on_click(self.clear_mask)
         return clear_btn
