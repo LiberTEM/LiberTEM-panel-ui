@@ -142,3 +142,12 @@ class AperturePlot(Live2DPlot):
         for element in self._mask_elements:
             element.clear()
         pn.io.push_notebook(self.pane)
+
+    def get_clear_mask_btn(self, label='Clear ROI', width=150, button_type='primary'):
+        clear_btn = pn.widgets.Button(
+            name=label,
+            button_type=button_type,
+            width=width,
+        )
+        clear_btn.on_click(self._plot.clear_mask)
+        return clear_btn
