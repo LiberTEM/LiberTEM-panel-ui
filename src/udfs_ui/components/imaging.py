@@ -309,8 +309,10 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         self._mode_selector.param.watch(self._toggle_visible, 'value')
 
         self.nav_plot.add_mask_tools(activate=False)
+        clear_roi_button = self.nav_plot.get_clear_mask_btn()
 
         self.toolbox.extend((
+            clear_roi_button,
             self._mode_selector,
             self._radius_slider,
             self._radii_slider,
