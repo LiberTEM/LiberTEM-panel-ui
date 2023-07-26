@@ -5,7 +5,7 @@ from libertem.udf.sum import SumUDF
 from libertem.udf.logsum import LogsumUDF
 from libertem.udf.sumsigudf import SumSigUDF
 
-from .base import UIType, UIWindow, UIState, UDFWindowJob
+from .base import UIType, UIWindow, UIState, UDFWindowJob, JobResults
 from .live_plot import AperturePlot
 from .result_containers import Numpy2DResultContainer
 
@@ -14,7 +14,6 @@ if TYPE_CHECKING:
     import libertem.api as lt
     from libertem.udf.base import UDF
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
-    from libertem.udf.base import BufferWrapper, UDFResultDict
     from .results import ResultRow
 
 
@@ -43,21 +42,23 @@ class SimpleUDFUIWindow(UIWindow):
     ):
         if self._plot is None:
             raise RuntimeError('Must initialise plot with .initialize(dataset) before run')
-        return UDFWindowJob(self, [self._udf], [self._plot])
+        return UDFWindowJob(self, [self._udf], [self._plot], result_handler=self.complete_job)
 
     def complete_job(
         self,
-        run_id: str,
         job: UDFWindowJob,
-        results: tuple[UDFResultDict],
-        damage: BufferWrapper | None = None
+        job_results: JobResults,
     ) -> tuple[ResultRow, ...]:
-        window_row = self.results_manager.new_window_run(self, run_id, params=job.params)
+        window_row = self.results_manager.new_window_run(
+            self,
+            job_results.run_id,
+            params=job.params,
+        )
         channel = self._plot.channel
-        buffer = results[0][channel]
+        buffer = job_results.udf_results[0][channel]
         image: np.ndarray = buffer.data
         rc = Numpy2DResultContainer(channel, image, {'tags': (buffer.kind,)})
-        result = self.results_manager.new_result(rc, run_id, window_row.window_id)
+        result = self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
         return (result,)
 
 
@@ -77,11 +78,3 @@ class LogSumUDFWindow(SimpleUDFUIWindow, ui_type=UIType.ANALYSIS):
     name = 'logsum_over_frames'
     title_md = 'LogsumUDF'
     udf_class = LogsumUDF
-
-
-class SumBothWindow(UIWindow, ui_type=UIType.ANALYSIS):
-    name = 'sum_both'
-    title_md = 'Sum dimensions'
-
-    def initialize(self, dataset):
-        raise NotImplementedError('Sum both sig and nav for convenience')
