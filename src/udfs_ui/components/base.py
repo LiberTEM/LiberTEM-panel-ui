@@ -2,21 +2,37 @@ from __future__ import annotations
 import uuid
 import asyncio
 from enum import Enum
-from typing import TYPE_CHECKING, TypeVar, NamedTuple, Any
+from typing import TYPE_CHECKING, TypeVar, NamedTuple, Any, Callable
 
 import panel as pn
 
 if TYPE_CHECKING:
     import numpy as np
-    import libertem.api as lt
+    from libertem.api import DataSet
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import UDF, BufferWrapper, UDFResultDict
     from libertem.viz.base import Live2DPlot
     from .ui_context import UIContext
     from .results import ResultRow
 
+    TWindow = TypeVar("TWindow", bound="UIWindow")
 
-TWindow = TypeVar("TWindow", bound="UIWindow")
+    RunFromT = Callable[
+        [
+            'UIState',
+            DataSet | AcquisitionProtocol,
+            np.ndarray | None,
+        ],
+        'UDFWindowJob' | None
+    ]
+
+    ResultHandlerT = Callable[
+        [
+            'UDFWindowJob',
+            'JobResults',
+        ],
+        tuple[ResultRow, ...]
+    ]
 
 
 class UIState(Enum):
@@ -152,7 +168,7 @@ class UIWindow:
         # Called on UI state transitions
         pass
 
-    def initialize(self, dataset: lt.DataSet) -> TWindow:
+    def initialize(self, dataset: DataSet) -> TWindow:
         # This method is problematic as we don't always have
         # the dataset in advance to initialize the plots,
         # nor does every conceivable window type need a dataset
@@ -166,33 +182,33 @@ class UIWindow:
     def set_active(self, val: bool):
         self._active_cbox.value = val
 
-    async def run_this(self, *e):
+    async def run_this(self, *e, run_from: RunFromT | None = None):
         # The functionality here could allow running
         # windows independently and concurrently, but would
         # need to refactor progress bar + UI state synchronisation
         self._run_btn.disabled = True
+        if run_from is None:
+            run_from = self.get_job
         try:
-            await self._ui_context._run_handler(*e, windows=[self])
+            await self._ui_context._run_handler(*e, run_from=[run_from])
         finally:
             self._run_btn.disabled = False
 
-    def run_this_bk(self, attr, old, new):
-        asyncio.gather(self.run_this())
+    def run_this_bk(self, attr, old, new, run_from: RunFromT | None = None):
+        asyncio.gather(self.run_this(run_from=run_from))
 
     def get_job(
         self,
         state: UIState,
-        dataset: lt.DataSet | AcquisitionProtocol,
+        dataset: DataSet | AcquisitionProtocol,
         roi: np.ndarray | None,
     ) -> UDFWindowJob | None:
         return None
 
     def complete_job(
         self,
-        run_id: str,
         job: UDFWindowJob,
-        results: tuple[UDFResultDict],
-        damage: BufferWrapper | None = None
+        results: JobResults,
     ) -> tuple[ResultRow, ...]:
         return tuple()
 
@@ -213,8 +229,13 @@ class UDFWindowJob(NamedTuple):
     window: UIWindow
     udfs: list[UDF]
     plots: list[Live2DPlot]
+    result_handler: ResultHandlerT | None = None
     params: dict[str, Any] | None = None
     roi: np.ndarray | None = None
 
-    # Could consider adding the result-handing callback
-    # to the job object to allow this to be customised
+
+class JobResults(NamedTuple):
+    run_id: str
+    job: UDFWindowJob
+    udf_results: tuple[UDFResultDict]
+    damage: BufferWrapper | None = None

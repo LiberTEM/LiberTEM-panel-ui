@@ -10,7 +10,7 @@ import libertem.api as lt
 import libertem_live.api as ltl
 
 from .progress import PanelProgressReporter
-from .base import UIWindow, UIType, UIState, UDFWindowJob
+from .base import UIWindow, UIType, UIState, UDFWindowJob, JobResults
 from .lifecycles import (
     UILifecycle,
     OfflineLifecycle,
@@ -28,6 +28,7 @@ if TYPE_CHECKING:
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import UDFResults
     from libertem_live.api import LiveContext
+    from .base import RunFromT
 
 
 class UITools:
@@ -274,20 +275,20 @@ class UIContext:
         self,
         *e,
         run_continuous: bool = False,
-        windows: list[UIWindow] | None = None
+        run_from: list[RunFromT] | None = None,
     ):
         if self._run_lock.locked():
             return
         self._continue_running = True
         async with self._run_lock:
             if run_continuous:
-                await self.run_continuous(*e, windows=windows)
+                await self.run_continuous(*e, run_from=run_from)
             elif self._state == UIState.OFFLINE:
-                await self.run_offline(*e, windows=windows)
+                await self.run_offline(*e, run_from=run_from)
             elif self._state == UIState.LIVE:
-                await self.run_live(*e, windows=windows)
+                await self.run_live(*e, run_from=run_from)
             elif self._state == UIState.REPLAY:
-                await self.run_replay(*e, windows=windows)
+                await self.run_replay(*e, run_from=run_from)
 
     async def _add_analysis_handler(self, *e):
         dropdown = self._tools.add_analysis_dropdown
@@ -388,18 +389,18 @@ class UIContext:
                 break  # only take the first, should be unique
         return roi
 
-    async def run_live(self, *e, windows: list[UIWindow] | None = None):
+    async def run_live(self, *e, run_from: list[RunFromT] | None = None):
         lifecycle = LiveLifecycle(self)
         lifecycle.before()
         live_ctx = self._resources.get_ctx(self._state)
         try:
             if (aq := self._resources.get_ds_for_run(self._state,
                                                      self.current_ds_ident)) is not None:
-                await self._run(live_ctx, aq, lifecycle, windows=windows)
+                await self._run(live_ctx, aq, lifecycle, run_from=run_from)
         finally:
             lifecycle.after()
 
-    async def run_continuous(self, *e, windows: list[UIWindow] | None = None):
+    async def run_continuous(self, *e, run_from: list[RunFromT] | None = None):
         lifecycle = ContinuousLifecycle(self)
         lifecycle.before()
         live_ctx = self._resources.get_ctx(self._state)
@@ -408,12 +409,12 @@ class UIContext:
             while self._continuous_acquire and self._continue_running:
                 if (aq := self._resources.get_ds_for_run(self._state,
                                                          self.current_ds_ident)) is not None:
-                    await self._run(live_ctx, aq, lifecycle, windows=windows)
+                    await self._run(live_ctx, aq, lifecycle, run_from=run_from)
         finally:
             self._continuous_acquire = False
             lifecycle.after()
 
-    async def run_replay(self, *e, windows: list[UIWindow] | None = None):
+    async def run_replay(self, *e, run_from: list[RunFromT] | None = None):
         lifecycle = ReplayLifecycle(self)
         lifecycle.before()
         ctx = self._resources.get_ctx(self._state)
@@ -426,12 +427,12 @@ class UIContext:
                 ds,
                 lifecycle,
                 roi=roi,
-                windows=windows,
+                run_from=run_from,
             )
         finally:
             lifecycle.after()
 
-    async def run_offline(self, *e, windows: list[UIWindow] | None = None):
+    async def run_offline(self, *e, run_from: list[RunFromT] | None = None):
         lifecycle = OfflineLifecycle(self)
         lifecycle.before()
 
@@ -440,7 +441,7 @@ class UIContext:
         roi = self.get_roi(ds)
 
         try:
-            await self._run(ctx, ds, lifecycle, roi=roi, windows=windows)
+            await self._run(ctx, ds, lifecycle, roi=roi, run_from=run_from)
         finally:
             lifecycle.after()
 
@@ -450,18 +451,19 @@ class UIContext:
         ds: lt.DataSet | AcquisitionProtocol,
         ui_lifecycle: UILifecycle,
         roi: np.ndarray | None = None,
-        windows: list[UIWindow] | None = None,
+        run_from: list[RunFromT] | None = None,
     ):
 
         if ds is None:
             self.logger.error('Dataset is None')
             return
 
-        if windows is None:
-            windows = [w for w in self._windows.values() if (not w.self_run_only)]
+        if run_from is None:
+            run_from = [w.get_job for w in self._windows.values()
+                        if len(self._windows) <= 1 or (not w.self_run_only)]
 
-        to_run: list[UDFWindowJob] = [job for window in windows
-                                      if (job := window.get_job(self._state, ds, roi))
+        to_run: list[UDFWindowJob] = [job for job_getter in run_from
+                                      if (job := job_getter(self._state, ds, roi))
                                       is not None]
         num_jobs = len(to_run)
 
@@ -546,8 +548,15 @@ class UIContext:
         all_results: list[ResultRow] = []
         for job in to_run:
             window_res = tuple(next(res_iter) for _ in job.udfs)
-            results = job.window.complete_job(run_record.run_id, job, window_res, damage=damage)
-            all_results.extend(results)
+            job_results = JobResults(
+                run_record.run_id,
+                job,
+                window_res,
+                damage=damage,
+            )
+            if job.result_handler is not None:
+                result_entries = job.result_handler(job, job_results)
+                all_results.extend(result_entries)
 
         self.notify_new_results(*all_results)
 
