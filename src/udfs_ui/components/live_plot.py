@@ -87,11 +87,12 @@ class AperturePlot(Live2DPlot):
         adapt_figure(fig, im, plot.data.shape, mindim, maxdim)
         return plot
 
-    def update(self, damage, force=False):
+    def update(self, damage, force=False, push_nb: bool = True):
         if self.fig is None:
             raise RuntimeError('Cannot update plot before set_plot called')
         self.im.update(self.data)
-        pn.io.push_notebook(self.pane)
+        if push_nb:
+            pn.io.push_notebook(self.pane)
 
     def display(self):
         if self.fig is None:
