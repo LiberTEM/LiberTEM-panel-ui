@@ -133,6 +133,9 @@ class ImageResultTracker:
         if rc is None:
             return
         self.plot.im.update(rc.data)
-        self.plot.fig.title.text = f'{self.plot.title} - {result_row.result_id}'
+        title = result_row.params.get('result_title', None)
+        if title is None:
+            title = f'{self.plot.title}'
+        self.plot.fig.title.text = f'{title} [{result_row.result_id}]'
         self._plot_displayed = result_row.result_id
         pn.io.notebook.push_notebook(self.plot.pane)
