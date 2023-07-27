@@ -17,14 +17,11 @@ class ImageResultTracker:
         plot: AperturePlot,
         tags: tuple[str, ...],
         select_text: str,
-        plot_initialized: bool | str = False,
         auto_refresh: bool = True,
     ):
         self.window = ui_window
         self.plot = plot
         self.tags = tags
-        # Records the fact we initialised from a zeros-array
-        self._plot_displayed = plot_initialized
 
         divider = pn.pane.HTML(
             R"""<div></div>""",
@@ -93,14 +90,15 @@ class ImageResultTracker:
             self._select_options.keys(),
             key=lambda x: self._select_options[x].run_id
         )))
-        if not self._plot_displayed:
+        if self.plot.displayed is None:
             # Initialize plot from first nav-tagged result
             self.select_box.value = self.select_box.options[0]
             self.load_image()
             return
-        if self.refresh_cbox.value:
-            current_display_id = self._plot_displayed
-            current = self.window.results_manager.get_result_row(current_display_id)
+        elif isinstance(self.plot.displayed, float):
+            pass
+        elif self.refresh_cbox.value:
+            current = self.plot.displayed
             if current is None:
                 # Result must have been deleted
                 return
@@ -133,6 +131,8 @@ class ImageResultTracker:
         if rc is None:
             return
         self.plot.im.update(rc.data)
-        self.plot.fig.title.text = f'{rc.title} [{result_row.result_id}]'
-        self._plot_displayed = result_row.result_id
+        self.plot.displayed = result_row
+        self.plot.fig.title.text = (
+            f'{rc.title} [{result_row.result_id} from {result_row.window_id}]'
+        )
         pn.io.notebook.push_notebook(self.plot.pane)
