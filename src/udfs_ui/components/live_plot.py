@@ -1,4 +1,6 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
+import time
 import numpy as np
 import panel as pn
 from bokeh.plotting import figure
@@ -7,10 +9,11 @@ from libertem.viz.base import Live2DPlot
 from ..display.image_db import BokehImage
 from ..display.display_base import Rectangles, DisplayBase, Polygons
 
+if TYPE_CHECKING:
+    from .results import ResultRow
 
 def adapt_figure(fig, im, shape, mindim, maxdim):
     fig.y_range.flipped = True
-    # im.flip_y()
 
     h, w = shape
     if h > w:
@@ -29,13 +32,19 @@ def adapt_figure(fig, im, shape, mindim, maxdim):
     fig.toolbar_location = location
 
 
-class AperturePlot(Live2DPlot):
-    def __init__(self, *args, min_delta=0.25, **kwargs):
-        super().__init__(*args, min_delta=min_delta, **kwargs)
+class AperturePlotBase(Live2DPlot):
+    def __init__(
+            self, dataset, udf, roi=None, channel=None, title=None, min_delta=0.25, udfresult=None
+    ):
+        super().__init__(
+            dataset, udf,
+            roi=roi, channel=channel,
+            title=title, min_delta=min_delta,
+            udfresult=udfresult
+        )
         self._pane: pn.pane.Bokeh | None = None
         self._fig: figure | None = None
         self._im: BokehImage | None = None
-        self._mask_elements: list[DisplayBase] = []
 
     @property
     def pane(self) -> pn.pane.Bokeh | None:
@@ -98,6 +107,32 @@ class AperturePlot(Live2DPlot):
         if self.fig is None:
             raise RuntimeError('Cannot display plot before set_plot called')
         return self.fig
+
+
+class AperturePlot(AperturePlotBase):
+    def __init__(
+            self, dataset, udf, roi=None, channel=None, title=None, min_delta=0.25, udfresult=None
+    ):
+        super().__init__(
+            dataset, udf,
+            roi=roi, channel=channel,
+            title=title, min_delta=min_delta,
+            udfresult=udfresult
+        )
+        self._mask_elements: list[DisplayBase] = []
+        self._displayed = None
+
+    @property
+    def displayed(self) -> ResultRow | float | None:
+        return self._displayed
+
+    @displayed.setter
+    def displayed(self, val: ResultRow | float):
+        self._displayed = val
+
+    def update(self, damage, force=False, push_nb: bool = True):
+        self.displayed = time.monotonic()
+        return super().update(damage, force=force, push_nb=push_nb)
 
     def add_mask_tools(
         self,
