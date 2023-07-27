@@ -223,7 +223,7 @@ class UIContext:
     ) -> UIWindow:
         if isinstance(window_cls, str):
             window_cls = self._find_window_implem(window_cls)
-        window_id = str(uuid.uuid4())[:5]
+        window_id = str(uuid.uuid4())[:6]
         window: UIWindow = window_cls(self, window_id)
         self._windows[window_id] = window
         assert window.ident == window_id
