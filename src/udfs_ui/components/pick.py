@@ -34,7 +34,7 @@ class PickUDFBaseWindow(UIWindow):
             self._udf_pick,
             roi=roi,
             channel='intensity',
-            title='Pick frame',
+            title=self._pick_title(),
         )
         self._last_pick = (None, None)
         self._udf_plots = [self.sig_plot]
@@ -135,6 +135,13 @@ class PickUDFBaseWindow(UIWindow):
             roi=roi,
         )
 
+    def _pick_title(self, cyx: tuple[int, int] | None = None):
+        title_stub = 'Pick frame'
+        if cyx is None:
+            return title_stub
+        cy, cx = cyx
+        return f'{title_stub} {(cy, cx)}'
+
     def _complete_cds_pick_job(
         self,
         job: UDFWindowJob,
@@ -148,7 +155,7 @@ class PickUDFBaseWindow(UIWindow):
             job_results.udf_results[0]['intensity'].data.squeeze(axis=0),
             {'cx': cx, 'cy': cy},
         )
-        self.sig_plot.fig.title.text = f'{self.sig_plot.title} - {(cy, cx)}'
+        self.sig_plot.fig.title.text = self._pick_title((cy, cx))
 
         # Pick frame saving needs re-working to
         # avoid piling up lots of frames
