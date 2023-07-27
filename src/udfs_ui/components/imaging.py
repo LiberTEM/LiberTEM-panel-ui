@@ -348,18 +348,18 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         dataset: lt.DataSet | AcquisitionProtocol,
         roi: np.ndarray | None,
     ):
-        udf, params = self._get_udf(dataset, roi)
+        self_roi = self.nav_plot.get_mask(dataset.shape.nav)
+        udf, params = self._get_udf(dataset, self_roi)
         if udf is None:
             return None
         self.sig_plot.udf = udf
-        roi = self.nav_plot.get_mask(dataset.shape.nav)
         return UDFWindowJob(
             self,
             [udf],
             [self.sig_plot],
             result_handler=self.complete_job,
             params=params,
-            roi=roi,
+            roi=self_roi,
         )
 
     def complete_job(self, job: UDFWindowJob, job_results: JobResults) -> tuple[ResultRow, ...]:
