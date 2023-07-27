@@ -172,7 +172,7 @@ class PickUDFBaseWindow(UIWindow):
         return tuple()  # (result,)
 
 
-class PickUDFWindow(PickUDFBaseWindow, ui_type=UIType.TOOL):
+class PickUDFWindow(PickUDFBaseWindow):
     name = 'pick_frame'
     title_md = 'PickUDF'
     pick_cls = PickUDF
