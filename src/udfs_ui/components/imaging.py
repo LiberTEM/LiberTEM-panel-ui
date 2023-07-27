@@ -232,6 +232,7 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
             title=result_title,
         )
         result = self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
+        self.nav_plot.displayed = result
         return (result,)
 
     def on_results_registered(
@@ -396,6 +397,7 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
             title=result_title,
         )
         result = self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
+        self.sig_plot.displayed = result
         return (result,)
 
     def on_results_registered(
