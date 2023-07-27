@@ -165,7 +165,11 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
     def _get_udf(self, dataset: lt.DataSet) -> tuple[UDF, dict[str, float]]:
         mode = self._mode_selector.value
         if mode == 'Whole Frame':
-            return SumSigUDF(), {'result_title': 'Frame Sum'}
+            params = {
+                'result_title': 'Frame Sum',
+                'result_name': 'frame_sum',
+            }
+            return SumSigUDF(), params
         params = {
             'cx': self._ring_db.cds.data['cx'][0],
             'cy': self._ring_db.cds.data['cy'][0],
@@ -173,17 +177,20 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         if mode == 'Disk':
             params['r'] = self._ring_db.cds.data['r1'][0]
             result_title = 'Disk Sum'
+            result_name = 'disk_sum'
             analysis = DiskMaskAnalysis
         elif mode == 'Annulus':
             params['ri'] = self._ring_db.cds.data['r0'][0]
             params['ro'] = self._ring_db.cds.data['r1'][0]
             result_title = 'Annular Sum'
+            result_name = 'annular_sum'
             analysis = RingMaskAnalysis
         else:
             result_title = 'Point Value'
+            result_name = 'point_value'
             analysis = PointMaskAnalysis
         udf = analysis(dataset, params).get_udf()
-        return udf, {**params, 'result_title': result_title}
+        return udf, {**params, 'result_title': result_title, 'result_name': result_name}
 
     def get_job(
         self,
@@ -205,6 +212,7 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
 
     def complete_job(self, job: UDFWindowJob, job_results: JobResults) -> tuple[ResultRow, ...]:
         result_title = job.params.pop('result_title')
+        result_name = job.params.pop('result_name')
         self.nav_plot.fig.title.text = result_title
         window_row = self.results_manager.new_window_run(
             self,
@@ -215,10 +223,11 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         buffer = job_results.udf_results[0][channel]
         image: np.ndarray = buffer.data.squeeze()
         rc = Numpy2DResultContainer(
-            channel,
+            result_name,
             image,
             {
                 'tags': (buffer.kind,),
+                'channel': channel,
             },
             title=result_title,
         )
@@ -317,16 +326,19 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
                 'cy': cy,
                 'pick_idx': pick_idx,
                 'result_title': self._pick_title((cy, cx)),
+                'result_name': 'pick_frame',
             })
             self.sig_plot.channel = 'intensity'
         elif mode == 'Sum':
             udf = SumUDF()
             self.sig_plot.channel = 'intensity'
             params['result_title'] = 'Sum frame'
+            params['result_name'] = 'sum_frame',
         elif mode == 'Logsum':
             udf = LogsumUDF()
             self.sig_plot.channel = 'logsum'
             params['result_title'] = 'Logsum frame'
+            params['result_name'] = 'logsum_frame',
         else:
             raise RuntimeError(f'Unrecognized mode {mode}')
         return udf, params
@@ -364,6 +376,7 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
 
     def complete_job(self, job: UDFWindowJob, job_results: JobResults) -> tuple[ResultRow, ...]:
         result_title = job.params.pop('result_title')
+        result_name = job.params.pop('result_name')
         self.sig_plot.fig.title.text = result_title
         window_row = self.results_manager.new_window_run(
             self,
@@ -374,7 +387,7 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         buffer = job_results.udf_results[0][channel]
         image: np.ndarray = buffer.data.squeeze()
         rc = Numpy2DResultContainer(
-            channel,
+            result_name,
             image,
             {
                 'tags': (buffer.kind,),
