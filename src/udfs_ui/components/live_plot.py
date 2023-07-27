@@ -25,7 +25,7 @@ def adapt_figure(fig, im, shape, mindim, maxdim):
     if fh > 1.2 * fw:
         location = 'right'
     else:
-        location = 'above'
+        location = 'below'
     fig.toolbar_location = location
 
 
