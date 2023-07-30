@@ -14,7 +14,6 @@ from libertem.udf.logsum import LogsumUDF
 
 from .base import UIType, UIState, UDFWindowJob, JobResults
 from .pick import PickUDFBaseWindow
-from .result_tracker import ImageResultTracker
 from ..display.display_base import DiskSet, RingSet, PointSet
 from .result_containers import Numpy2DResultContainer
 from ..utils import get_initial_pos
@@ -112,14 +111,7 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         )),
         self._standard_layout(left_before=(clear_roi_button,))
 
-        self.sig_plot_tracker = ImageResultTracker(
-            self,
-            self.sig_plot,
-            ('sig',),
-            'Sig image',
-        )
-        self.sig_plot_tracker.initialize()
-
+        self.link_image_plot('Sig', self.sig_plot, ('sig',))
         return self
 
     async def _toggle_visible(self, e):
@@ -235,18 +227,6 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         self.nav_plot.displayed = result
         return (result,)
 
-    def on_results_registered(
-        self,
-        *results: ResultRow,
-    ):
-        self.sig_plot_tracker.on_results_registered(*results)
-
-    def on_results_deleted(
-        self,
-        *results: ResultRow,
-    ):
-        self.sig_plot_tracker.on_results_deleted(*results)
-
 
 class PickNoROIUDF(UDF):
     def get_result_buffers(self):
@@ -290,15 +270,7 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
             self._mode_selector,
         )),
         self._standard_layout(left_before=(clear_roi_button,))
-
-        self.nav_plot_tracker = ImageResultTracker(
-            self,
-            self.nav_plot,
-            ('nav',),
-            'Nav image',
-        )
-        self.nav_plot_tracker.initialize()
-
+        self.link_image_plot('Nav', self.nav_plot, ('nav',))
         return self
 
     async def _toggle_visible(self, e):
@@ -399,15 +371,3 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         result = self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
         self.sig_plot.displayed = result
         return (result,)
-
-    def on_results_registered(
-        self,
-        *results: ResultRow,
-    ):
-        self.nav_plot_tracker.on_results_registered(*results)
-
-    def on_results_deleted(
-        self,
-        *results: ResultRow,
-    ):
-        self.nav_plot_tracker.on_results_deleted(*results)

@@ -10,8 +10,7 @@ from libertem.udf.raw import PickUDF
 from libertem.udf.sumsigudf import SumSigUDF
 
 from .live_plot import AperturePlot
-from .base import UIWindow, UIType, UIState, UDFWindowJob, JobResults
-from .result_tracker import ImageResultTracker
+from .base import UIWindow, UIState, UDFWindowJob, JobResults
 from ..display.display_base import Cursor
 from ..utils import get_initial_pos
 
@@ -182,28 +181,8 @@ class PickUDFWindow(PickUDFBaseWindow):
     def initialize(self, dataset: lt.DataSet):
         self._pick_base(dataset)
         self._standard_layout()
-
-        self.nav_plot_tracker = ImageResultTracker(
-            self,
-            self.nav_plot,
-            ('nav',),
-            'Nav image',
-        )
-        self.nav_plot_tracker.initialize()
-
+        self.link_image_plot('Nav', self.nav_plot, ('nav',))
         return self
-
-    def on_results_registered(
-        self,
-        *results: ResultRow,
-    ):
-        self.nav_plot_tracker.on_results_registered(*results)
-
-    def on_results_deleted(
-        self,
-        *results: ResultRow,
-    ):
-        self.nav_plot_tracker.on_results_deleted(*results)
 
     def get_job(
         self,
