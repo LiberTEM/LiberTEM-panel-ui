@@ -10,6 +10,7 @@ from skimage.draw import polygon as draw_polygon
 
 from bokeh.models.sources import ColumnDataSource
 from bokeh.models.glyphs import Line, Scatter, Circle, Annulus, Rect, Patches
+from bokeh.models.glyphs import Text as BkText
 from bokeh.models.tools import PointDrawTool, BoxEditTool, PolyDrawTool, PolyEditTool
 
 from ..utils import pop_from_list
@@ -258,6 +259,22 @@ class DisplayBase(abc.ABC):
     @property
     def glyph_names(self):
         return tuple(self._glyphs.keys())
+
+
+class ConsBase(abc.ABC):
+    constructs = DisplayBase
+
+    @classmethod
+    def empty(cls):
+        """
+        Need to figure out how to give the return Type dynamically
+        before using this base class
+        """
+        data = {
+            k: [] for k in cls.default_keys
+        }
+        cds = ColumnDataSource(data)
+        return cls.constructs(cds)
 
 
 class PointSet(DisplayBase):
@@ -1273,12 +1290,75 @@ class PolygonsCons:
         return Polygons(cds)
 
     @classmethod
-    def empty(cls):
+    def empty(cls) -> Polygons:
         data = {
             k: [] for k in cls.default_keys
         }
         cds = ColumnDataSource(data)
         return Polygons(cds)
+
+
+class Text(DisplayBase):
+    glyph_map = {
+        'text': [BkText],
+    }
+
+    def __init__(
+        self,
+        cds: ColumnDataSource,
+        x='x',
+        y='y',
+        text='text',
+    ):
+        super().__init__(cds)
+        glyph = BkText(
+            x=x,
+            y=y,
+            text=text,
+        )
+        self._register_glyph('text', glyph)
+
+    @property
+    def glyph(self) -> BkText:
+        return self._glyphs['text'][0].glyph
+
+    @classmethod
+    def new(cls):
+        return TextCons()
+
+    def update(
+        self,
+        x: np.ndarray | None = None,
+        y: np.ndarray | None = None,
+        text: str | list[str] | None = None,
+    ):
+        data = {}
+        data[self.glyph.x] = x
+        data[self.glyph.y] = y
+        if isinstance(text, str):
+            text = [text] * self.data_length
+        data[self.glyph.text] = text
+        return super().update(**data)
+
+
+class TextCons:
+    default_keys = ('x', 'y', 'text')
+
+    @classmethod
+    def from_vectors(
+        cls,
+        x: np.ndarray,
+        y: np.ndarray,
+        text: list[str] | str,
+    ):
+        if isinstance(text, str):
+            text = [text] * len(x)
+        assert len(text) == len(x) == len(y)
+        data = {
+            k: v for k, v in zip(cls.default_keys, (x, y, text))
+        }
+        cds = ColumnDataSource(data)
+        return Text(cds)
 
 
 if __name__ == '__main__':
