@@ -6,6 +6,8 @@ from typing import TYPE_CHECKING, TypeVar, NamedTuple, Any, Callable
 
 import panel as pn
 
+from .result_tracker import ImageResultTracker
+
 if TYPE_CHECKING:
     import numpy as np
     from libertem.api import DataSet
@@ -14,6 +16,8 @@ if TYPE_CHECKING:
     from libertem.viz.base import Live2DPlot
     from .ui_context import UIContext
     from .results import ResultRow
+    from .result_tracker import ResultTracker
+    from .live_plot import AperturePlot
 
     TWindow = TypeVar("TWindow", bound="UIWindow")
 
@@ -89,6 +93,7 @@ class UIWindow:
             self._header_layout,
             self._inner_layout,
         )
+        self._trackers: dict[str, ResultTracker] = {}
 
     @property
     def ident(self) -> str:
@@ -97,6 +102,10 @@ class UIWindow:
     @property
     def results_manager(self):
         return self._ui_context.results_manager
+
+    @property
+    def trackers(self):
+        return self._trackers
 
     @property
     def logger(self):
@@ -223,6 +232,80 @@ class UIWindow:
         *results: ResultRow,
     ):
         pass
+
+    def link_image_plot(
+        self,
+        name: str,
+        plot: AperturePlot,
+        tags: tuple[str, ...],
+        initialize: bool = True,
+    ) -> ResultTracker:
+        if name in self.trackers.keys():
+            raise ValueError('Result trackers must have unique names')
+        tracker = ImageResultTracker(
+            self.results_manager,
+            plot,
+            tags,
+        )
+        if initialize:
+            tracker.initialize()
+        self._trackers[name] = tracker
+        self._layout_trackers()
+        return tracker
+
+    def _layout_trackers(self):
+        # Assumes trackers cannot be removed!!!
+        n_trackers = len(self.trackers)
+        if n_trackers == 0:
+            return
+        elif n_trackers == 1:
+            divider = pn.pane.HTML(
+                R"""<div></div>""",
+                styles={
+                    'border-left': '2px solid #757575',
+                    'height': '35px',
+                }
+            )
+            select_text = pn.widgets.StaticText(
+                value='Display',
+                align='center',
+                margin=(5, 5, 5, 5),
+            )
+            self._header_layout.extend((
+                divider,
+                select_text,
+            ))
+            tracker_name = tuple(self.trackers.keys())[0]
+            tracker = self.trackers[tracker_name]
+            self._tracker_select = pn.widgets.RadioButtonGroup(
+                options=[tracker_name],
+                button_type='default',
+                value=tracker_name,
+                align='center',
+                min_width=75,
+            )
+            self._header_layout.append(self._tracker_select)
+        elif n_trackers == 2:
+            self._tracker_select.param.watch(self.toggle_selected, 'value')
+
+        self._tracker_select.options = list(self.trackers.keys())
+        for tracker in self.trackers.values():
+            if tracker.layout is None:
+                tracker.layout = pn.Row(
+                    *tracker.components(),
+                    align='center',
+                )
+                self._header_layout.append(tracker.layout)
+
+        if n_trackers > 1:
+            self.toggle_selected()
+
+    def toggle_selected(self, *e):
+        for tracker_name, tracker in self.trackers.items():
+            is_selected = self._tracker_select.value == tracker_name
+            if not is_selected:
+                tracker.set_visible(is_selected)
+        self.trackers[self._tracker_select.value].set_visible(True)
 
 
 class UDFWindowJob(NamedTuple):

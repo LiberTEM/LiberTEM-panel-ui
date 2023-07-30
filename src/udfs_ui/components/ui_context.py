@@ -566,9 +566,15 @@ class UIContext:
             return
         for window in self._windows.values():
             window.on_results_registered(*results)
+            for tracker in window.trackers.values():
+                if tracker.auto_update:
+                    tracker.on_results_registered(*results)
 
     def notify_deleted_results(self, *results: ResultRow):
         if not results:
             return
         for window in self._windows.values():
             window.on_results_deleted(*results)
+            for tracker in window.trackers.values():
+                if tracker.auto_update:
+                    tracker.on_results_deleted(*results)
