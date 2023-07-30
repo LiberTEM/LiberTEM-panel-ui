@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 import asyncio
 import uuid
 import datetime
@@ -114,7 +115,7 @@ class UITools:
 
 
 class UIContext:
-    def __init__(self):
+    def __init__(self, save_root: os.PathLike | None = None):
         self._windows: dict[str, UIWindow] = {}
         self._tools = UITools(self)
         self._p_reporter = PanelProgressReporter(self._tools.pbar)
@@ -132,7 +133,7 @@ class UIContext:
         self._continue_running = False
         self._continuous_acquire = False
         self._removed_from_options: dict[str, pn.widgets.Select] = {}
-        self._results_manager = ResultsManager()
+        self._results_manager = ResultsManager(save_root)
         self._results_manager.add_watcher(self)
         self._logger = UILog()
 
