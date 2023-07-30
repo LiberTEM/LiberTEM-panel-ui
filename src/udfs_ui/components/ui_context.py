@@ -357,6 +357,10 @@ class UIContext:
 
     def _setup_replay(self):
         ReplayLifecycle(self).setup()
+        # Record mode should just be a checkbutton on the top row
+        # Save files directly into the root directory of the UIContext
+        # (could provide a method to change the directory)
+        # Better still use ResultManager to handle dataset recordings!
         self._tools.replay_select.options = [*self.get_recordings_map().keys()]
 
     def _setup_offline(self):
