@@ -149,6 +149,8 @@ class ImageResultTracker(ResultTracker):
             self._window_options[self._select_window_name(w)] = w
         if new_windows:
             self.window_select_box.options = list(self._window_options.keys())
+        if not self.window_select_box.value:
+            self.window_select_box.value = self.window_select_box.options[0]
 
         self.update_result_select(new_results=new_results)
         

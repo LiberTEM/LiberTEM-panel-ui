@@ -517,13 +517,15 @@ class ResultsManager:
             raise ValueError('Need at least one tag to search')
         result_iter = self._results
         if from_rows is not None:
-            assert len(from_rows) > 0, "Must supply rows to search"
+            if len(from_rows) == 0:
+                raise ValueError("Must supply rows to search")
             result_iter = from_rows
         if from_windows is None:
             window_ids = None
         else:
             window_ids = tuple(w.window_id for w in from_windows)
-            assert len(window_ids) > 0, "Must supply windows to search"
+            if len(window_ids) == 0:
+                raise ValueError("Must supply windows to search")
         for result in result_iter:
             if window_ids and result.window_id not in window_ids:
                 continue
