@@ -272,10 +272,10 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         self.nav_plot.add_mask_tools(activate=False)
         clear_roi_button = self.nav_plot.get_clear_mask_btn()
 
-        self.toolbox.extend((
-            self._mode_selector,
-        )),
-        self._standard_layout(left_before=(clear_roi_button,))
+        self._standard_layout(
+            left_before=(clear_roi_button,),
+            right_after=(self._mode_selector,),
+        )
         self.link_image_plot('Nav', self.nav_plot, ('nav',))
         return self
 
