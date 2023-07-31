@@ -100,9 +100,13 @@ class ImageResultTracker(ResultTracker):
         )
 
     def _select_result_name(self, result: ResultRow):
-        # if (window := self.manager.get_window(result.window_id)) is not None:
-        #     name = f'{window.window_name}::{name}'
         return f'{result.run_id}: {result.name} [{result.result_id}]'
+
+    def _sorted_result_names(self) -> list[str]:
+        return list(reversed(sorted(
+            self._result_options.keys(),
+            key=lambda x: self._result_options[x].run_id
+        )))
 
     def _select_window_name(self, window: WindowRow):
         return f'{window.window_name} [{window.window_id}]'
@@ -150,14 +154,11 @@ class ImageResultTracker(ResultTracker):
         results = tuple(
             self.manager.yield_with_tag(*self.tags, from_windows=current_window)
         )
-        self._result_select_options = bidict({
+        self._result_options = bidict({
             self._select_result_name(r): r
             for r in results
         })
-        self.result_select_box.options = list(reversed(sorted(
-            self._result_select_options.keys(),
-            key=lambda x: self._result_select_options[x].run_id
-        )))
+        self.result_select_box.options = self._sorted_result_names()
 
         if self.plot.displayed is None:
             # Initialize plot from first correctly-tagged result
@@ -187,22 +188,25 @@ class ImageResultTracker(ResultTracker):
                 possible_results = None
             if possible_results:
                 # Take the first, result names are supposed to be unique!
-                self.result_select_box.value = self._result_select_options.inverse[possible_results[0]]
+                self.result_select_box.value = self._result_options.inverse[possible_results[0]]
                 self.load_image()
 
     def on_results_deleted(
         self,
         *results: ResultRow,
     ):
+        popped = False
         for r in results:
-            _ = self._select_options.inverse.pop(r, None)
-        self.window_select_box.options = list(self._select_options.keys())
+            result = self._result_options.inverse.pop(r, None)
+            popped = popped or result is not None
+        if popped:
+            self.result_select_box.options = self._sorted_result_names()
 
     def load_image(self, *e):
         selected: str = self.result_select_box.value
         if not selected:
             return
-        result_row = self._result_select_options.get(selected, None)
+        result_row = self._result_options.get(selected, None)
         if result_row is None:
             return
         rc = self.manager.get_result_container(result_row.result_id)
