@@ -451,6 +451,8 @@ class ResultsManager:
         title_text = row["name"]
         if row["window_name"] and row["window_name"] not in ('-',):
             title_text = f'{row["window_name"]} :: {title_text}'
+        # NOTE row.name is the pd.Series.name (index value) property, not the actual 'Result Name'
+        result_row: ResultRow = self.get_result_row(row.name)
         md = pn.pane.Markdown(object=f'''### {title_text}
 
 - **id**: {row.name}
@@ -458,6 +460,7 @@ class ResultsManager:
 - **Window**: {row["window_name"]} - *{row["window_id"]}*
 - **Run #**: {row["run_id"]}
 - **Description**: {row["result_repr"]}
+- **Tags**: {result_row.tags}
 ''', min_width=400)
         combined_params = self.get_combined_params(row.name, include_empty=False)
         if combined_params:
