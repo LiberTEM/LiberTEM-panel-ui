@@ -66,8 +66,8 @@ class ImageResultTracker(ResultTracker):
         self._select_options: bidict[str, ResultRow] = bidict({})
         self.select_box = pn.widgets.Select(
             options=list(self._select_options.keys()),
-            width=200,
-            max_width=300,
+            width=250,
+            max_width=350,
             width_policy='min',
             align='center',
         )
@@ -84,8 +84,9 @@ class ImageResultTracker(ResultTracker):
         )
 
     def _select_result_name(self, result: ResultRow):
-        return (f'[{result.run_id}]: {result.result_id}, '
-                f'{self.manager.get_window(result.window_id).window_name}')
+        # if (window := self.manager.get_window(result.window_id)) is not None:
+        #     name = f'{window.window_name}::{name}'
+        return f'{result.run_id}: {result.name} [{result.result_id}]'
 
     def initialize(self):
         if len(self.manager.all_results):
@@ -159,8 +160,11 @@ class ImageResultTracker(ResultTracker):
             return
         self.plot.im.update(rc.data)
         self.plot.displayed = result_row
+        title_suffix = ''
+        if (window := self.manager.get_window(result_row.window_id)) is not None:
+            title_suffix = f' from {window.window_name}'
         self.plot.fig.title.text = (
-            f'{rc.title} [{result_row.result_id} from {result_row.window_id}]'
+            f'{rc.title} [{result_row.result_id}]{title_suffix}'
         )
         pn.io.notebook.push_notebook(self.plot.pane)
         # raise NotImplementedError(
@@ -169,6 +173,5 @@ class ImageResultTracker(ResultTracker):
         # )
 
     # def get_results_tracker(self, *args, auto_update: bool = True):
-        # can also auto-label nav/sig shaped results and auto-subscribe
         # Maybe auto-subscribe only to windows, and not to results themselves
         # ...
