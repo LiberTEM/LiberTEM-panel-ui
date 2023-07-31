@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+from typing_extensions import Literal
 
 from bidict import bidict
 import panel as pn
@@ -15,6 +16,7 @@ class ResultTracker:
         self.manager = manager
         self._auto_update = True
         self._layout: pn.layout.ListPanel | None = None
+        self._latest_key: Literal['Latest'] = 'Latest'
 
     @property
     def auto_update(self):
@@ -71,7 +73,7 @@ class ImageResultTracker(ResultTracker):
         self._result_options: bidict[str, ResultRow] = bidict({})
         self.window_select_box = pn.widgets.Select(
             options=list(self._window_options.keys()),
-            width=150,
+            width=200,
             max_width=300,
             width_policy='min',
             align='center',
@@ -103,10 +105,13 @@ class ImageResultTracker(ResultTracker):
         return f'{result.run_id}: {result.name} [{result.result_id}]'
 
     def _sorted_result_names(self) -> list[str]:
-        return list(reversed(sorted(
+        options = list(reversed(sorted(
             self._result_options.keys(),
             key=lambda x: self._result_options[x].run_id
         )))
+        if len(options):
+            options.insert(0, self._latest_key)
+        return options
 
     def _select_window_name(self, window: WindowRow):
         return f'{window.window_name} [{window.window_id}]'
@@ -177,18 +182,22 @@ class ImageResultTracker(ResultTracker):
                 self.load_image()
         elif new_results is not None and self.refresh_cbox.value:
             # we have new results, check if any match the current selection
+            show_latest = self.result_select_box.value == self._latest_key
             current = self.plot.displayed
             try:
                 possible_results = tuple(
                     r for r in new_results
-                    if (r.window_id == current.window_id) and (r.name == current.name)
+                    if (r.window_id == current.window_id) and (show_latest or (r.name == current.name))
                 )
             except AttributeError:
                 # current display is not a ResultRow, don't overwrite it
                 possible_results = None
             if possible_results:
-                # Take the first, result names are supposed to be unique!
-                self.result_select_box.value = self._result_options.inverse[possible_results[0]]
+                if show_latest:
+                    self.result_select_box.value = self._latest_key
+                else:
+                    # Take the first, result names are supposed to be unique!
+                    self.result_select_box.value = self._result_options.inverse[possible_results[0]]
                 self.load_image()
 
     def on_results_deleted(
@@ -206,7 +215,19 @@ class ImageResultTracker(ResultTracker):
         selected: str = self.result_select_box.value
         if not selected:
             return
-        result_row = self._result_options.get(selected, None)
+        elif selected == self._latest_key:
+            # This works because the results are sorted
+            # in most-recent first order and we insert 'Latest'
+            # at position 0
+            try:
+                result_row = self._result_options.get(
+                    self.result_select_box.options[1],
+                    None
+                )
+            except IndexError:
+                result_row = None
+        else:
+            result_row = self._result_options.get(selected, None)
         if result_row is None:
             return
         rc = self.manager.get_result_container(result_row.result_id)
