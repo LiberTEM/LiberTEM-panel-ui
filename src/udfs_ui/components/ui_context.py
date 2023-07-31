@@ -227,7 +227,8 @@ class UIContext:
         window_id = str(uuid.uuid4())[:6]
         window: UIWindow = window_cls(self, window_id)
         self._windows[window_id] = window
-        assert window.ident == window_id, 'Mismatching window IDs'
+        if window.ident != window_id:
+            raise RuntimeError('Mismatching window IDs')
         self._layout.append(window.layout())
         self.logger.info(f'Added window {window.title_md} - {window.ident}')
         window.initialize(
