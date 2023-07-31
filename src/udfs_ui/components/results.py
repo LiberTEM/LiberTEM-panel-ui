@@ -50,6 +50,15 @@ class WindowRow(NamedTuple):
     window_id: str
     window_name: str
 
+    def __hash__(self) -> int:
+        return hash(self.window_id)
+
+    def __eq__(self, other) -> bool:
+        try:
+            self.window_id == other.window_id
+        except AttributeError:
+            raise NotImplementedError('Cannot compare')
+
 
 class WindowRunRow(NamedTuple):
     # could multi-index between window_id and run_id as 'primarykey'
@@ -501,6 +510,7 @@ class ResultsManager:
         *tags: str,
         match_all: bool = False,
         from_rows: tuple[ResultRow] | None = None,
+        from_windows: tuple[WindowRow] | None = None,
     ) -> Iterator[ResultRow]:
         tags: set[str] = set(tags)
         if not tags:
@@ -509,7 +519,14 @@ class ResultsManager:
         if from_rows is not None:
             assert len(from_rows) > 0, "Must supply rows to search"
             result_iter = from_rows
+        if from_windows is None:
+            window_ids = None
+        else:
+            window_ids = tuple(w.window_id for w in from_windows)
+            assert len(window_ids) > 0, "Must supply windows to search"
         for result in result_iter:
+            if window_ids and result.window_id not in window_ids:
+                continue
             result_tags = set(result.tags)
             if not result_tags:
                 continue

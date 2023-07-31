@@ -6,7 +6,8 @@ import panel as pn
 
 if TYPE_CHECKING:
     from .live_plot import AperturePlot
-    from .results import ResultRow, ResultsManager
+    from .results import ResultRow, ResultsManager, WindowRow
+    from .base import UIWindow
 
 
 class ResultTracker:
@@ -33,6 +34,9 @@ class ResultTracker:
         self,
         *results: ResultRow,
     ):
+        pass
+
+    def on_window_removed(self, window: UIWindow):
         pass
 
     @property
@@ -63,14 +67,26 @@ class ImageResultTracker(ResultTracker):
         self.plot = plot
         self.tags = tags
 
-        self._select_options: bidict[str, ResultRow] = bidict({})
-        self.select_box = pn.widgets.Select(
-            options=list(self._select_options.keys()),
-            width=250,
-            max_width=350,
+        self._window_options: bidict[str, WindowRow | None] = bidict({})
+        self._result_options: bidict[str, ResultRow] = bidict({})
+        self.window_select_box = pn.widgets.Select(
+            options=list(self._window_options.keys()),
+            width=150,
+            max_width=300,
             width_policy='min',
             align='center',
+            # Top, Right, Bottom, Left
+            margin=(5, 2, 5, 2),
         )
+        self.result_select_box = pn.widgets.Select(
+            options=list(self._result_options.keys()),
+            width=150,
+            max_width=300,
+            width_policy='min',
+            align='center',
+            margin=(5, 2, 5, 2),
+        )        
+        self.window_select_box.param.watch(self.update_result_select, 'value')
         self.load_btn = pn.widgets.Button(
             name='Load',
             align='center',
@@ -88,6 +104,9 @@ class ImageResultTracker(ResultTracker):
         #     name = f'{window.window_name}::{name}'
         return f'{result.run_id}: {result.name} [{result.result_id}]'
 
+    def _select_window_name(self, window: WindowRow):
+        return f'{window.window_name} [{window.window_id}]'
+
     def initialize(self):
         if len(self.manager.all_results):
             self.on_results_registered(
@@ -96,7 +115,8 @@ class ImageResultTracker(ResultTracker):
 
     def components(self) -> tuple[pn.widgets.Widget, ...]:
         return (
-            self.select_box,
+            self.window_select_box,
+            self.result_select_box,
             self.load_btn,
             self.refresh_cbox,
         )
@@ -110,35 +130,65 @@ class ImageResultTracker(ResultTracker):
         )
         if not new_results:
             return
-        self._select_options.update({
+
+        new_windows = tuple(
+            window for r in new_results
+            if (window := self.manager.get_window(r.window_id)) is not None
+            and window not in self._window_options.values()
+        )
+        for w in new_windows:
+            self._window_options[self._select_window_name(w)] = w
+        if new_windows:
+            self.window_select_box.options = list(self._window_options.keys())
+
+        self.update_result_select(new_results=new_results)
+        
+    def update_result_select(self, *e, new_results: tuple[ResultRow] | None = None):
+        current_window = self._window_options[self.window_select_box.value]
+        if current_window is not None:
+            current_window = (current_window,)
+        results = tuple(
+            self.manager.yield_with_tag(*self.tags, from_windows=current_window)
+        )
+        self._result_select_options = bidict({
             self._select_result_name(r): r
-            for r in new_results
+            for r in results
         })
-        self.select_box.options = list(reversed(sorted(
-            self._select_options.keys(),
-            key=lambda x: self._select_options[x].run_id
+        self.result_select_box.options = list(reversed(sorted(
+            self._result_select_options.keys(),
+            key=lambda x: self._result_select_options[x].run_id
         )))
+
         if self.plot.displayed is None:
-            # Initialize plot from first nav-tagged result
-            self.select_box.value = self.select_box.options[0]
+            # Initialize plot from first correctly-tagged result
+            self.result_select_box.value = self.result_select_box.options[0]
             self.load_image()
-            return
         elif isinstance(self.plot.displayed, float):
+            # This is a timestamp, could come from
+            # a self-generated result or liveplot and
+            # shouldn't normally be overwritten
             pass
-        elif self.refresh_cbox.value:
+        elif new_results is None:
+            # This is a manually triggered window change
+            # If auto refresh is on should update the window
+            self.result_select_box.value = self.result_select_box.options[0]
+            if self.refresh_cbox.value:
+                self.load_image()
+        elif new_results is not None and self.refresh_cbox.value:
+            # we have new results, check if any match the current selection
             current = self.plot.displayed
-            if current is None:
-                # Result must have been deleted
-                return
-            possible_results = tuple(
-                r for r in new_results
-                if (r.window_id == current.window_id) and (r.name == current.name)
-            )
-            if not possible_results:
-                return
-            # Take the first, result names are supposed to be unique!
-            self.select_box.value = self._select_options.inverse[possible_results[0]]
-            self.load_image()
+            try:
+                possible_results = tuple(
+                    r for r in new_results
+                    if (r.window_id == current.window_id) and (r.name == current.name)
+                )
+            except AttributeError:
+                # current display is not a ResultRow, don't overwrite it
+                possible_results = None
+            if possible_results:
+                # Take the first, result names are supposed to be unique!
+                self.result_select_box.value = self._result_select_options.inverse[possible_results[0]]
+                self.load_image()
 
     def on_results_deleted(
         self,
@@ -146,13 +196,13 @@ class ImageResultTracker(ResultTracker):
     ):
         for r in results:
             _ = self._select_options.inverse.pop(r, None)
-        self.select_box.options = list(self._select_options.keys())
+        self.window_select_box.options = list(self._select_options.keys())
 
     def load_image(self, *e):
-        selected: str = self.select_box.value
+        selected: str = self.result_select_box.value
         if not selected:
             return
-        result_row = self._select_options.get(selected, None)
+        result_row = self._result_select_options.get(selected, None)
         if result_row is None:
             return
         rc = self.manager.get_result_container(result_row.result_id)
@@ -167,11 +217,3 @@ class ImageResultTracker(ResultTracker):
             f'{rc.title} [{result_row.result_id}]{title_suffix}'
         )
         pn.io.notebook.push_notebook(self.plot.pane)
-        # raise NotImplementedError(
-        #     'Maybe also have some kind of follow-window mode in the dropdown '
-        #     'so that we can command the display of the latest result from a given window.'
-        # )
-
-    # def get_results_tracker(self, *args, auto_update: bool = True):
-        # Maybe auto-subscribe only to windows, and not to results themselves
-        # ...
