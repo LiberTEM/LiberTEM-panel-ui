@@ -6,7 +6,7 @@ import panel as pn
 import numpy as np
 from bokeh.plotting import figure
 
-from aperture.display.image_db import BokehImage
+from ..display.image_db import BokehImage
 from .live_plot import adapt_figure
 
 
