@@ -72,7 +72,7 @@ class ImageResultTracker(ResultTracker):
             align='center',
         )
         self.load_btn = pn.widgets.Button(
-            name='Load image',
+            name='Load',
             align='center',
             button_type='primary',
         )
