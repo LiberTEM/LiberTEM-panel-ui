@@ -115,6 +115,9 @@ class ImageResultTracker(ResultTracker):
 
     def _select_window_name(self, window: WindowRow):
         return f'{window.window_name} [{window.window_id}]'
+    
+    def _sorted_window_names(self) -> list[str]:
+        return list(self._window_options.keys())      
 
     def initialize(self):
         if len(self.manager.all_results):
@@ -148,7 +151,7 @@ class ImageResultTracker(ResultTracker):
         for w in new_windows:
             self._window_options[self._select_window_name(w)] = w
         if new_windows:
-            self.window_select_box.options = list(self._window_options.keys())
+            self.window_select_box.options = self._sorted_window_names()
         if not self.window_select_box.value:
             self.window_select_box.value = self.window_select_box.options[0]
 
