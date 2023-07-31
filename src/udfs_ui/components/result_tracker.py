@@ -117,7 +117,7 @@ class ImageResultTracker(ResultTracker):
         return f'{window.window_name} [{window.window_id}]'
     
     def _sorted_window_names(self) -> list[str]:
-        return list(self._window_options.keys())
+        return list(reversed(self._window_options.keys()))
 
     def initialize(self):
         if len(self.manager.all_results):
