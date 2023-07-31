@@ -338,8 +338,8 @@ class ResultsManager:
             sorters=[{'field': 'run_id', 'dir': 'dsc'}],
             titles=titles,
             buttons={
-                'show_btn': '<i class="fa fa-search"></i>',
-                'del_btn': '<i class="fa fa-times"></i>',
+                'show_btn': '🔍',
+                'del_btn': '✕',
             },
         )
 
