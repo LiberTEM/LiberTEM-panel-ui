@@ -306,12 +306,12 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
             udf = SumUDF()
             self.sig_plot.channel = 'intensity'
             params['result_title'] = 'Sum frame'
-            params['result_name'] = 'sum_frame',
+            params['result_name'] = 'sum_frame'
         elif mode == 'Logsum':
             udf = LogsumUDF()
             self.sig_plot.channel = 'logsum'
             params['result_title'] = 'Logsum frame'
-            params['result_name'] = 'logsum_frame',
+            params['result_name'] = 'logsum_frame'
         else:
             raise RuntimeError(f'Unrecognized mode {mode}')
         return udf, params
