@@ -40,6 +40,10 @@ class ResultRow(NamedTuple):
             self.result_id == other.result_id
         except AttributeError:
             raise NotImplementedError('Cannot compare')
+    
+    @property
+    def tags(self) -> list[str]:
+        return self.params.get('tags', [])
 
 
 class WindowRow(NamedTuple):
@@ -162,7 +166,7 @@ class ResultsManager:
             run_id=run_id,
             window_id=window_id,
             timestamp=self._get_timestamp(),
-            params=result_container.params,
+            params=result_container.meta,
             name=result_container.name,
             result_type=result_container.__class__,
             result_repr=result_container.table_repr(),
@@ -491,11 +495,11 @@ class ResultsManager:
 
     def yield_with_tag(
         self,
-        *tags,
+        *tags: str,
         match_all: bool = False,
         from_rows: tuple[ResultRow] | None = None,
     ) -> Iterator[ResultRow]:
-        tags = set(tags)
+        tags: set[str] = set(tags)
         if not tags:
             raise ValueError('Need at least one tag to search')
         result_iter = self._results
@@ -503,7 +507,7 @@ class ResultsManager:
             assert len(from_rows) > 0, "Must supply rows to search"
             result_iter = from_rows
         for result in result_iter:
-            result_tags = set(result.params.get('tags', []))
+            result_tags = set(result.tags)
             if not result_tags:
                 continue
             intersection = tags.intersection(result_tags)

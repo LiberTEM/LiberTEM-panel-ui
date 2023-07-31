@@ -15,15 +15,19 @@ class ResultContainer:
         self,
         name: str,
         data: Any,
-        params: dict[str, Any] | None = None,
+        meta: dict[str, Any] | None = None,
         title: str | None = None
     ):
 
         self._name = name
         self._data = data
-        if params is None:
-            params = {}
-        self._params = params
+        if meta is None:
+            meta = {'tags': []}
+        elif 'tags' in meta:
+            assert isinstance(meta['tags'], list)
+        else:
+            meta['tags'] = []
+        self._meta = meta
         self._title = title
 
     @property
@@ -35,8 +39,15 @@ class ResultContainer:
         return self._data
 
     @property
-    def params(self):
-        return self._params
+    def meta(self):
+        return self._meta
+    
+    @property
+    def tags(self):
+        return self.meta['tags']
+    
+    def tag_as(self, *tags: str):
+        self.meta['tags'].extend(tags)
 
     @property
     def title(self):
@@ -61,10 +72,10 @@ class NumpyResultContainer(ResultContainer):
         self,
         name: str,
         data: np.ndarray,
-        params: dict[str, Any] | None = None,
+        meta: dict[str, Any] | None = None,
         title: str | None = None
     ):
-        super().__init__(name, data, params=params, title=title)
+        super().__init__(name, data, meta=meta, title=title)
         assert isinstance(self.data, np.ndarray)
 
     @property
@@ -80,10 +91,10 @@ class Numpy2DResultContainer(NumpyResultContainer):
         self,
         name: str,
         data: np.ndarray,
-        params: dict[str, Any] | None = None,
+        meta: dict[str, Any] | None = None,
         title: str | None = None
     ):
-        super().__init__(name, data, params=params, title=title)
+        super().__init__(name, data, meta=meta, title=title)
         assert self.data.ndim == 2
 
     def show(self, standalone: bool = True):
