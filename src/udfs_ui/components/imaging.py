@@ -203,26 +203,26 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         )
 
     def complete_job(self, job: UDFWindowJob, job_results: JobResults) -> tuple[ResultRow, ...]:
-        result_title = job.params.pop('result_title')
-        result_name = job.params.pop('result_name')
+        result_title: str = job.params.pop('result_title')
+        result_name: str = job.params.pop('result_name')
         self.nav_plot.fig.title.text = result_title
         window_row = self.results_manager.new_window_run(
             self,
             job_results.run_id,
             params=job.params,
         )
-        channel = self.nav_plot.channel
+        channel: str = self.nav_plot.channel
         buffer = job_results.udf_results[0][channel]
         image: np.ndarray = buffer.data.squeeze()
         rc = Numpy2DResultContainer(
             result_name,
             image,
-            {
-                'tags': (buffer.kind,),
+            meta={
                 'channel': channel,
             },
             title=result_title,
         )
+        rc.tag_as(buffer.kind)
         result = self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
         self.nav_plot.displayed = result
         return (result,)
@@ -348,26 +348,26 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         )
 
     def complete_job(self, job: UDFWindowJob, job_results: JobResults) -> tuple[ResultRow, ...]:
-        result_title = job.params.pop('result_title')
-        result_name = job.params.pop('result_name')
+        result_title: str = job.params.pop('result_title')
+        result_name: str = job.params.pop('result_name')
         self.sig_plot.fig.title.text = result_title
         window_row = self.results_manager.new_window_run(
             self,
             job_results.run_id,
             params=job.params,
         )
-        channel = self.sig_plot.channel
+        channel: str = self.sig_plot.channel
         buffer = job_results.udf_results[0][channel]
         image: np.ndarray = buffer.data.squeeze()
         rc = Numpy2DResultContainer(
             result_name,
             image,
-            {
-                'tags': (buffer.kind,),
+            meta={
                 'channel': channel,
             },
             title=result_title,
         )
+        rc.tag_as(buffer.kind)
         result = self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
         self.sig_plot.displayed = result
         return (result,)

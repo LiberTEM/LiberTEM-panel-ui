@@ -129,7 +129,7 @@ class RecordWindow(UIWindow, ui_type=UIType.TOOL):
             pass
 
         window_row = self.results_manager.new_window_run(self, run_id)
-        rc = RecordResultContainer('recording', str(filepath), params=params)
+        rc = RecordResultContainer('recording', str(filepath), meta=params)
         result = self.results_manager.new_result(rc, run_id, window_row)
         return (result,)
 
