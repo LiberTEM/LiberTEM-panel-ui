@@ -106,10 +106,14 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
 
         self.toolbox.extend((
             self._mode_selector,
-            self._radius_slider,
-            self._radii_slider,
-        )),
-        self._standard_layout(left_before=(clear_roi_button,))
+        ))
+        self._standard_layout(
+            left_before=(clear_roi_button,),
+            right_after=(
+                self._radius_slider,
+                self._radii_slider,
+            ),
+        )
 
         self.link_image_plot('Sig', self.sig_plot, ('sig',))
         return self
@@ -120,6 +124,15 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         sig_fig = self.sig_plot.fig
         # This could be done with a 'remove_editable' method
         self._edit_tool.renderers.clear()
+
+        for name, (db, widget) in self._mode_mapping.items():
+            if e.new == name:
+                continue
+            if db is not None:
+                db.set_visible(False)
+            if widget is not None:
+                widget.visible = False
+
         db, widget = self._mode_mapping[e.new]
         if db is not None:
             db.set_visible(True)
@@ -137,13 +150,6 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
             renderer = db.renderers_for_fig(glyph_name, sig_fig)[0]
             self._edit_tool.renderers.append(renderer)
 
-        for name, (db, widget) in self._mode_mapping.items():
-            if e.new == name:
-                continue
-            if db is not None:
-                db.set_visible(False)
-            if widget is not None:
-                widget.visible = False
         pn.io.notebook.push_notebook(self.sig_plot.pane)
 
     def _update_radius(self, e):
