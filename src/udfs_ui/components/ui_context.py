@@ -497,9 +497,6 @@ class UIContext:
         self.logger.info(f'Start run, state {self._state.value.upper()} '
                          f'on {len(to_run)} jobs{roi_message}')
 
-        # maybe do some backend optimisation to reduce the number
-        # of SumUDF, LogsumUDF instances that run? Might need
-        # to be careful about plots, though
         tstart = datetime.datetime.now()
         part_completed = 0
         try:
