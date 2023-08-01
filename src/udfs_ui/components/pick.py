@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING
 from typing_extensions import Literal
 
 import panel as pn
-import libertem.api as lt
 from libertem.udf.raw import PickUDF
 from libertem.udf.sumsigudf import SumSigUDF
 
@@ -18,10 +17,11 @@ from ..utils import get_initial_pos
 if TYPE_CHECKING:
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from .results import ResultRow
+    from libertem.api import DataSet
 
 
 class PickUDFBaseWindow(UIWindow):
-    def _pick_base(self, dataset: lt.DataSet):
+    def _pick_base(self, dataset: DataSet):
         try:
             self._udf_pick = self.pick_cls()
         except AttributeError:
@@ -76,22 +76,10 @@ class PickUDFBaseWindow(UIWindow):
             )
         ))
 
-    @staticmethod
-    def _should_pick(ds: lt.DataSet, data: dict) -> tuple[int, int] | Literal[False]:
-        try:
-            x = int(data['cx'][0])
-            y = int(data['cy'][0])
-        except (KeyError, IndexError):
-            return False
-        h, w = ds.shape.nav
-        if not ((0 <= x < w) and (0 <= y < h)):
-            return False
-        return (x, y)
-
     def _cds_pick_job(
         self,
         state: UIState,
-        dataset: lt.DataSet | AcquisitionProtocol,
+        dataset: DataSet | AcquisitionProtocol,
         roi: np.ndarray | None,
     ):
         if state == UIState.LIVE:
@@ -102,7 +90,10 @@ class PickUDFBaseWindow(UIWindow):
         # if roi is not None:
         #     return
 
-        coords = self._should_pick(dataset, self._nav_cursor.cds.data)
+        coords = self._nav_cursor.current_pos(
+            to_int=True,
+            clip_to=dataset.shape.nav,
+        )
         if not coords:
             return
         cx, cy = coords
@@ -134,12 +125,15 @@ class PickUDFBaseWindow(UIWindow):
             roi=roi,
         )
 
-    def _pick_title(self, cyx: tuple[int, int] | None = None):
+    def _pick_title(self, cyx: tuple[int, int] | None = None, suffix: str | None = None):
         title_stub = 'Pick frame'
         if cyx is None:
             return title_stub
         cy, cx = cyx
-        return f'{title_stub} {(cy, cx)}'
+        pad_suffix = ''
+        if suffix is not None:
+            pad_suffix = f' {suffix}'
+        return f'{title_stub} {(cy, cx)}{pad_suffix}'
 
     def _complete_cds_pick_job(
         self,
@@ -178,16 +172,17 @@ class PickUDFWindow(PickUDFBaseWindow):
     self_run_only = True
     header_activate = False
 
-    def initialize(self, dataset: lt.DataSet):
+    def initialize(self, dataset: DataSet, with_layout: bool = True):
         self._pick_base(dataset)
-        self._standard_layout()
+        if with_layout:
+            self._standard_layout()
         self.link_image_plot('Nav', self.nav_plot, ('nav',))
         return self
 
     def get_job(
         self,
         state: UIState,
-        dataset: lt.DataSet | AcquisitionProtocol,
+        dataset: DataSet | AcquisitionProtocol,
         roi: np.ndarray | None,
     ):
         return self._cds_pick_job(state, dataset, roi)

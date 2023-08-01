@@ -289,7 +289,10 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         mode = self._mode_selector.value
         params: dict[str, int | str] = {'mode': mode}
         if mode == 'Pick':
-            should_pick = self._should_pick(dataset, self._nav_cursor.cds.data)
+            should_pick = self._nav_cursor.current_pos(
+                to_int=True,
+                clip_to=dataset.shape.nav,
+            )            
             if should_pick is False:
                 return None, params
             cx, cy = should_pick
