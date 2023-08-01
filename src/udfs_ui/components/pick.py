@@ -125,6 +125,11 @@ class PickUDFBaseWindow(UIWindow):
             roi=roi,
         )
 
+    def reset_title(self):
+        _, params = self._last_pick
+        cyx = (params['cy'], params['cx'])
+        self.sig_plot.fig.title.text = self._pick_title(cyx)
+
     def _pick_title(self, cyx: tuple[int, int] | None = None, suffix: str | None = None):
         title_stub = 'Pick frame'
         if cyx is None:
@@ -133,7 +138,7 @@ class PickUDFBaseWindow(UIWindow):
         pad_suffix = ''
         if suffix is not None:
             pad_suffix = f' {suffix}'
-        return f'{title_stub} {(cy, cx)}{pad_suffix}'
+        return f'{title_stub} (y={cy}, x={cx}){pad_suffix}'
 
     def _complete_cds_pick_job(
         self,
