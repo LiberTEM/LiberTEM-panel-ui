@@ -703,6 +703,29 @@ class Cursor(DisplayBase):
 
         return self
 
+    def current_pos(
+        self,
+        to_int: bool = False,
+        clip_to: tuple[int, int] | None = None,
+        as_yx: bool = False,
+    ):
+        try:
+            x: float = self.cds.data[self.cursor.x][0]
+            y: float = self.cds.data[self.cursor.y][0]
+        except (KeyError, IndexError):
+            return False
+        if to_int:
+            x = int(x)
+            y = int(y)
+        if clip_to is not None:
+            h, w = clip_to
+            if not ((0 <= x < w) and (0 <= y < h)):
+                return False
+        if as_yx:
+            return (y, x)
+        else:
+            return (x, y)
+
     def add_disk(
         self,
         radius: float,
