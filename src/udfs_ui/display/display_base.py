@@ -196,7 +196,7 @@ class DisplayBase(abc.ABC):
     def _update_filter_none(self, **data: np.ndarray | list | None):
         return {k: v for k, v in data.items() if v is not None}
 
-    def update(self, **data: np.ndarray | list):
+    def raw_update(self, **data: np.ndarray | list):
         """
         Update some-or-all columns in the CDS
 
@@ -228,6 +228,9 @@ class DisplayBase(abc.ABC):
         if not matching:
             raise ValueError('Mismatching column lengths')
         self.cds.data.update(data)
+
+    def update(self, **data: np.ndarray | list):
+        return self.raw_update(**data)
 
     def clear(self):
         """
