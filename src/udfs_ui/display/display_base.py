@@ -14,6 +14,7 @@ from bokeh.models.glyphs import Text as BkText
 from bokeh.models.tools import PointDrawTool, BoxEditTool, PolyDrawTool, PolyEditTool
 
 from ..utils import pop_from_list
+from .utils import PointXY
 from ..components.masks import clip_posxy_array
 
 
@@ -710,24 +711,20 @@ class Cursor(DisplayBase):
         self,
         to_int: bool = False,
         clip_to: tuple[int, int] | None = None,
-        as_yx: bool = False,
     ):
         try:
             x: float = self.cds.data[self.cursor.x][0]
             y: float = self.cds.data[self.cursor.y][0]
         except (KeyError, IndexError):
-            return False
+            return None
         if to_int:
             x = int(x)
             y = int(y)
         if clip_to is not None:
             h, w = clip_to
             if not ((0 <= x < w) and (0 <= y < h)):
-                return False
-        if as_yx:
-            return (y, x)
-        else:
-            return (x, y)
+                return None
+        return PointXY(x, y)
 
     def add_disk(
         self,

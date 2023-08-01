@@ -94,7 +94,7 @@ class PickUDFBaseWindow(UIWindow):
             to_int=True,
             clip_to=dataset.shape.nav,
         )
-        if not coords:
+        if coords is None:
             return
         cx, cy = coords
 

@@ -289,13 +289,13 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         mode = self._mode_selector.value
         params: dict[str, int | str] = {'mode': mode}
         if mode == 'Pick':
-            should_pick = self._nav_cursor.current_pos(
+            coords = self._nav_cursor.current_pos(
                 to_int=True,
                 clip_to=dataset.shape.nav,
             )            
-            if should_pick is False:
+            if coords is None:
                 return None, params
-            cx, cy = should_pick
+            cx, cy = coords
             pick_idx = np.ravel_multi_index(([cy], [cx]), dataset.shape.nav).item()
             if roi is not None:
                 if roi[cy, cx]:
