@@ -18,7 +18,7 @@ from .result_containers import RecordResultContainer
 
 if TYPE_CHECKING:
     import numpy as np
-    import libertem.api as lt
+    from libertem.api import DataSet
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import BufferWrapper, UDFResultDict
     from .results import ResultRow
@@ -30,12 +30,12 @@ class ROIWindow(UIWindow, ui_type=UIType.TOOL):
     is_unique = True
     can_self_run = False
 
-    def get_roi(self, dataset: lt.DataSet) -> np.ndarray | None:
+    def get_roi(self, dataset: DataSet) -> np.ndarray | None:
         if self.is_active:
             return self._plot.get_mask(dataset.shape.nav.to_tuple())
         return None
 
-    def initialize(self, dataset: lt.DataSet):
+    def initialize(self, dataset: DataSet):
         udf = SumSigUDF()
         self._plot = AperturePlot.new(dataset, udf)
         self._plot.add_mask_tools(activate=True)
@@ -79,7 +79,7 @@ class RecordWindow(UIWindow, ui_type=UIType.TOOL):
     def get_job(
         self,
         state: UIState,
-        dataset: lt.DataSet | AcquisitionProtocol,
+        dataset: DataSet | AcquisitionProtocol,
         roi: np.ndarray | None,
     ):
         if self.is_active and roi is None and (record_udf := self.get_record_udf()):
@@ -100,7 +100,7 @@ class RecordWindow(UIWindow, ui_type=UIType.TOOL):
         filepath = file_root / fnm
         return RecordUDF(filepath)
 
-    def initialize(self, dataset: lt.DataSet):
+    def initialize(self, dataset: DataSet):
         self.save_dir = pn.widgets.TextInput(
             name='Save directory',
             value='.',

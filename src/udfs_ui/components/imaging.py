@@ -20,7 +20,7 @@ from ..utils import get_initial_pos
 
 
 if TYPE_CHECKING:
-    import libertem.api as lt
+    from libertem.api import DataSet
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from .results import ResultRow
 
@@ -29,7 +29,7 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
     name = 'virtual_detector'
     title_md = 'Virtual Detector'
 
-    def initialize(self, dataset: lt.DataSet) -> ImagingWindow:
+    def initialize(self, dataset: DataSet) -> ImagingWindow:
         self._pick_base(dataset)
 
         (cy, cx), (ri, ro), max_dim = get_initial_pos(dataset.shape.sig)
@@ -160,7 +160,7 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         r0, r1 = e.new
         self._ring_db.update(inner_radius=r0, outer_radius=r1)
 
-    def _get_udf(self, dataset: lt.DataSet) -> tuple[UDF, dict[str, float]]:
+    def _get_udf(self, dataset: DataSet) -> tuple[UDF, dict[str, float]]:
         mode = self._mode_selector.value
         if mode == 'Whole Frame':
             params = {
@@ -193,7 +193,7 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
     def get_job(
         self,
         state: UIState,
-        dataset: lt.DataSet | AcquisitionProtocol,
+        dataset: DataSet | AcquisitionProtocol,
         roi: np.ndarray | None,
     ):
         udf, params = self._get_udf(dataset)
@@ -256,7 +256,7 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
     name = 'frame_imaging'
     title_md = 'Frame Imaging'
 
-    def initialize(self, dataset: lt.DataSet) -> ImagingWindow:
+    def initialize(self, dataset: DataSet) -> ImagingWindow:
         self._pick_base(dataset)
 
         widget_width = 350
@@ -285,7 +285,7 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         self._nav_cursor.set_visible(e.new == 'Pick')
         pn.io.notebook.push_notebook(self.nav_plot.pane)
 
-    def _get_udf(self, dataset: lt.DataSet, roi: np.ndarray | None):
+    def _get_udf(self, dataset: DataSet, roi: np.ndarray | None):
         mode = self._mode_selector.value
         params: dict[str, int | str] = {'mode': mode}
         if mode == 'Pick':
@@ -325,7 +325,7 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
     def _cds_pick_job(
         self,
         state: UIState,
-        dataset: lt.DataSet | AcquisitionProtocol,
+        dataset: DataSet | AcquisitionProtocol,
         roi: np.ndarray | None,
     ):
         """Must reset plot--udf each time in case it was changed"""
@@ -336,7 +336,7 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
     def get_job(
         self,
         state: UIState,
-        dataset: lt.DataSet | AcquisitionProtocol,
+        dataset: DataSet | AcquisitionProtocol,
         roi: np.ndarray | None,
     ):
         self_roi = self.nav_plot.get_mask(dataset.shape.nav)

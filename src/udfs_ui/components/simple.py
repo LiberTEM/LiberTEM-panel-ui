@@ -1,16 +1,13 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from libertem.udf.sum import SumUDF
-from libertem.udf.logsum import LogsumUDF
-
-from .base import UIType, UIWindow, UIState, UDFWindowJob, JobResults
+from .base import UIWindow, UIState, UDFWindowJob, JobResults
 from .live_plot import AperturePlot
 from .result_containers import Numpy2DResultContainer
 
 if TYPE_CHECKING:
     import numpy as np
-    import libertem.api as lt
+    from libertem.api import DataSet
     from libertem.udf.base import UDF
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from .results import ResultRow
@@ -24,7 +21,7 @@ class SimpleUDFUIWindow(UIWindow):
         self._udf = self.udf_class()
         self._plot: AperturePlot = None
 
-    def initialize(self, dataset: lt.DataSet):
+    def initialize(self, dataset: DataSet):
         self._plot = AperturePlot.new(
             dataset,
             self._udf,
@@ -36,7 +33,7 @@ class SimpleUDFUIWindow(UIWindow):
     def get_job(
         self,
         state: UIState,
-        dataset: lt.DataSet | AcquisitionProtocol,
+        dataset: DataSet | AcquisitionProtocol,
         roi: np.ndarray | None,
     ):
         if self._plot is None:

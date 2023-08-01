@@ -7,8 +7,6 @@ from humanize import naturalsize, precisedelta
 import numpy as np
 import panel as pn
 from typing import Callable, TYPE_CHECKING, Type
-import libertem.api as lt
-import libertem_live.api as ltl
 
 from .progress import PanelProgressReporter
 from .base import UIWindow, UIType, UIState, UDFWindowJob, JobResults
@@ -29,6 +27,7 @@ if TYPE_CHECKING:
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import UDFResults
     from libertem_live.api import LiveContext
+    from libertem.api import DataSet, Context
     from .base import RunFromT
 
 
@@ -150,10 +149,10 @@ class UIContext:
         self,
         live_ctx: LiveContext,
         get_aq: Callable[[LiveContext], AcquisitionProtocol | None],
-        offline_ctx: lt.Context | None = None,
+        offline_ctx: Context | None = None,
         aq_plan: AcquisitionProtocol | None = None,
     ):
-        if not isinstance(live_ctx, ltl.LiveContext):
+        if not hasattr(live_ctx, 'make_acquisition'):
             raise TypeError('Cannot instantiate live UIContext '
                             f'with Context of type {type(live_ctx)}')
         self._resources = LiveResources(
@@ -170,9 +169,10 @@ class UIContext:
 
     def for_offline(
         self,
-        ctx: lt.Context,
-        ds: lt.DataSet,
+        ctx: Context,
+        ds: DataSet,
     ):
+        import libertem.api as lt  #noqa
         if not isinstance(ctx, lt.Context):
             raise TypeError(f'Cannot instantiate UIContext with Context of type {type(ctx)}')
         if not isinstance(ds, lt.DataSet):
@@ -386,7 +386,7 @@ class UIContext:
             button_row.append(self._tools.replay_select)
         return button_row, tool_row
 
-    def get_roi(self, ds: lt.DataSet) -> np.ndarray | None:
+    def get_roi(self, ds: DataSet) -> np.ndarray | None:
         # Get an ROI from an roi window if present and roi is set
         roi = None
         for w in self._windows.values():
@@ -453,8 +453,8 @@ class UIContext:
 
     async def _run(
         self,
-        ctx: lt.Context | LiveContext,
-        ds: lt.DataSet | AcquisitionProtocol,
+        ctx: Context | LiveContext,
+        ds: DataSet | AcquisitionProtocol,
         ui_lifecycle: UILifecycle,
         roi: np.ndarray | None = None,
         run_from: list[RunFromT] | None = None,
