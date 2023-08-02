@@ -59,6 +59,10 @@ class DatashadeHelper:
         return self.im._px_offset
 
     @property
+    def active(self):
+        return True
+
+    @property
     def canvas(self) -> ds.Canvas:
         """
         The Datashader object which does the re-rasterizing
@@ -444,24 +448,16 @@ class DatashadeHelper:
         return all(a == b for a, b in zip(self.cds_to_ltrb(old_cds_coords),
                                           self.cds_to_ltrb(new_cds_coords)))
 
-    # def get_shaded_datadict(self, force_full=False):
-    #     """
-    #     Called when updating the image data
-    #     Will shade and return the CDS with the same display/view
-    #     as the previous CDS, except for when initialising the plot
-    #     where the shaded image/geometry will be for the whole array
-
-    #     :meta private:
-    #     """
-    #     if self.cds is None or force_full:
-    #         image_data = self.shade()
-    #         return self.get_full_datadict(image_data=image_data.data)
-    #     else:
-    #         current_cds_dims = self.current_cds_dims()
-    #         if self.is_oversampled(current_cds_dims):
-    #             xrange, yrange = self.ranges_from_cds_dict(current_cds_dims, as_int=True)
-    #             image_data = self.direct_sample(self.array, xrange, yrange)
-    #         else:
-    #             # Use .reshade and not .shade here to preserve previous data ranges
-    #             image_data = self.reshade().data
-    #         return {**current_cds_dims, 'image': [image_data[::-1, :]]}
+    def compute_update(self, array: np.ndarray) -> dict[str, list]:
+        if self.array.shape != array.shape:
+            raise NotImplementedError('No support for changing array size')
+        # Replace the data
+        self._array_da[:] = array
+        current_cds_dims = self.current_cds_dims()
+        if self.is_oversampled(current_cds_dims):
+            xrange, yrange = self.ranges_from_cds_dict(current_cds_dims, as_int=True)
+            image_data = self.direct_sample(self.array, xrange, yrange)
+        else:
+            # Use .reshade and not .shade here to preserve previous data ranges
+            image_data = self.reshade().data
+        return {**current_cds_dims, 'image': [image_data]}

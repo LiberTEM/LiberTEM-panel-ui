@@ -15,6 +15,7 @@ from bokeh.events import RangesUpdate
 
 if TYPE_CHECKING:
     from bokeh.models.mappers import ColorMapper
+    from .image_datashader import DatashadeHelper
 
 
 class BokehImageCons:
@@ -84,7 +85,8 @@ class BokehImageCons:
     ) -> dict[str, list]:
         return {
             **cls._get_geometry(array.shape[:2], anchor_xy, flip_y, px_offset),
-            **cls._get_array(array, minmax),
+            **cls._get_array(array),
+            **cls._get_minmax(minmax),
             'cbar_slider': [False],
             'cbar_centered': [False],
         }
@@ -104,9 +106,14 @@ class BokehImageCons:
         }
 
     @staticmethod
-    def _get_array(array, minmax):
+    def _get_array(array):
         return {
             'image': [array],
+        }
+
+    @staticmethod
+    def _get_minmax(minmax):
+        return {
             'val_low': [minmax[0]],
             'val_high': [minmax[1]],
         }
@@ -148,6 +155,7 @@ class BokehImage(DisplayBase):
         glyph = Image(image='image', x='x', y='y', dw='dw', dh='dh')
         self._register_glyph('image', glyph)
         self._flipped_y = False
+        self._ds_helper: DatashadeHelper | None = None
 
     @staticmethod
     def new():
@@ -211,16 +219,22 @@ class BokehImage(DisplayBase):
         """
         self.constructor.check_nparray(array)
         minmax = self.calc_minmax(array)
-        data = {
-            **self.constructor._get_array(array, minmax),
-            **self.constructor._get_geometry(
-                array.shape,
-                self.anchor_offset,
-                self._flipped_y,
-                self._px_offset,
-            ),
-        }
-        super().update(**data)
+        if self.use_downsampling():
+            data = self.downsampler.compute_update(array)
+        else:
+            data = {
+                **self.constructor._get_array(array),
+                **self.constructor._get_geometry(
+                    array.shape,
+                    self.anchor_offset,
+                    self._flipped_y,
+                    self._px_offset,
+                ),
+            }
+        super().update(
+            **data,
+            **self.constructor._get_minmax(minmax),
+        )
 
     def enable_downsampling(self, height: int = 400, width: int = 400):
         figures = self.is_on()
@@ -246,13 +260,21 @@ class BokehImage(DisplayBase):
         self._register_child('bounds', self._bound_ps)
         return self
 
-    def patch(self, array: np.ndarray, slice_0: slice, slice_1: slice):
-        patched_data = array[slice_0, slice_1].ravel()
-        patches = {'image': [([0, slice_0, slice_1], patched_data)]}
-        self.cds.patch(patches)
+    @property
+    def downsampler(self):
+        return self._ds_helper
+
+    def use_downsampling(self):
+        return self.downsampler is not None and self.downsampler.active
+
+    # def patch(self, array: np.ndarray, slice_0: slice, slice_1: slice):
+    #     # This needs to defer to datashade helper if defined
+    #     patched_data = array[slice_0, slice_1].ravel()
+    #     patches = {'image': [([0, slice_0, slice_1], patched_data)]}
+    #     self.cds.patch(patches)
 
     @staticmethod
-    def calc_minmax(array):
+    def calc_minmax(array) -> tuple[float, float]:
         data = array.ravel()
         mmin, mmax = np.min(data), np.max(data)
         if np.isnan(mmin) or np.isnan(mmax):
