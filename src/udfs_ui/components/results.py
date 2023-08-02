@@ -40,7 +40,7 @@ class ResultRow(NamedTuple):
             self.result_id == other.result_id
         except AttributeError:
             raise NotImplementedError('Cannot compare')
-    
+
     @property
     def tags(self) -> list[str]:
         return self.params.get('tags', [])

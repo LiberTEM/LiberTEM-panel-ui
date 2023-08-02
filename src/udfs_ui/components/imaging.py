@@ -292,7 +292,7 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
             coords = self._nav_cursor.current_pos(
                 to_int=True,
                 clip_to=dataset.shape.nav,
-            )            
+            )
             if coords is None:
                 return None, params
             cx, cy = coords
