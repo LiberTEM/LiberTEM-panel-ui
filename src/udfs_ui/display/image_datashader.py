@@ -264,6 +264,14 @@ class DatashadeHelper:
         1:1 update.
 
         :meta private:
+
+        # IDEA Why not pre-generate an image pyramid, choose the closest LOD
+        # to the viewport in the event, then send by slicing a centered window
+        # into the array, avoids the time repeatedly calling .reshade
+        # and most of the logic for over-zooming etc will be the same
+        # the pyramid could also be generated lazily to avoid runtime overhead
+        # In this case we don't even need to rely on xarray or datashader
+        # unless their image resampling is faster than scikit-image
         """
         # Need to thorougly test this function for off-by-one errors...
         is_visible, new_cds_coords = self.unpack_event(event)
@@ -279,6 +287,9 @@ class DatashadeHelper:
             # Covers the case when we zoom out from the full shaded image
             if VERBOSE:
                 print('Matching bounds, skip update')
+            # There is a case when panning outside of an over-zoomed image
+            # which uses .shade rather than doing nothing at all
+            # Need to check if this is a limitation or can be handled correctly
             return
 
         if self.is_oversampled(new_cds_coords):
@@ -310,6 +321,9 @@ class DatashadeHelper:
             shaded = self.shade(xrange=xrange, yrange=yrange).data
             if VERBOSE:
                 print('Update from shade')
+            # A further path to cover is when we are 'close' to displaying
+            # the full image, but not quite there (when zooming out, particularly)
+            # This would save an update and a strange partial completion effect
 
         if VERBOSE:
             print(f'New CDS {new_cds_coords}, array_shape {shaded.shape}')
