@@ -178,7 +178,7 @@ class BokehImage(DisplayBase):
             ypos = top + self._px_offset
             dh = height
 
-        self._update_manual(
+        self.raw_update(
             x=[left + self._px_offset],
             dw=[width],
             y=[ypos],
@@ -193,18 +193,9 @@ class BokehImage(DisplayBase):
     #         return array.astype(np.float32)
     #     return array
 
-    def _update_manual(
-            self,
-            **data,
-    ):
-        super().update(**data)
-
     def update(
         self,
         array: np.ndarray,
-        maxrate: int = 5,
-        fix_clims: bool | tuple[float, float] = False,
-        with_coords: bool = False,
     ):
         """
         Update the current displayed image with the supplied array
@@ -215,33 +206,6 @@ class BokehImage(DisplayBase):
         ----------
         array : np.ndarray
             The array to update with
-        force : bool, optional
-            Set true to force an update to the plot even if the updates
-            are being rate limited, otherwise, by default False
-        maxrate : int, optional
-            The maximum number of times per-second to update, by default 5.
-            If this method is called faster than this then the internal data
-            of the image is updated but updates are not pushed to the browser.
-            Call :meth:`~BokehImage.push_data` after fast updating
-            in order to ensure the browser version is up-to-date.
-        fix_clims : Union[bool, tuple[float, float]], optional
-            Fix the image color limits when updating, by default False.
-            Can either be a boolean True, in which case the previous color
-            limits are maintained, or a 2-tuple of floats which are used
-            to force a particular color limits.
-            This is mainly interesting when the update rate is expected to be
-            high, as it prevents the need to calculate the limits and push
-            updates to the browser (which then has to do the mapping).
-            Again, call :meth:`~BokehImage.push_data` to ensure
-            everything is in sync after fast updating.
-        with_coords : bool, optional
-            Whether to update the coordinates of the image within the
-            figure axes, only necessary if the image anchor has been changed,
-            by default False. Automatically true if changing image shape.
-        immediate : bool, optional
-            Whether to push data to the plot as a next_tick callback
-            or directly into the CDS, which should be the case if the
-            plot is not yet displayed to avoid callbacks piling up
         """
         self.constructor.check_nparray(array)
         minmax = self.calc_minmax(array)
@@ -410,7 +374,7 @@ class BokehImageColor():
                                        code=self._clim_slider_value_js())
         self._cbar_slider.js_on_change('value', clim_value_callback)
 
-        self.img._update_manual(cbar_slider=[True])
+        self.img.raw_update(cbar_slider=[True])
         clim_update_callback = CustomJS(args={'clim_slider': self._cbar_slider,
                                               'cmapper': self.color_mapper,
                                               'nstep': nstep},
@@ -570,7 +534,7 @@ cmapper.high = high;
         current = self.img.cds.data['cbar_centered'][0]
         if event.new == current:
             return
-        self.img._update_manual(cbar_centered=[event.new])
+        self.img.raw_update(cbar_centered=[event.new])
 
 
 if __name__ == '__main__':
