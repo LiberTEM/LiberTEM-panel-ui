@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import skimage.draw as skdraw
 
-from ..utils import pairwise
+from . import pairwise
 
 
 def sanitize_val(val, clip_to=None, clip_from=0, round=True, to_int=True):

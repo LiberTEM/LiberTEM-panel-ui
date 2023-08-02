@@ -14,8 +14,8 @@ from bokeh.models.glyphs import Text as BkText
 from bokeh.models.tools import PointDrawTool, BoxEditTool, PolyDrawTool, PolyEditTool
 
 from ..utils import pop_from_list
+from ..utils.masks import clip_posxy_array
 from .utils import PointXY
-from ..components.masks import clip_posxy_array
 
 
 if TYPE_CHECKING:
