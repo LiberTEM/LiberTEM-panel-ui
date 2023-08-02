@@ -228,7 +228,7 @@ class BokehImage(DisplayBase):
             raise NotImplementedError('Must add image to figure before enabling downsampling')
 
         from .image_datashader import DatashadeHelper
-        self._ds_helper = DatashadeHelper(self)
+        self._ds_helper = DatashadeHelper(self, height=height, width=width)
         # Responsive downsampling breaks some assumptions of DisplayBase
         # because it makes no sense for multiple figures, and breaks
         # when an image is removed from a figure because Bokeh doesn't support

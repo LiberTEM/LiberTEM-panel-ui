@@ -30,11 +30,11 @@ class DatashadeHelper:
     _datashade_threshold = 1.05 * (4 * 1024**2)
     _datashade_method = 'nearest'
 
-    def __init__(self, im: BokehImage, width: int = 400, height: int = 400):
+    def __init__(self, im: BokehImage, height: int = 400, width: int = 400):
         self._im = im
         self._canvas = ds.Canvas(
-            plot_height=height,
             plot_width=width,
+            plot_height=height,
         )
 
         array: np.ndarray = self.im.cds.data['image'][0]
