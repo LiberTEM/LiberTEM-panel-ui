@@ -11,6 +11,7 @@ from .utils import slider_step_size
 from .utils import colormaps as cmaps
 from bokeh.models.widgets import RangeSlider
 from bokeh.models import CustomJS
+from bokeh.events import RangesUpdate
 
 if TYPE_CHECKING:
     from bokeh.models.mappers import ColorMapper
@@ -219,6 +220,24 @@ class BokehImage(DisplayBase):
             ),
         }
         super().update(**data)
+
+    def enable_downsampling(self, height: int = 400, width: int = 400):
+        figures = self.is_on()
+        if not figures:
+            return self
+
+        from .image_datashader import DatashadeHelper
+        self._ds_helper = DatashadeHelper(self)
+        # Responsive downsampling breaks some assumptions of DisplayBase
+        # because it makes no sense for multiple figures, and breaks
+        # when an image is removed from a figure because Bokeh doesn't support
+        # removing an on_event callback
+        fig = figures[0]
+        # Could use the inner_ values to set the canvas size but they are
+        # not available until the figure is actually displayed on the screen
+        # fig.inner_height, fig.inner_width
+        fig.on_event(RangesUpdate, self._ds_helper.update_view)
+        return self
 
     def patch(self, array: np.ndarray, slice_0: slice, slice_1: slice):
         patched_data = array[slice_0, slice_1].ravel()

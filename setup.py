@@ -27,6 +27,8 @@ setup(
         "libertem-live",
         "humanize",
         "bidict",
+        "xarray",
+        "datashader",
     ],
     extra_requires={
         "lt": [
