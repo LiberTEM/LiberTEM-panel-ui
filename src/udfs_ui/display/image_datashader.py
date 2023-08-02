@@ -181,6 +181,15 @@ class DatashadeHelper:
         y0 = event.y0
         x1 = event.x1
         y1 = event.y1
+
+        fig = event.model
+        x_flipped = fig.x_range.flipped
+        y_flipped = fig.y_range.flipped
+        if x_flipped:
+            x0, x1 = x1, x0
+        if y_flipped:
+            y0, y1 = y1, y0
+
         if VERBOSE:
             print(f'Event data {x0, y0, x1, y1}')
         # The full array is bounded in continuous coordinates
@@ -456,37 +465,3 @@ class DatashadeHelper:
     #             # Use .reshade and not .shade here to preserve previous data ranges
     #             image_data = self.reshade().data
     #         return {**current_cds_dims, 'image': [image_data[::-1, :]]}
-
-    # def _update_data_ranges(self, event: RangesUpdate):
-    #     fig = event.model
-    #     x_flipped = fig.x_range.flipped
-    #     y_flipped = fig.y_range.flipped
-    #     full_h, full_w = self._array_da.shape
-    #     x0, x1 = event.x0, event.x1
-    #     if x_flipped:
-    #         x0, x1 = x1, x0
-    #     y0, y1 = event.y0, event.y1
-    #     if y_flipped:
-    #         y0, y1 = y1, y0
-    #     x0 -= 1.
-    #     y0 -= 1.
-    #     x1 += 1.
-    #     y1 += 1.
-    #     x0 = max(0, x0)
-    #     y0 = max(0, y0)
-    #     x1 = min(full_h - 1, x1)
-    #     y1 = min(full_w - 1, y1)
-    #     self._canvas.x_range = (x0, x1)
-    #     self._canvas.y_range = (y0, y1)
-    #     sampled: 'xr.DataArray' = self._canvas.raster(
-    #         self._array_da,
-    #         interpolate='nearest',
-    #         agg='first',
-    #     )
-    #     self.raw_update(
-    #         x=[x0 + self._px_offset],
-    #         dw=[x1 - x0],
-    #         y=[y0 + self._px_offset],
-    #         dh=[y1 - y0],
-    #         image=[sampled.to_numpy()]
-    #     )
