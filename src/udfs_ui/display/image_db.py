@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Callable
 from bokeh.models import Image
 from bokeh.models.sources import ColumnDataSource
 
-from .display_base import DisplayBase
+from .display_base import DisplayBase, PointSet
 from .utils import slider_step_size
 from .utils import colormaps as cmaps
 from bokeh.models.widgets import RangeSlider
@@ -135,6 +135,7 @@ class BokehImage(DisplayBase):
     _px_offset: float = -0.5
     glyph_map = {
         'image': Image,
+        'bounds': PointSet,
     }
     constructor = BokehImageCons
 
@@ -224,7 +225,7 @@ class BokehImage(DisplayBase):
     def enable_downsampling(self, height: int = 400, width: int = 400):
         figures = self.is_on()
         if not figures:
-            return self
+            raise NotImplementedError('Must add image to figure before enabling downsampling')
 
         from .image_datashader import DatashadeHelper
         self._ds_helper = DatashadeHelper(self)
@@ -237,6 +238,12 @@ class BokehImage(DisplayBase):
         # not available until the figure is actually displayed on the screen
         # fig.inner_height, fig.inner_width
         fig.on_event(RangesUpdate, self._ds_helper.update_view)
+        # Create a pointset to retain the bounds of the image
+        h, w = self._ds_helper.array.shape
+        self._bound_ps = PointSet.new().from_vectors([0, w], [0, h]).on(fig)
+        self._bound_ps.points.fill_alpha = 0.
+        self._bound_ps.points.line_alpha = 0.
+        self._register_child('bounds', self._bound_ps)
         return self
 
     def patch(self, array: np.ndarray, slice_0: slice, slice_1: slice):
