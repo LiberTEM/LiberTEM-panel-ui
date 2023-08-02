@@ -172,7 +172,7 @@ class UIContext:
         ctx: Context,
         ds: DataSet,
     ):
-        import libertem.api as lt  #noqa
+        import libertem.api as lt  # noqa
         if not isinstance(ctx, lt.Context):
             raise TypeError(f'Cannot instantiate UIContext with Context of type {type(ctx)}')
         if not isinstance(ds, lt.DataSet):
