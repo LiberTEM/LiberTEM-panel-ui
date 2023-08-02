@@ -309,7 +309,8 @@ class UIContext:
                 window_cls
             )
         except Exception as err:
-            self._logger.log_from_exception(err, reraise=True)
+            msg = f'Error while adding {dropdown.value}'
+            self._logger.log_from_exception(err, reraise=True, msg=msg)
         if window.is_unique:
             dropdown.options = [o for o in dropdown.options if o != window.name]
             self._removed_from_options[window.name] = dropdown
@@ -518,7 +519,8 @@ class UIContext:
                     # Must handle not awaiting for full acqisition!
                     break
         except Exception as err:
-            self._logger.log_from_exception(err, reraise=True)
+            msg = 'Error during run_udf'
+            self._logger.log_from_exception(err, reraise=True, msg=msg)
 
         if self._continue_running:
             proc_time = datetime.datetime.now() - tstart

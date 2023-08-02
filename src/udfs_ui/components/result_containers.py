@@ -24,7 +24,7 @@ class ResultContainer:
         if meta is None:
             meta = {'tags': []}
         elif 'tags' in meta:
-            assert isinstance(meta['tags'], list)
+            assert isinstance(meta['tags'], list), 'Must have list for tags'
         else:
             meta['tags'] = []
         self._meta = meta
@@ -41,11 +41,11 @@ class ResultContainer:
     @property
     def meta(self):
         return self._meta
-    
+
     @property
     def tags(self):
         return self.meta['tags']
-    
+
     def tag_as(self, *tags: str):
         self.meta['tags'].extend(tags)
 
@@ -76,7 +76,7 @@ class NumpyResultContainer(ResultContainer):
         title: str | None = None
     ):
         super().__init__(name, data, meta=meta, title=title)
-        assert isinstance(self.data, np.ndarray)
+        assert isinstance(self.data, np.ndarray), 'Not a numpy array'
 
     @property
     def data(self) -> np.ndarray:
@@ -95,7 +95,7 @@ class Numpy2DResultContainer(NumpyResultContainer):
         title: str | None = None
     ):
         super().__init__(name, data, meta=meta, title=title)
-        assert self.data.ndim == 2
+        assert self.data.ndim == 2, 'Not 2D array'
 
     def show(self, standalone: bool = True):
         fig = figure()

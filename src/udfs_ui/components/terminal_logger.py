@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+import traceback
 import panel as pn
 pn.extension('terminal')
 
@@ -42,7 +43,10 @@ class UILog:
     def widget(self):
         return self._terminal
 
-    def log_from_exception(self, err: Exception, reraise: bool = False):
-        self.logger.error(f'{type(err).__name__}: {err}')
+    def log_from_exception(self, err: Exception, reraise: bool = False, msg: str | None = None):
+        te = traceback.TracebackException.from_exception(err)
+        self.logger.error('\n' + ''.join(te.stack.format()))
+        if msg is not None:
+            self.logger.error(msg)
         if reraise:
             raise err

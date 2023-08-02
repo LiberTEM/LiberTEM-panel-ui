@@ -166,7 +166,7 @@ class ResultsManager:
 
         if isinstance(window_id, WindowRunRow):
             if run_id is not None:
-                assert run_id == window_id.run_id
+                assert run_id == window_id.run_id, 'Mismatching run_id'
             run_id = window_id.run_id
             window_id = window_id.window_id
 
