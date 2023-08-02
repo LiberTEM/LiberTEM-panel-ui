@@ -3,6 +3,7 @@ import time
 import numpy as np
 from typing import TYPE_CHECKING, Callable
 
+import panel as pn
 from bokeh.models import Image
 from bokeh.models.sources import ColumnDataSource
 

@@ -13,29 +13,23 @@ VERBOSE = False
 
 
 class DatashadeHelper:
-    """
-    Attributes
-    ----------
-    _datashade_threshold: float, default 1.05 * (4 * 1024**2)
-        Threshold size in bytes below which datashading will
-        be disabled, even if this class is used. The size is
-        chosen so as to not datashade a 1k x 1k np.float32 image
-        which corresponds to 4 MB.
-    _datashade_method: str, default 'nearest'
-        Method used when downsampling, supported modes are
-        :code:`'nearest'` and :code:`'linear'`. This is a limitation
-        of the datashader library
-    """
-    # datashade for images above 1024*1024 @ float32
-    _datashade_threshold = 1.05 * (4 * 1024**2)
-    _datashade_method = 'nearest'
-
-    def __init__(self, im: BokehImage, height: int = 400, width: int = 400):
+    def __init__(
+        self,
+        im: BokehImage,
+        height: int = 400,
+        width: int = 400,
+        downsampling_method: str = 'mean',
+    ):
+        # Assumes the image is anchored at 0, 0 for simplicitly
+        # but could be relaxed if there is ever a need
         self._im = im
         self._canvas = ds.Canvas(
             plot_width=width,
             plot_height=height,
         )
+        # This class is designed to never upsample, but specify nearest just in case!
+        self._upsampling_method = 'nearest'
+        self._downsampling_method = downsampling_method
 
         array: np.ndarray = self.im.cds.data['image'][0]
         h, w = array.shape
@@ -100,8 +94,8 @@ class DatashadeHelper:
         """
         return self.canvas.raster(
             self.array,
-            interpolate=self._datashade_method,
-            agg='first',
+            interpolate=self._upsampling_method,
+            agg=self._downsampling_method,
         )
 
     @staticmethod
