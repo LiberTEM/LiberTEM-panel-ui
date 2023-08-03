@@ -76,6 +76,7 @@ class AperturePlotBase(Live2DPlot):
             self._pane = pn.pane.Bokeh(fig)
         self._fig = fig
         self._im = im
+        self._was_rate_limited: bool = False
 
     @classmethod
     def new(
@@ -104,7 +105,10 @@ class AperturePlotBase(Live2DPlot):
     def update(self, damage, force=False, push_nb: bool = True):
         if self.fig is None:
             raise RuntimeError('Cannot update plot before set_plot called')
+        if force and (not self._was_rate_limited):
+            return
         self.im.update(self.data)
+        self.last_update = time.time()
         if push_nb:
             pn.io.push_notebook(self.pane)
 
@@ -112,6 +116,28 @@ class AperturePlotBase(Live2DPlot):
         if self.fig is None:
             raise RuntimeError('Cannot display plot before set_plot called')
         return self.fig
+
+    def new_data(self, udf_results, damage, force=False):
+        """
+        This method is called with the raw `udf_results` any time a new
+        partition has finished processing.
+
+        The :code:`damage` parameter is filtered to only cover finite
+        values of :code:`self.data` and passed to :meth:`self.update`,
+        which should then be implemented by a subclass.
+        """
+        t0 = time.time()
+        delta = t0 - self.last_update
+        rate_limited = delta < self.min_delta
+        if force or not rate_limited:
+            self.data, damage = self.extract(udf_results, damage)
+            self.update(damage, force=force)
+        else:
+            self._was_rate_limited = rate_limited
+            return  # don't update plot if we recently updated
+        if force:
+            # End of plotting, so reset this flag for the next run
+            self._was_rate_limited = False
 
 
 class AperturePlot(AperturePlotBase):
