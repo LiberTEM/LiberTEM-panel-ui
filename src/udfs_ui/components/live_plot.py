@@ -31,6 +31,9 @@ def adapt_figure(fig, im, shape, mindim, maxdim):
         location = 'below'
     fig.toolbar_location = location
 
+    fig.x_range.range_padding = 0.
+    fig.y_range.range_padding = 0.
+
 
 class AperturePlotBase(Live2DPlot):
     def __init__(
