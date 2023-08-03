@@ -9,7 +9,7 @@ from .image_db import BokehImage
 if TYPE_CHECKING:
     from bokeh.events import RangesUpdate
 
-VERBOSE = False
+VERBOSE = True
 
 
 class DatashadeHelper:
@@ -235,6 +235,15 @@ class DatashadeHelper:
         w = abs(x1 - x0)
         return is_visible, {'x': [x0], 'y': [y0], 'dw': [w], 'dh': [h]}
 
+    def full_cds_coords(self):
+        h, w = self.array.shape
+        return {
+            'x': [self.px_offset],
+            'y': [self.px_offset],
+            'dw': [w],
+            'dh': [h]
+        }
+
     def ranges_from_cds_dict(self, cds: dict[str, list[float]], as_int: bool = False):
         """
         Gets ranges to give to canvas.raster from the display cds
@@ -352,6 +361,7 @@ class DatashadeHelper:
             is_complete = self.is_complete(xrange, yrange)
             if is_complete and self._array_da_minimum is not None:
                 shaded = self._array_da_minimum
+                new_cds_coords = self.full_cds_coords()
                 if VERBOSE:
                     print('Update from existing fullsize')
             else:
