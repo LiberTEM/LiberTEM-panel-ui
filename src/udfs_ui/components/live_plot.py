@@ -83,18 +83,20 @@ class AperturePlotBase(Live2DPlot):
         dataset,
         udf,
         *,
-        maxdim=400,
-        mindim=20,
-        roi=None,
+        maxdim: int = 400,
+        mindim: int = 20,
+        roi: np.ndarray | None = None,
         channel=None,
-        title=''
+        title: str = '',
+        downsampling: bool = True,
     ):
         # Live plot gets a None title if not specified so it keeps its default
         plot = cls(dataset, udf, roi=roi, channel=channel, title=title if len(title) else None)
         # Bokeh needs a string title, however, so gets the default ''
         fig = figure(title=title)
-        im = BokehImage.new().from_numpy(plot.data)
-        im.on(fig)
+        im = BokehImage.new().from_numpy(plot.data).on(fig)
+        if downsampling:
+            im.enable_downsampling()
         plot.set_plot(fig=fig, im=im)
         adapt_figure(fig, im, plot.data.shape, mindim, maxdim)
         return plot
