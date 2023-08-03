@@ -622,7 +622,8 @@ class DatashadeHelper:
             xrange, yrange = self.ranges_from_cds_dict(current_cds_dims)
             if self.is_complete(xrange, yrange):
                 self._array_da_minimum = image_data.copy()
-                print('Update is full-view (shaded)')
+                if VERBOSE:
+                    print('Update is full-view (shaded)')
             if VERBOSE:
                 print('Update from reshade')
         return {**current_cds_dims, **BokehImageCons._get_array(array)}
