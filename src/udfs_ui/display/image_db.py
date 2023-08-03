@@ -106,8 +106,9 @@ class BokehImageCons:
             'y_flipped': [flip_y],
         }
 
-    @staticmethod
-    def _get_array(array):
+    @classmethod
+    def _get_array(cls, array: np.ndarray):
+        array = cls._cast_if_needed(array)
         return {
             'image': [array],
         }
@@ -118,6 +119,12 @@ class BokehImageCons:
             'val_low': [minmax[0]],
             'val_high': [minmax[1]],
         }
+
+    @staticmethod
+    def _cast_if_needed(array: np.ndarray) -> np.ndarray:
+        if np.dtype(array.dtype).itemsize > 4:
+            return array.astype(np.float32)
+        return array
 
     @staticmethod
     def check_nparray(array):
