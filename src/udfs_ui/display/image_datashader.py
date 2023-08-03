@@ -16,20 +16,12 @@ class DatashadeHelper:
     def __init__(
         self,
         im: BokehImage,
-        height: int = 400,
-        width: int = 400,
+        dimension: int = 600,
         downsampling_method: str = 'mean',
     ):
         # Assumes the image is anchored at 0, 0 for simplicitly
         # but could be relaxed if there is ever a need
         self._im = im
-        self._canvas = ds.Canvas(
-            plot_width=width,
-            plot_height=height,
-        )
-        # This class is designed to never upsample, but specify nearest just in case!
-        self._upsampling_method = 'nearest'
-        self._downsampling_method = downsampling_method
 
         array: np.ndarray = self.im.cds.data['image'][0]
         h, w = array.shape
@@ -40,6 +32,19 @@ class DatashadeHelper:
             coords=[('y', ys), ('x', xs)],
         )
         self._array_da_minimum: np.ndarray | None = None
+
+        self._dimension = dimension
+        height, width = self._determine_canvas(
+            self.array.shape,
+            self._dimension,
+        )
+        self._canvas = ds.Canvas(
+            plot_width=width,
+            plot_height=height,
+        )
+        # This class is designed to never upsample, but specify nearest just in case!
+        self._upsampling_method = 'nearest'
+        self._downsampling_method = downsampling_method
 
     @property
     def im(self):
@@ -83,6 +88,15 @@ class DatashadeHelper:
     def set_canvas_ranges(self, xrange=None, yrange=None):
         self.canvas.x_range = xrange
         self.canvas.y_range = yrange
+
+    @staticmethod
+    def _determine_canvas(shape: tuple[int, int], canvas_diagonal: int) -> tuple[int, int]:
+        h, w = shape
+        wh2 = (w / h) ** 2
+        d2 = canvas_diagonal ** 2
+        hh = np.sqrt(d2 / (1 + wh2))
+        ww = np.sqrt(d2 - (hh ** 2))
+        return int(np.ceil(hh)), int(np.ceil(ww))
 
     def reshade(self):
         """
@@ -305,6 +319,8 @@ class DatashadeHelper:
             # There is a case when panning outside of an over-zoomed image
             # which uses .shade rather than doing nothing at all
             # Need to check if this is a limitation or can be handled correctly
+            # This is particularly noticeable when updating from stored fullsize
+            # and panning outside of the array box (the array is squashed)
             return
 
         if self.is_oversampled(new_cds_coords):
