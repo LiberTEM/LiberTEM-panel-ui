@@ -255,7 +255,8 @@ class BokehImage(DisplayBase):
     def enable_downsampling(self, dimension: int = 600):
         if self.use_downsampling():
             # Already active
-            return
+            self.downsampler.set_dimension(dimension)
+            return self
         elif self.downsampler is None:
             self._create_downsampler(dimension)
             # Push an update to the CDS to ensure we initialize in a low resolution
