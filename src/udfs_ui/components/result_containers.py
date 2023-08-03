@@ -101,7 +101,7 @@ class Numpy2DResultContainer(NumpyResultContainer):
         fig = figure()
         im = BokehImage.new().from_numpy(self.data)
         im.on(fig)
-        adapt_figure(fig, im, self.data.shape, 20, 400)
+        adapt_figure(fig, self.data.shape, mindim=100)
         fig.title.text = self.title
         return pn.Column(pn.pane.Bokeh(fig))
 

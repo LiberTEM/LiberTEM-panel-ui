@@ -12,7 +12,11 @@ from ..display.display_base import Rectangles, DisplayBase, Polygons
 if TYPE_CHECKING:
     from .results import ResultRow
 
-def adapt_figure(fig, im, shape, mindim, maxdim):
+def adapt_figure(fig, shape, maxdim: int | None = 450, mindim: int | None = None):
+    if mindim is None:
+        # Don't change aspect ratio in this case
+        mindim = -1
+
     fig.y_range.flipped = True
 
     h, w = shape
@@ -84,8 +88,10 @@ class AperturePlotBase(Live2DPlot):
         dataset,
         udf,
         *,
-        maxdim: int = 400,
-        mindim: int = 20,
+        maxdim: int = 450,
+        # If mindim is None, plot aspect ratio is always preserved
+        # even if the plot is very thin or tall
+        mindim: int | None = 100,
         roi: np.ndarray | None = None,
         channel=None,
         title: str = '',
@@ -99,7 +105,7 @@ class AperturePlotBase(Live2DPlot):
         if downsampling:
             im.enable_downsampling()
         plot.set_plot(fig=fig, im=im)
-        adapt_figure(fig, im, plot.data.shape, mindim, maxdim)
+        adapt_figure(fig, plot.data.shape, maxdim=maxdim, mindim=mindim)
         return plot
 
     def update(self, damage, force=False, push_nb: bool = True):
