@@ -4,10 +4,11 @@ import datashader as ds
 import xarray as xr
 from typing import TYPE_CHECKING
 
-from .image_db import BokehImage
+from .image_db import BokehImage, BokehImageCons
 
 if TYPE_CHECKING:
     from bokeh.events import RangesUpdate
+    from bokeh.plotting import figure
 
 VERBOSE = False
 
@@ -15,6 +16,7 @@ VERBOSE = False
 class DatashadeHelper:
     def __init__(
         self,
+        fig: figure,
         im: BokehImage,
         dimension: int = 600,
         downsampling_method: str = 'mean',
@@ -25,12 +27,13 @@ class DatashadeHelper:
         self._active = True
         # Assumes the image is anchored at 0, 0 for simplicitly
         # but could be relaxed if there is ever a need
+        self._fig = fig
         self._im = im
 
         # The rest of this init could be called again to
         # re-initialize the class on a new image size
         # though safer to re-create the instance probably
-        array: np.ndarray = self.im.cds.data['image'][0]
+        array = self.im.array
         h, w = array.shape
         ys = np.arange(h).astype(float)
         xs = np.arange(w).astype(float)
@@ -53,6 +56,10 @@ class DatashadeHelper:
             # When the image is actually smaller than the canvas size
             # we gain nothing, so we disable the downsampler
             self.disable()
+
+    @property
+    def fig(self):
+        return self._fig
 
     @property
     def im(self):
@@ -100,6 +107,11 @@ class DatashadeHelper:
         """
         self.set_canvas_ranges(xrange=xrange, yrange=yrange)
         return self.reshade()
+
+    def set_dimension(self, dimension: int):
+        height, width = self._determine_canvas(self.array.shape, dimension)
+        self.canvas.plot_width = width
+        self.canvas.plot_height = height
 
     def set_canvas_ranges(self, xrange=None, yrange=None):
         self.canvas.x_range = xrange
@@ -306,7 +318,7 @@ class DatashadeHelper:
     def axis_overlaps(obj_range, view_range):
         return (obj_range[0] <= view_range[1]) and (view_range[0] <= obj_range[1])
 
-    def update_view(self, event: RangesUpdate):
+    def update_view(self, event: RangesUpdate, force: bool = False):
         """
         This is the main callback linked to the RangesUpdate event
 
@@ -337,6 +349,8 @@ class DatashadeHelper:
 
         if not self.active:
             # If disabled, assume nothing to do
+            if VERBOSE:
+                print('Inactive, skipping')
             return
 
         # Need to thorougly test this function for off-by-one errors...
@@ -347,7 +361,7 @@ class DatashadeHelper:
                 print('Out of bounds, skipping')
             return
 
-        if self.matching_bounds(self.current_cds_dims(), new_cds_coords):
+        if not force and self.matching_bounds(self.current_cds_dims(), new_cds_coords):
             # Returns when the new displayed bounds match the old bounds
             # Implicitly there is nothing to do here
             # Covers the case when we zoom out from the full shaded image
@@ -355,7 +369,7 @@ class DatashadeHelper:
                 print('Matching bounds, skip update')
             return
         
-        if self.data_matches_scale(self.current_cds_dims(), new_cds_coords, viewport_wh):
+        if not force and self.data_matches_scale(self.current_cds_dims(), new_cds_coords, viewport_wh):
             # Cover the case when the data already in the CDS
             # fills the new viewport correctly, either if we are
             # zoomed out or we are panning around beyond the image
@@ -363,7 +377,7 @@ class DatashadeHelper:
                 print('Scale unchanged bounds, skip update')
             return
 
-        if self.is_oversampled(new_cds_coords):
+        if not force and self.is_oversampled(new_cds_coords):
             if self.in_bounds(self.current_cds_dims(), new_cds_coords):
                 if self.is_oversampled(self.current_cds_dims()):
                     # Returns when we are oversampling wholly into a
@@ -411,7 +425,7 @@ class DatashadeHelper:
             print(f'New CDS {new_cds_coords}, array_shape {shaded.shape}')
         new_data = {
             **new_cds_coords,
-            'image': [shaded],  # 'image': [shaded[::-1, :]]}
+            **BokehImageCons._get_array(shaded),
         }
         self.im.raw_update(**new_data)
 
@@ -560,7 +574,7 @@ class DatashadeHelper:
             # Need new data
             return False
 
-        current_data = self.im.cds.data['image'][0]
+        current_data = self.im.array
         current_array_h, current_array_w = current_data.shape
         viewport_w, viewport_h = viewport_wh
 
@@ -580,25 +594,34 @@ class DatashadeHelper:
             return True
         return False
 
-    def compute_update(self, array: np.ndarray) -> dict[str, list[float | np.ndarray]]:
+    def _update_array(self, array: np.ndarray):
         if self.array.shape != array.shape:
             raise NotImplementedError('No support for changing array size')
         # Replace the data
         self._array_da[:] = array
         self._array_da_minimum = None
+
+    def compute_update(self, array: np.ndarray) -> dict[str, list[float | np.ndarray]]:
+        self._update_array(array)
         if not self.active:
+            # Should never be called, but just in case!
             return {
-                **self.full_cds_coords,
-                'image': [array],
+                **self.full_cds_coords(),
+                **BokehImageCons._get_array(array),
             }
         current_cds_dims = self.current_cds_dims()
         if self.is_oversampled(current_cds_dims):
             xrange, yrange = self.ranges_from_cds_dict(current_cds_dims, as_int=True)
             image_data = self.direct_sample(self.array, xrange, yrange)
+            if VERBOSE:
+                print('Update from direct sample')
         else:
             # Use .reshade and not .shade here to preserve previous data ranges
             image_data = self.reshade().data
             xrange, yrange = self.ranges_from_cds_dict(current_cds_dims)
             if self.is_complete(xrange, yrange):
                 self._array_da_minimum = image_data.copy()
-        return {**current_cds_dims, 'image': [image_data]}
+                print('Update is full-view (shaded)')
+            if VERBOSE:
+                print('Update from reshade')
+        return {**current_cds_dims, **BokehImageCons._get_array(array)}

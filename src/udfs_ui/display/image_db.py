@@ -173,6 +173,7 @@ class BokehImage(DisplayBase):
         glyph.color_mapper.palette = cmaps.get_colormap('Greys')
         self._register_glyph('image', glyph)
         self._ds_helper: DatashadeHelper | None = None
+        self._array: np.ndarray = self.cds.data['image'][0].copy()
 
     @staticmethod
     def new():
@@ -181,6 +182,11 @@ class BokehImage(DisplayBase):
     @property
     def im(self) -> Image:
         return self._glyphs['image'][0].glyph
+    
+    @property
+    def array(self) -> np.ndarray:
+        # A reference to the full, most-recent image array (after casting)
+        return self._array
 
     @property
     def color(self) -> BokehImageColor:
@@ -227,12 +233,14 @@ class BokehImage(DisplayBase):
         """
         self.constructor.check_nparray(array)
         array = self.constructor._cast_if_needed(array)
+        # Store ref to most recent full array on this class
+        self._array = array
         minmax = self.constructor._calc_minmax(array)
         if self.use_downsampling():
             data = self.downsampler.compute_update(array)
         else:
             data = {
-                **self._get_array(array),
+                **self.constructor._get_array(array),
                 **self.constructor._get_geometry(
                     array.shape,
                     self.anchor_offset,
@@ -245,30 +253,71 @@ class BokehImage(DisplayBase):
         )
 
     def enable_downsampling(self, dimension: int = 600):
+        if self.use_downsampling():
+            # Already active
+            return
+        elif self.downsampler is None:
+            self._create_downsampler(dimension)
+            # Push an update to the CDS to ensure we initialize in a low resolution
+            # This will go through the downsampler and update its internal self.array
+            self.update(self.array)
+        else:
+            self.downsampler.enable()
+            self.downsampler.set_dimension(dimension)
+            # If we have changed the array size on this class then the downsampler
+            # will raise because it does not support changing array size yet
+            self.downsampler._update_array(self.array)
+            fig = self.downsampler.fig
+            x_range = fig.x_range
+            x0, x1 = x_range.start, x_range.end
+            # if x_range.flipped:
+            #     x0, x1 = x1, x0
+            y_range = fig.y_range
+            y0, y1 = y_range.start, y_range.end
+            # if y_range.flipped:
+            #     y0, y1 = y1, y0
+            # Manually trigger an event 
+            event = RangesUpdate(
+                fig,
+                x0=x0,
+                x1=x1,
+                y0=y0,
+                y1=y1,
+            )
+            self.downsampler.update_view(event, force=True)
+        return self
+
+    def disable_downsampling(self):
+        if not self.use_downsampling():
+            return
+        self.downsampler.disable()  # Nullifies the callback
+        self.update(self.array)
+        return self
+
+    def _create_downsampler(self, dimension):
         figures = self.is_on()
         if not figures:
             raise NotImplementedError('Must add image to figure before enabling downsampling')
-
-        from .image_datashader import DatashadeHelper
-        self._ds_helper = DatashadeHelper(self, dimension=dimension)
         # Responsive downsampling breaks some assumptions of DisplayBase
         # because it makes no sense for multiple figures, and breaks
         # when an image is removed from a figure because Bokeh doesn't support
         # removing an on_event callback
         fig = figures[0]
+
+        from .image_datashader import DatashadeHelper
+        self._ds_helper = DatashadeHelper(fig, self, dimension=dimension)
         # Could use the inner_ values to set the canvas size but they are
         # not available until the figure is actually displayed on the screen
         # fig.inner_height, fig.inner_width
         fig.on_event(RangesUpdate, self._ds_helper.update_view)
         # Create a pointset to retain the bounds of the image
+        # This isn't updated if we change the array size (normally)
+        # forbidden by the downsampler, but could be later added
         h, w = self._ds_helper.array.shape
         self._bound_ps = PointSet.new().from_vectors([0, w], [0, h]).on(fig)
         self._bound_ps.points.fill_alpha = 0.
         self._bound_ps.points.line_alpha = 0.
         self._register_child('bounds', self._bound_ps)
-        # Push an update to the CDS to ensure we initialize in a low resolution
-        self.update(self.downsampler.array.data)
-        return self
 
     @property
     def downsampler(self):
