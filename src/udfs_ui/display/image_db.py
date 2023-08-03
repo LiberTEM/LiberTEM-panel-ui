@@ -31,9 +31,11 @@ class BokehImageCons:
             The image constructed from the array
         """
         cls.check_nparray(array)
+        array = cls._cast_if_needed(array)
+        minmax = cls._calc_minmax(array)
         cds_dict = cls._get_datadict(
             array,
-            BokehImage.calc_minmax(array),
+            minmax,
         )
         cds = ColumnDataSource(cds_dict)
         return BokehImage(cds=cds)
@@ -104,7 +106,6 @@ class BokehImageCons:
 
     @classmethod
     def _get_array(cls, array: np.ndarray):
-        array = cls._cast_if_needed(array)
         return {
             'image': [array],
         }
@@ -115,6 +116,18 @@ class BokehImageCons:
             'val_low': [minmax[0]],
             'val_high': [minmax[1]],
         }
+
+    @staticmethod
+    def _calc_minmax(array) -> tuple[float, float]:
+        data = array.ravel()
+        mmin, mmax = np.min(data), np.max(data)
+        if np.isnan(mmin) or np.isnan(mmax):
+            mmin, mmax = np.nanmin(data), np.nanmax(data)
+        if np.isnan(mmin) or np.isnan(mmax):
+            mmin, mmax = 0., 1.
+        if mmin == mmax:
+            mmax = mmin + 1.
+        return mmin, mmax
 
     @staticmethod
     def _cast_if_needed(array: np.ndarray) -> np.ndarray:
@@ -213,12 +226,13 @@ class BokehImage(DisplayBase):
             The array to update with
         """
         self.constructor.check_nparray(array)
-        minmax = self.calc_minmax(array)
+        array = self.constructor._cast_if_needed(array)
+        minmax = self.constructor._calc_minmax(array)
         if self.use_downsampling():
             data = self.downsampler.compute_update(array)
         else:
             data = {
-                **self.constructor._get_array(array),
+                **self._get_array(array),
                 **self.constructor._get_geometry(
                     array.shape,
                     self.anchor_offset,
@@ -268,18 +282,6 @@ class BokehImage(DisplayBase):
     #     patched_data = array[slice_0, slice_1].ravel()
     #     patches = {'image': [([0, slice_0, slice_1], patched_data)]}
     #     self.cds.patch(patches)
-
-    @staticmethod
-    def calc_minmax(array) -> tuple[float, float]:
-        data = array.ravel()
-        mmin, mmax = np.min(data), np.max(data)
-        if np.isnan(mmin) or np.isnan(mmax):
-            mmin, mmax = np.nanmin(data), np.nanmax(data)
-        if np.isnan(mmin) or np.isnan(mmax):
-            mmin, mmax = 0., 1.
-        if mmin == mmax:
-            mmax = mmin + 1.
-        return mmin, mmax
 
     @property
     def current_minmax(self):
