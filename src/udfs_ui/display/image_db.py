@@ -252,17 +252,19 @@ class BokehImage(DisplayBase):
             **self.constructor._get_minmax(minmax),
         )
 
-    def enable_downsampling(self, dimension: int = 600):
+    def enable_downsampling(self, dimension: int = 600, threshold_bytesize: float = 0.25 * 2**20):
+        array_bytesize = np.dtype(self.array.dtype).itemsize * self.array.size
+
         if self.use_downsampling():
             # Already active
             self.downsampler.set_dimension(dimension)
             self.downsampler.redraw(self.array)
-        elif self.downsampler is None:
+        elif self.downsampler is None and array_bytesize > threshold_bytesize:
             self._create_downsampler(dimension)
             # Push an update to the CDS to ensure we initialize in a low resolution
             # This will go through the downsampler and update its internal self.array
             self.update(self.array)
-        else:
+        elif array_bytesize > threshold_bytesize:
             self.downsampler.enable()
             self.downsampler.set_dimension(dimension)
             # If we have changed the array size on this class then the downsampler
