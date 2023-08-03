@@ -244,13 +244,13 @@ class BokehImage(DisplayBase):
             **self.constructor._get_minmax(minmax),
         )
 
-    def enable_downsampling(self, height: int = 400, width: int = 400):
+    def enable_downsampling(self, dimension: int = 600):
         figures = self.is_on()
         if not figures:
             raise NotImplementedError('Must add image to figure before enabling downsampling')
 
         from .image_datashader import DatashadeHelper
-        self._ds_helper = DatashadeHelper(self, height=height, width=width)
+        self._ds_helper = DatashadeHelper(self, dimension=dimension)
         # Responsive downsampling breaks some assumptions of DisplayBase
         # because it makes no sense for multiple figures, and breaks
         # when an image is removed from a figure because Bokeh doesn't support
