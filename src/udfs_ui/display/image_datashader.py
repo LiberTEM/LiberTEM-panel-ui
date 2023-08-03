@@ -19,10 +19,17 @@ class DatashadeHelper:
         dimension: int = 600,
         downsampling_method: str = 'mean',
     ):
+        # This class is designed to never upsample, but specify nearest just in case!
+        self._upsampling_method = 'nearest'
+        self._downsampling_method = downsampling_method
+        self._active = True
         # Assumes the image is anchored at 0, 0 for simplicitly
         # but could be relaxed if there is ever a need
         self._im = im
 
+        # The rest of this init could be called again to
+        # re-initialize the class on a new image size
+        # though safer to re-create the instance probably
         array: np.ndarray = self.im.cds.data['image'][0]
         h, w = array.shape
         ys = np.arange(h).astype(float)
@@ -42,9 +49,10 @@ class DatashadeHelper:
             plot_width=width,
             plot_height=height,
         )
-        # This class is designed to never upsample, but specify nearest just in case!
-        self._upsampling_method = 'nearest'
-        self._downsampling_method = downsampling_method
+        if h <= height * 1.2 and w <= width * 1.2:
+            # When the image is actually smaller than the canvas size
+            # we gain nothing, so we disable the downsampler
+            self.disable()
 
     @property
     def im(self):
@@ -60,7 +68,15 @@ class DatashadeHelper:
 
     @property
     def active(self):
-        return True
+        return self._active
+    
+    def enable(self):
+        # This could push an downsampled update
+        self._active = True
+
+    def disable(self):
+        # This could push a full size update
+        self._active = False
 
     @property
     def canvas(self) -> ds.Canvas:
@@ -320,6 +336,11 @@ class DatashadeHelper:
         # In this case we don't even need to rely on xarray or datashader
         # unless their image resampling is faster than scikit-image
         """
+
+        if not self.active:
+            # If disabled, assume nothing to do
+            return
+
         # Need to thorougly test this function for off-by-one errors...
         is_visible, new_cds_coords, viewport_wh = self.unpack_event(event)
         if not is_visible:
@@ -567,6 +588,11 @@ class DatashadeHelper:
         # Replace the data
         self._array_da[:] = array
         self._array_da_minimum = None
+        if not self.active:
+            return {
+                **self.full_cds_coords,
+                'image': [array],
+            }
         current_cds_dims = self.current_cds_dims()
         if self.is_oversampled(current_cds_dims):
             xrange, yrange = self.ranges_from_cds_dict(current_cds_dims, as_int=True)
