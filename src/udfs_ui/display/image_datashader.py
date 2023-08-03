@@ -319,7 +319,7 @@ class DatashadeHelper:
     def axis_overlaps(obj_range, view_range):
         return (obj_range[0] <= view_range[1]) and (view_range[0] <= obj_range[1])
 
-    def update_view(self, event: RangesUpdate, force: bool = False):
+    def update_view(self, event: RangesUpdate, force: bool = False, do_update: bool = True):
         """
         This is the main callback linked to the RangesUpdate event
 
@@ -428,7 +428,9 @@ class DatashadeHelper:
             **new_cds_coords,
             **BokehImageCons._get_array(shaded),
         }
-        self.im.raw_update(**new_data)
+        if do_update:
+            self.im.raw_update(**new_data)
+        return new_data
 
     @staticmethod
     def direct_sample(xar: xr.DataArray,
@@ -603,43 +605,49 @@ class DatashadeHelper:
         self._array_da_minimum = None
 
     def compute_update(self, array: np.ndarray) -> dict[str, list[float | np.ndarray]]:
-        self._update_array(array)
         if not self.active:
             # Should never be called, but just in case!
             return {
                 **self.full_cds_coords(),
                 **BokehImageCons._get_array(array),
             }
-        current_cds_dims = self.current_cds_dims()
-        if self.is_oversampled(current_cds_dims):
-            xrange, yrange = self.ranges_from_cds_dict(current_cds_dims, as_int=True)
-            image_data = self.direct_sample(self.array, xrange, yrange)
-            if VERBOSE:
-                print('Update from direct sample')
-        else:
-            # Use .reshade and not .shade here to preserve previous data ranges
-            image_data = self.reshade().data
-            xrange, yrange = self.ranges_from_cds_dict(current_cds_dims)
-            if self.is_complete(xrange, yrange):
-                self._array_da_minimum = image_data.copy()
-                if VERBOSE:
-                    print('Update is full-view (shaded)')
-            if VERBOSE:
-                print('Update from reshade')
-        return {**current_cds_dims, **BokehImageCons._get_array(image_data)}
+        return self.redraw(array, do_update=False)
+        
+        # current_cds_dims = self.current_cds_dims()
+        # if self.is_oversampled(current_cds_dims):
+        #     xrange, yrange = self.ranges_from_cds_dict(current_cds_dims, as_int=True)
+        #     image_data = self.direct_sample(self.array, xrange, yrange)
+        #     if VERBOSE:
+        #         print('Update from direct sample')
+        # else:
+        #     # Use .reshade and not .shade here to preserve previous data ranges
+        #     image_data = self.reshade().data
+        #     xrange, yrange = self.ranges_from_cds_dict(current_cds_dims)
+        #     if self.is_complete(xrange, yrange):
+        #         self._array_da_minimum = image_data.copy()
+        #         if VERBOSE:
+        #             print('Update is full-view (shaded)')
+        #     if VERBOSE:
+        #         print('Update from reshade')
+        # return {**current_cds_dims, **BokehImageCons._get_array(image_data)}
 
-    def redraw(self, array: np.ndarray):
+    def redraw(self, array: np.ndarray, do_update: bool = True):
+        h, w = array.shape
         self._update_array(array)
         fig = self.fig
         x_range = fig.x_range
         x0, x1 = x_range.start, x_range.end
-        # if x_range.flipped:
-        #     x0, x1 = x1, x0
+        if np.isnan(x0) or np.isnan(x1):
+            x0, x1 = 0., float(w)
+            if x_range.flipped:
+                x0, x1 = x1, x0
         y_range = fig.y_range
         y0, y1 = y_range.start, y_range.end
-        # if y_range.flipped:
-        #     y0, y1 = y1, y0
-        # Manually trigger an event 
+        if np.isnan(y0) or np.isnan(y1):
+            y0, y1 = 0., float(h)
+            if y_range.flipped:
+                y0, y1 = y1, y0
+        # Manually trigger an event
         event = RangesUpdate(
             fig,
             x0=x0,
@@ -647,4 +655,4 @@ class DatashadeHelper:
             y0=y0,
             y1=y1,
         )
-        self.update_view(event, force=True)
+        return self.update_view(event, force=True, do_update=do_update)
