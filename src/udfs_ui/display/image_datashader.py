@@ -4,10 +4,11 @@ import datashader as ds
 import xarray as xr
 from typing import TYPE_CHECKING
 
+from bokeh.events import RangesUpdate
+
 from .image_db import BokehImage, BokehImageCons
 
 if TYPE_CHECKING:
-    from bokeh.events import RangesUpdate
     from bokeh.plotting import figure
 
 VERBOSE = False
@@ -625,3 +626,24 @@ class DatashadeHelper:
             if VERBOSE:
                 print('Update from reshade')
         return {**current_cds_dims, **BokehImageCons._get_array(array)}
+
+    def redraw(self, array: np.ndarray):
+        self._update_array(array)
+        fig = self.fig
+        x_range = fig.x_range
+        x0, x1 = x_range.start, x_range.end
+        # if x_range.flipped:
+        #     x0, x1 = x1, x0
+        y_range = fig.y_range
+        y0, y1 = y_range.start, y_range.end
+        # if y_range.flipped:
+        #     y0, y1 = y1, y0
+        # Manually trigger an event 
+        event = RangesUpdate(
+            fig,
+            x0=x0,
+            x1=x1,
+            y0=y0,
+            y1=y1,
+        )
+        self.update_view(event, force=True)

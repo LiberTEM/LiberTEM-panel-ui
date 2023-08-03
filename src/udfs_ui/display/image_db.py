@@ -256,7 +256,7 @@ class BokehImage(DisplayBase):
         if self.use_downsampling():
             # Already active
             self.downsampler.set_dimension(dimension)
-            return self
+            self.downsampler.redraw(self.array)
         elif self.downsampler is None:
             self._create_downsampler(dimension)
             # Push an update to the CDS to ensure we initialize in a low resolution
@@ -267,25 +267,7 @@ class BokehImage(DisplayBase):
             self.downsampler.set_dimension(dimension)
             # If we have changed the array size on this class then the downsampler
             # will raise because it does not support changing array size yet
-            self.downsampler._update_array(self.array)
-            fig = self.downsampler.fig
-            x_range = fig.x_range
-            x0, x1 = x_range.start, x_range.end
-            # if x_range.flipped:
-            #     x0, x1 = x1, x0
-            y_range = fig.y_range
-            y0, y1 = y_range.start, y_range.end
-            # if y_range.flipped:
-            #     y0, y1 = y1, y0
-            # Manually trigger an event 
-            event = RangesUpdate(
-                fig,
-                x0=x0,
-                x1=x1,
-                y0=y0,
-                y1=y1,
-            )
-            self.downsampler.update_view(event, force=True)
+            self.downsampler.redraw(self.array)
         return self
 
     def disable_downsampling(self):
