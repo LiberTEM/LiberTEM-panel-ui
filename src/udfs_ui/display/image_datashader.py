@@ -9,7 +9,7 @@ from .image_db import BokehImage
 if TYPE_CHECKING:
     from bokeh.events import RangesUpdate
 
-VERBOSE = True
+VERBOSE = False
 
 
 class DatashadeHelper:
@@ -164,7 +164,10 @@ class DatashadeHelper:
         h, w = self.array.shape
         return 0, 0, w, h
 
-    def unpack_event(self, event: RangesUpdate) -> tuple[bool, dict[str, list[float]]]:
+    def unpack_event(
+        self,
+        event: RangesUpdate
+    ) -> tuple[bool, dict[str, list[float]], tuple[float, float]]:
         """
         Unpack the Bokeh event into the geometry used to perform datashading
 
@@ -190,10 +193,10 @@ class DatashadeHelper:
         # not in screen pixels, but are not necessarily aligned with
         # the array origin (depends on what our self.px_offset is)
         # First step is to reverse y1 and y0 because we assume an inverted y-axis
-        x0 = event.x0
-        y0 = event.y0
-        x1 = event.x1
-        y1 = event.y1
+        x0: float = event.x0
+        y0: float = event.y0
+        x1: float = event.x1
+        y1: float = event.y1
 
         fig = event.model
         x_flipped = fig.x_range.flipped
@@ -204,7 +207,9 @@ class DatashadeHelper:
             y0, y1 = y1, y0
 
         if VERBOSE:
-            print(f'Event data {x0, y0, x1, y1}')
+            print(f'Event data {x0, y0, x1, y1}, width {x1 - x0}, height {y1 - y0}')
+        viewport_width = x1 - x0
+        viewport_height = y1 - y0           
         # The full array is bounded in continuous coordinates
         # by the following geometry (includes self.px_offset)
         l, b, r, t = self.continuous_bounds()
@@ -233,7 +238,11 @@ class DatashadeHelper:
         # continuous coordinates here, but should test this
         h = abs(y1 - y0)
         w = abs(x1 - x0)
-        return is_visible, {'x': [x0], 'y': [y0], 'dw': [w], 'dh': [h]}
+        return (
+            is_visible,
+            {'x': [x0], 'y': [y0], 'dw': [w], 'dh': [h]},
+            (viewport_width, viewport_height),
+        )
 
     def full_cds_coords(self):
         h, w = self.array.shape
@@ -312,7 +321,7 @@ class DatashadeHelper:
         # unless their image resampling is faster than scikit-image
         """
         # Need to thorougly test this function for off-by-one errors...
-        is_visible, new_cds_coords = self.unpack_event(event)
+        is_visible, new_cds_coords, viewport_wh = self.unpack_event(event)
         if not is_visible:
             # Do nothing
             if VERBOSE:
@@ -325,11 +334,14 @@ class DatashadeHelper:
             # Covers the case when we zoom out from the full shaded image
             if VERBOSE:
                 print('Matching bounds, skip update')
-            # There is a case when panning outside of an over-zoomed image
-            # which uses .shade rather than doing nothing at all
-            # Need to check if this is a limitation or can be handled correctly
-            # This is particularly noticeable when updating from stored fullsize
-            # and panning outside of the array box (the array is squashed)
+            return
+        
+        if self.data_matches_scale(self.current_cds_dims(), new_cds_coords, viewport_wh):
+            # Cover the case when the data already in the CDS
+            # fills the new viewport correctly, either if we are
+            # zoomed out or we are panning around beyond the image
+            if VERBOSE:
+                print('Scale unchanged bounds, skip update')
             return
 
         if self.is_oversampled(new_cds_coords):
@@ -495,9 +507,11 @@ class DatashadeHelper:
             return False
         return True
 
-    def matching_bounds(self,
-                        old_cds_coords: dict[str, list[float]],
-                        new_cds_coords: dict[str, list[float]]):
+    def matching_bounds(
+        self,
+        old_cds_coords: dict[str, list[float]],
+        new_cds_coords: dict[str, list[float]]
+    ) -> bool:
         """
         Test if new_cds_coords bounds match old_cds_coords after being clipped
         to the array dimension. Used to return early if we are really zoomed out.
@@ -507,7 +521,47 @@ class DatashadeHelper:
         return all(a == b for a, b in zip(self.cds_to_ltrb(old_cds_coords),
                                           self.cds_to_ltrb(new_cds_coords)))
 
-    def compute_update(self, array: np.ndarray) -> dict[str, list]:
+    def data_matches_scale(
+        self,
+        old_cds_coords: dict[str, list[float]],
+        new_cds_coords: dict[str, list[float]],
+        viewport_wh: tuple[float, float],
+    ) -> bool:
+        old_l, old_t, old_r, old_b = self.cds_to_ltrb(old_cds_coords)
+        new_l, new_t, new_r, new_b = self.cds_to_ltrb(new_cds_coords)
+
+        is_contained = (
+            old_l <= new_l
+            and old_t <= new_t
+            and old_r >= new_r
+            and old_b >= new_b
+        )
+
+        if not is_contained:
+            # Need new data
+            return False
+
+        current_data = self.im.cds.data['image'][0]
+        current_array_h, current_array_w = current_data.shape
+        viewport_w, viewport_h = viewport_wh
+
+        old_dh = old_cds_coords['dh'][0]
+        old_dw = old_cds_coords['dw'][0]
+        new_dh = viewport_h
+        new_dw = viewport_w
+
+        # These have values of axis units per array unit
+        old_data_ratio_h = old_dh / current_array_h
+        new_data_ratio_h = new_dh / current_array_h
+        old_data_ratio_w = old_dw / current_array_w
+        new_data_ratio_w = new_dw / current_array_w
+
+        # i.e. if the new viewport shows fewer array units per screen unit
+        if new_data_ratio_w >= old_data_ratio_w and new_data_ratio_h >= old_data_ratio_h:
+            return True
+        return False
+
+    def compute_update(self, array: np.ndarray) -> dict[str, list[float | np.ndarray]]:
         if self.array.shape != array.shape:
             raise NotImplementedError('No support for changing array size')
         # Replace the data
