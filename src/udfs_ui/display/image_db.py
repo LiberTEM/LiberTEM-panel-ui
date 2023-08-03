@@ -82,10 +82,9 @@ class BokehImageCons:
         minmax: tuple[float, float],
         anchor_xy: tuple[float, float] = (0., 0.),
         px_offset: float = -0.5,
-        flip_y: bool = False,
     ) -> dict[str, list]:
         return {
-            **cls._get_geometry(array.shape[:2], anchor_xy, flip_y, px_offset),
+            **cls._get_geometry(array.shape[:2], anchor_xy, px_offset),
             **cls._get_array(array),
             **cls._get_minmax(minmax),
             'cbar_slider': [False],
@@ -93,17 +92,14 @@ class BokehImageCons:
         }
 
     @staticmethod
-    def _get_geometry(shape, anchor_xy, flip_y, px_offset):
+    def _get_geometry(shape, anchor_xy, px_offset):
         height, width = shape
         left, top = anchor_xy
-        if flip_y:
-            top += height
         return {
             'x': [left + px_offset],
             'y': [top + px_offset],
             'dw': [width],
             'dh': [height],
-            'y_flipped': [flip_y],
         }
 
     @classmethod
@@ -163,7 +159,6 @@ class BokehImage(DisplayBase):
         glyph = Image(image='image', x='x', y='y', dw='dw', dh='dh')
         glyph.color_mapper.palette = cmaps.get_colormap('Greys')
         self._register_glyph('image', glyph)
-        self._flipped_y = False
         self._ds_helper: DatashadeHelper | None = None
 
     @staticmethod
@@ -182,27 +177,18 @@ class BokehImage(DisplayBase):
             self._color_manager = BokehImageColor(self)
             return self.color
 
-    def flip_y(self):
-        self._flipped_y = not self._flipped_y
-        self._update_geometry()
-
     def _update_geometry(self):
         # Get true array shape not from CDS
         height, width = self.cds.data['image'][0].shape[:2]
         left, top = self.anchor_offset
-        if self._flipped_y:
-            ypos = top + height + self._px_offset
-            dh = -height
-        else:
-            ypos = top + self._px_offset
-            dh = height
+        ypos = top + self._px_offset
+        dh = height
 
         self.raw_update(
             x=[left + self._px_offset],
             dw=[width],
             y=[ypos],
             dh=[dh],
-            y_flipped=[self._flipped_y]
         )
         return self
 
@@ -236,7 +222,6 @@ class BokehImage(DisplayBase):
                 **self.constructor._get_geometry(
                     array.shape,
                     self.anchor_offset,
-                    self._flipped_y,
                     self._px_offset,
                 ),
             }
@@ -594,56 +579,3 @@ cmapper.high = high;
         if event.new == current:
             return
         self.img.raw_update(cbar_centered=[event.new])
-
-
-if __name__ == '__main__':
-    import panel as pn
-    from functools import partial
-    from bokeh.plotting import figure
-    from sklearn.datasets import fetch_lfw_people
-
-    fig1 = figure()
-    fig2 = figure()
-
-    data = fetch_lfw_people()
-    data_iter = iter(data['images'])
-    for _ in range(np.random.randint(20)):
-        _ = next(data_iter)
-
-    img1 = BokehImage.new().from_numpy(next(data_iter))
-    img1.on(fig1)
-    if True:
-        fig1.y_range.flipped = True
-        img1.flip_y()
-    img2 = BokehImage.new().from_numpy(next(data_iter))
-    img2.on(fig2)
-
-    cmap_slider = img1.color.get_cmap_slider()
-    cmap_select = img1.color.get_cmap_select()
-    cmap_invert = img1.color.get_cmap_invert()
-    cmap_center = img1.color.get_cmap_center()
-
-    def update_img(img: BokehImage, e):
-        img.update(next(data_iter))
-
-    update_1 = pn.widgets.Button(name='Update 1')
-    update_2 = pn.widgets.Button(name='Update 2')
-    update_1.on_click(partial(update_img, img1))
-    update_2.on_click(partial(update_img, img2))
-
-    def move_anchor(e):
-        dx, dy = np.random.randint(-20, 20, size=(2,)).astype(float)
-        img1.set_anchor(x=dx, y=dy)
-
-    move_anchor_btn = pn.widgets.Button(name='Move anchor')
-    move_anchor_btn.on_click(move_anchor)
-
-    pn.serve(pn.Row(fig1, fig2, pn.Column(
-        update_1,
-        update_2,
-        cmap_slider,
-        cmap_select,
-        cmap_invert,
-        cmap_center,
-        move_anchor_btn,
-    )))

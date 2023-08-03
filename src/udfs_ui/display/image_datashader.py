@@ -215,11 +215,9 @@ class DatashadeHelper:
         y1: float = event.y1
 
         fig = event.model
-        x_flipped = fig.x_range.flipped
-        y_flipped = fig.y_range.flipped
-        if x_flipped:
+        if fig.x_range.flipped:
             x0, x1 = x1, x0
-        if y_flipped:
+        if fig.y_range.flipped:
             y0, y1 = y1, y0
 
         if VERBOSE:
