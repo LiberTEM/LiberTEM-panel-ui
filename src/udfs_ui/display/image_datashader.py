@@ -626,7 +626,7 @@ class DatashadeHelper:
                     print('Update is full-view (shaded)')
             if VERBOSE:
                 print('Update from reshade')
-        return {**current_cds_dims, **BokehImageCons._get_array(array)}
+        return {**current_cds_dims, **BokehImageCons._get_array(image_data)}
 
     def redraw(self, array: np.ndarray):
         self._update_array(array)
