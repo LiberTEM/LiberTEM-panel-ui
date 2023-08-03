@@ -259,6 +259,8 @@ class BokehImage(DisplayBase):
         self._bound_ps.points.fill_alpha = 0.
         self._bound_ps.points.line_alpha = 0.
         self._register_child('bounds', self._bound_ps)
+        # Push an update to the CDS to ensure we initialize in a low resolution
+        self.update(self.downsampler.array.data)
         return self
 
     @property
