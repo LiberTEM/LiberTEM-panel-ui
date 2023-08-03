@@ -161,6 +161,7 @@ class BokehImage(DisplayBase):
         super().__init__(cds)
 
         glyph = Image(image='image', x='x', y='y', dw='dw', dh='dh')
+        glyph.color_mapper.palette = cmaps.get_colormap('Greys')
         self._register_glyph('image', glyph)
         self._flipped_y = False
         self._ds_helper: DatashadeHelper | None = None
