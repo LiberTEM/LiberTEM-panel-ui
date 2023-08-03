@@ -39,6 +39,7 @@ class DatashadeHelper:
             array,
             coords=[('y', ys), ('x', xs)],
         )
+        self._array_da_minimum: np.ndarray | None = None
 
     @property
     def im(self):
@@ -69,7 +70,7 @@ class DatashadeHelper:
     def canvas_shape(self):
         return (self.canvas.plot_height, self.canvas.plot_width)
 
-    def shade(self, xrange=None, yrange=None):
+    def shade(self, xrange=None, yrange=None) -> xr.DataArray:
         """
         Shades the display_image with new x- and y- ranges
         ranges with None values will shade the whole dimension
@@ -241,6 +242,20 @@ class DatashadeHelper:
         y1 = y0 + h
         return (x0, x1), (y0, y1)
 
+    def is_complete(
+        self,
+        xrange: tuple[float, float],
+        yrange: tuple[float, float]
+    ) -> bool:
+        """
+        Check if the given ranges cover the whole array in
+        one or the other axis
+        """
+        full_h, full_w = self.array.shape
+        x0, x1 = xrange
+        y0, y1 = yrange
+        return full_w <= abs(x1 - x0) or full_h <= abs(y1 - y0)
+
     @staticmethod
     def axis_overlaps(obj_range, view_range):
         return (obj_range[0] <= view_range[1]) and (view_range[0] <= obj_range[1])
@@ -318,9 +333,19 @@ class DatashadeHelper:
             # which we used to define the datashading ranges, but this might not
             # be the right choice (should perhaps offset by some amount...)
             xrange, yrange = self.ranges_from_cds_dict(new_cds_coords)
-            shaded = self.shade(xrange=xrange, yrange=yrange).data
-            if VERBOSE:
-                print('Update from shade')
+            is_complete = self.is_complete(xrange, yrange)
+            if is_complete and self._array_da_minimum is not None:
+                shaded = self._array_da_minimum
+                if VERBOSE:
+                    print('Update from existing fullsize')
+            else:
+                shaded = self.shade(xrange=xrange, yrange=yrange).to_numpy()
+                if VERBOSE:
+                    print('Update from shade')
+                if is_complete:
+                    self._array_da_minimum = shaded
+                    if VERBOSE:
+                        print('Storing fullsize')
             # A further path to cover is when we are 'close' to displaying
             # the full image, but not quite there (when zooming out, particularly)
             # This would save an update and a strange partial completion effect
@@ -461,6 +486,7 @@ class DatashadeHelper:
             raise NotImplementedError('No support for changing array size')
         # Replace the data
         self._array_da[:] = array
+        self._array_da_minimum = None
         current_cds_dims = self.current_cds_dims()
         if self.is_oversampled(current_cds_dims):
             xrange, yrange = self.ranges_from_cds_dict(current_cds_dims, as_int=True)
@@ -468,4 +494,7 @@ class DatashadeHelper:
         else:
             # Use .reshade and not .shade here to preserve previous data ranges
             image_data = self.reshade().data
+            xrange, yrange = self.ranges_from_cds_dict(current_cds_dims)
+            if self.is_complete(xrange, yrange):
+                self._array_da_minimum = image_data.copy()
         return {**current_cds_dims, 'image': [image_data]}
