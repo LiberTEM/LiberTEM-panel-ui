@@ -75,7 +75,18 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
             end=max_dim,
             width=widget_width,
         )
-        self._radius_slider.param.watch(self._update_radius, 'value')
+        # These panel/python callbacks shouldn't be necessary
+        # but without them the CDS is not *always* synced back
+        # to the Python side and so can give unreliable behaviour
+        # 'value_throttled' is only triggered on MouseUp
+        self._radius_slider.param.watch(self._update_radius, 'value_throttled')
+        self._radius_slider.jscallback(
+            value="""
+cds.data.r1[0] = cb_obj.value;
+cds.change.emit();
+""",
+            args={'cds': self._ring_db.cds},
+        )
         self._radii_slider = pn.widgets.RangeSlider(
             name='Annulus radii',
             value=(ri, ro),
@@ -84,7 +95,16 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
             visible=False,
             width=widget_width,
         )
-        self._radii_slider.param.watch(self._update_radii, 'value')
+        self._radii_slider.param.watch(self._update_radii, 'value_throttled')
+        self._radii_slider.jscallback(        
+            value="""
+cds.data.r0[0] = cb_obj.value[0];            
+cds.data.r1[0] = cb_obj.value[1];
+cds.change.emit();
+""",
+            args={'cds': self._ring_db.cds},
+        )
+
 
         self._mode_mapping: dict[str, tuple[PointSet, pn.widgets.FloatSlider | None]] = {
             'Point': (self._point_db, None),
