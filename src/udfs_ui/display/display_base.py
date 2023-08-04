@@ -437,7 +437,6 @@ def get_point_tool(
 class DiskSet(DisplayBase):
     glyph_map = {
         'disks': Circle,
-        'points': PointSet,
     }
 
     def __init__(
@@ -481,24 +480,6 @@ class DiskSet(DisplayBase):
         data[self.disks.y] = y
         data[self.disks.radius] = radius
         return super().update(**data)
-
-    def add_points(self):
-        child = PointSet(
-            self.cds,
-            x=self.disks.x,
-            y=self.disks.y,
-        )
-        self._register_child('points', child)
-        for fig in self.is_on():
-            child.on(fig)
-        return self
-
-    @property
-    def points(self) -> PointSet:
-        try:
-            return self._children['points'][0]
-        except (KeyError, IndexError):
-            raise AttributeError('Must use .add_points() before accessing Points')
 
     def make_editable(
         self,
