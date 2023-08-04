@@ -5,6 +5,7 @@ import numpy as np
 import itertools
 import pandas as pd
 from typing import TYPE_CHECKING, Sequence, NamedTuple
+from typing_extensions import Literal
 import colorcet as cc
 from skimage.draw import polygon as draw_polygon
 
@@ -257,12 +258,25 @@ class DisplayBase(abc.ABC):
                 if glyph_on.fig is fig:
                     yield glyph_on.renderer
 
-    def renderers_for_fig(self, glyph_name: str, fig: BkFigure):
+    def renderers_for_fig(self, glyph_name: str, fig: BkFigure) -> tuple[GlyphRenderer]:
         return tuple(self._renderers_for_fig(glyph_name, fig))
 
     @property
     def glyph_names(self):
         return tuple(self._glyphs.keys())
+    
+    def set_render_level(
+        self,
+        glyph_name: str,
+        level: Literal['image', 'underlay', 'glyph', 'annotation', 'overlay']
+    ):
+        figs = self.is_on()
+        if not figs:
+            raise NotImplementedError('Setting render level before '
+                                      'adding to figure not yet supported')
+        for fig in figs:
+            for renderer in self.renderers_for_fig(glyph_name, fig):
+                renderer.level = level
 
 
 class ConsBase(abc.ABC):
@@ -718,6 +732,10 @@ class Cursor(DisplayBase):
         # In case a cursor is deleted, provide button
         # to reset it to a single-point, centered CDS
         raise NotImplementedError()
+
+    def on(self, *figs: BkFigure):
+        super().on(*figs)
+        self.set_render_level('cursor', 'annotation')
 
 
 class CursorCons:
