@@ -418,6 +418,7 @@ def get_point_tool(
     num_objects: int = 0,
     empty_value: float = 1.,
     tool_name: str = 'default',
+    icon = None,
 ):
     tags = [tool_name]
     return PointDrawTool(
@@ -429,6 +430,7 @@ def get_point_tool(
         num_objects=num_objects,
         empty_value=empty_value,
         tags=tags,
+        icon=icon,
     )
 
 
@@ -636,9 +638,10 @@ class Cursor(DisplayBase):
             x=x,
             y=y,
             line_color='orange',
-            line_width=3,
+            line_width=2,
             fill_alpha=0,
-            size=10,
+            size=15,
+            hit_dilation=1.5,
         )
         self._register_glyph('cursor', glyph)
 
@@ -698,7 +701,13 @@ class Cursor(DisplayBase):
                 # check if add/drag etc are matching
                 # raise if non-matching ??
             else:
-                tool = get_point_tool(add=False, drag=True, tool_name=tool_name)
+                from .icons import cursor_icon
+                tool = get_point_tool(
+                    add=False,
+                    drag=True,
+                    tool_name=tool_name,
+                    icon=cursor_icon(),
+                )
                 fig.add_tools(tool)
 
             renderers = self.renderers_for_fig('cursor', fig)
