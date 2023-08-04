@@ -10,7 +10,7 @@ from bokeh.models.sources import ColumnDataSource
 from .display_base import DisplayBase, PointSet
 from .utils import slider_step_size
 from .utils import colormaps as cmaps
-from bokeh.models.widgets import RangeSlider
+from bokeh.models.widgets import RangeSlider, CheckboxGroup
 from bokeh.models import CustomJS
 from bokeh.events import RangesUpdate
 
@@ -441,6 +441,8 @@ class BokehImageColor():
         if not init_range:
             init_range = self.img.current_minmax
 
+        self._cbar_freeze = CheckboxGroup(labels=['Freeze color limits'], active=[])
+
         self._cbar_slider = RangeSlider(title=title,
                                         start=init_range[0],
                                         end=init_range[1],
@@ -450,14 +452,16 @@ class BokehImageColor():
                                         **kwargs)
 
         clim_value_callback = CustomJS(args={'cmapper': self.color_mapper,
-                                             'cds': self.img.cds},
+                                             'cds': self.img.cds,
+                                             'freeze': self._cbar_freeze},
                                        code=self._clim_slider_value_js())
         self._cbar_slider.js_on_change('value', clim_value_callback)
 
         self.img.raw_update(cbar_slider=[True])
         clim_update_callback = CustomJS(args={'clim_slider': self._cbar_slider,
                                               'cmapper': self.color_mapper,
-                                              'nstep': nstep},
+                                              'nstep': nstep,
+                                              'freeze': self._cbar_freeze},
                                         code=self._clim_slider_update_image_js())
         self.img.cds.js_on_change('data', clim_update_callback)
         return self.cbar_slider
@@ -465,6 +469,11 @@ class BokehImageColor():
     @staticmethod
     def _clim_slider_update_image_js():
         return '''
+console.log(freeze.active)
+if (freeze.active.length == 1){
+    return
+}
+
 var low = cb_obj.data.val_low[0]
 var high = cb_obj.data.val_high[0]
 

@@ -238,6 +238,7 @@ class AperturePlot(AperturePlotBase):
         )
         floatpanel = pn.layout.FloatPanel(
             self.im.color.get_cmap_select(),
+            self.im.color._cbar_freeze,
             self.im.color.get_cmap_slider(),
             self.im.color.get_cmap_invert(),
             name=name,
