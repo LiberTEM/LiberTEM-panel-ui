@@ -457,6 +457,12 @@ class BokehImageColor():
                                        code=self._clim_slider_value_js())
         self._cbar_slider.js_on_change('value', clim_value_callback)
 
+        clim_freeze_callback = CustomJS(args={'cds': self.img.cds,
+                                              'clim_slider': self._cbar_slider,
+                                              'nstep': nstep},
+                                        code=self._clim_freeze_toggle_js())
+        self._cbar_freeze.js_on_change('active', clim_freeze_callback)
+
         self.img.raw_update(cbar_slider=[True])
         clim_update_callback = CustomJS(args={'clim_slider': self._cbar_slider,
                                               'cmapper': self.color_mapper,
@@ -469,7 +475,6 @@ class BokehImageColor():
     @staticmethod
     def _clim_slider_update_image_js():
         return '''
-console.log(freeze.active)
 if (freeze.active.length == 1){
     return
 }
@@ -506,6 +511,28 @@ if (cds.data.cbar_centered[0]){
 
 cmapper.low = low;
 cmapper.high = high;
+'''
+
+    @staticmethod
+    def _clim_freeze_toggle_js():
+        return '''
+if (cb_obj.active.length == 1){
+    clim_slider.disabled = true
+    return
+}
+
+clim_slider.disabled = false
+
+var low = cds.data.val_low[0]
+var high = cds.data.val_high[0]
+
+var new_val_low = Math.max(low, clim_slider.value[0])
+var new_val_high = Math.min(high, clim_slider.value[1])
+
+clim_slider.start = low
+clim_slider.end = high
+clim_slider.value = [new_val_low, new_val_high];
+clim_slider.step = (high - low) / nstep;
 '''
 
     @property
