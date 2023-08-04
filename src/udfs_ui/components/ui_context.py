@@ -279,7 +279,11 @@ class UIContext:
         run_continuous: bool = False,
         run_from: list[RunFromT] | None = None,
     ):
+        # This is problematic if we pick a frame
+        # while running a long analysis, cursor will
+        # be out of sync
         if self._run_lock.locked():
+            self.logger.warning('Run command dropped, lock is already held')
             return
         self._continue_running = True
         async with self._run_lock:
