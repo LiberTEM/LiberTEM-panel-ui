@@ -149,7 +149,7 @@ class UIWindow:
             min_width=75,
             visible=self.can_self_run,
         )
-        self._run_btn.on_click(self.run_this)
+        self._run_btn.on_click(self.run_from_btn)
         return pn.Row(
             self._title_text,
             self._id_text,
@@ -195,11 +195,17 @@ class UIWindow:
         # The functionality here could allow running
         # windows independently and concurrently, but would
         # need to refactor progress bar + UI state synchronisation
-        self._run_btn.disabled = True
         if run_from is None:
             run_from = self.get_job
+        await self._ui_context._run_handler(*e, run_from=[run_from])
+    
+    async def run_from_btn(self, *e):
+        # Subclass can override this method if it does not
+        # want the run_btn to be disabled when pressed
+        # (i.e. if job.quiet == True)
+        self._run_btn.disabled = True
         try:
-            await self._ui_context._run_handler(*e, run_from=[run_from])
+            await self.run_this(*e, run_from=self.get_job)
         finally:
             self._run_btn.disabled = False
 
@@ -315,6 +321,7 @@ class UDFWindowJob(NamedTuple):
     result_handler: ResultHandlerT | None = None
     params: dict[str, Any] | None = None
     roi: np.ndarray | None = None
+    quiet: bool = False
 
 
 class JobResults(NamedTuple):
