@@ -130,8 +130,24 @@ cds.change.emit();
         self.toolbox.extend((
             self._mode_selector,
         ))
+        nav_c_open_btn, nav_c_float_panel = self.nav_plot.get_control_panel(
+            name='Nav image controls',
+        )
+        nav_c_open_btn.name = 'Nav controls'
+        sig_c_open_btn, sig_c_float_panel = self.sig_plot.get_control_panel(
+            name='Sig image controls',
+        )
+        sig_c_open_btn.name = 'Sig controls'
         self._standard_layout(
-            left_before=(clear_roi_button,),
+            left_before=(
+                pn.Row(
+                    clear_roi_button,
+                    nav_c_open_btn,
+                    sig_c_open_btn,
+                    nav_c_float_panel,
+                    sig_c_float_panel,
+                ),
+            ),
             right_after=(
                 self._radius_slider,
                 self._radii_slider,

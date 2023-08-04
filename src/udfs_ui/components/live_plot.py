@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING
 import time
 import numpy as np
 import panel as pn
+pn.extension('floatpanel')
 from bokeh.plotting import figure
 from libertem.viz.base import Live2DPlot
 
@@ -224,3 +225,32 @@ class AperturePlot(AperturePlotBase):
         )
         clear_btn.on_click(self.clear_mask)
         return clear_btn
+
+    def get_control_panel(
+        self,
+        name: str = 'Image Controls',
+    ):
+        initial_vis = False
+        open_btn = pn.widgets.Toggle(
+            name=name,
+            value=initial_vis,
+            margin=(5, 5, 5, 5),
+        )
+        floatpanel = pn.layout.FloatPanel(
+            self.im.color.get_cmap_select(),
+            self.im.color.get_cmap_slider(),
+            self.im.color.get_cmap_invert(),
+            name=name,
+            config={
+                "headerControls": {
+                    "maximize": "remove",
+                    "normalize": "remove",
+                    "minimize": "remove",
+                    "close": "remove",
+                },
+            },
+            margin=20,
+            visible=initial_vis,
+        )
+        open_btn.jslink(floatpanel, value='visible')
+        return open_btn, floatpanel
