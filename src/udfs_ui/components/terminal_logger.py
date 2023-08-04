@@ -20,7 +20,7 @@ class UILog:
                 },
             },
             sizing_mode='stretch_width',
-            min_height=200,
+            min_height=300,
         )
 
         self.stream_handler = logging.StreamHandler(self._terminal)
