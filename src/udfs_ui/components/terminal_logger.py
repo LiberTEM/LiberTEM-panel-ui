@@ -45,7 +45,7 @@ class UILog:
 
     def log_from_exception(self, err: Exception, reraise: bool = False, msg: str | None = None):
         te = traceback.TracebackException.from_exception(err)
-        self.logger.error('\n' + ''.join(te.stack.format()))
+        self.logger.error('\n' + ''.join(te.stack.format()) + f'\n{type(err).__name__}: {err}')
         if msg is not None:
             self.logger.error(msg)
         if reraise:
