@@ -149,6 +149,10 @@ class ImageResultTracker(ResultTracker):
             and window not in self._window_options.values()
         )
         for w in new_windows:
+            if w in self._window_options.inverse.keys():
+                # Mitigation for bidict assert error if replacing
+                # string key with same WindowRow (due to duplication)
+                continue
             self._window_options[self._select_window_name(w)] = w
         if new_windows:
             self.window_select_box.options = self._sorted_window_names()
