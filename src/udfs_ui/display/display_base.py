@@ -622,8 +622,6 @@ class RingSetCons:
 class Cursor(DisplayBase):
     glyph_map = {
         'cursor': Scatter,
-        'disk': DiskSet,
-        'ring': RingSet,
     }
 
     def __init__(
@@ -735,46 +733,10 @@ class Cursor(DisplayBase):
                 return None
         return PointXY(x, y)
 
-    def add_disk(
-        self,
-        radius: float,
-    ):
-        n_pts = len(self.cds.data[self.cursor.x])
-        self.cds.data['r'] = [radius] * n_pts
-        child = DiskSet(
-            self.cds,
-            x=self.cursor.x,
-            y=self.cursor.y,
-            radius='r',
-        )
-        child.disks.line_color = self.cursor.line_color
-        child.disks.fill_color = self.cursor.line_color
-        self._register_child('disk', child)
-        for fig in self.is_on():
-            child.on(fig)
-        return child
-
-    def add_ring(
-        self,
-        inner_radius: float,
-        outer_radius: float,
-    ):
-        n_pts = len(self.cds.data[self.cursor.x])
-        self.cds.data['ri'] = [inner_radius] * n_pts
-        self.cds.data['r'] = [outer_radius] * n_pts
-        child = RingSet(
-            self.cds,
-            x=self.cursor.x,
-            y=self.cursor.y,
-            inner_radius='ri',
-            outer_radius='r',
-        )
-        child.rings.line_color = self.cursor.line_color
-        child.rings.fill_color = self.cursor.line_color
-        self._register_child('ring', child)
-        for fig in self.is_on():
-            child.on(fig)
-        return child
+    def reset(self, *e):
+        # In case a cursor is deleted, provide button
+        # to reset it to a single-point, centered CDS
+        raise NotImplementedError()
 
 
 class CursorCons:
