@@ -87,7 +87,7 @@ class ImageResultTracker(ResultTracker):
             width_policy='min',
             align='center',
             margin=(5, 2, 5, 2),
-        )        
+        )
         self.window_select_box.param.watch(self.update_result_select, 'value')
         self.load_btn = pn.widgets.Button(
             name='Load',
@@ -115,7 +115,7 @@ class ImageResultTracker(ResultTracker):
 
     def _select_window_name(self, window: WindowRow):
         return f'{window.window_name} [{window.window_id}]'
-    
+
     def _sorted_window_names(self) -> list[str]:
         return list(reversed(self._window_options.keys()))
 
@@ -160,7 +160,7 @@ class ImageResultTracker(ResultTracker):
             self.window_select_box.value = self.window_select_box.options[0]
 
         self.update_result_select(new_results=new_results)
-        
+
     def update_result_select(self, *e, new_results: tuple[ResultRow] | None = None):
         current_window = self._window_options[self.window_select_box.value]
         if current_window is not None:
@@ -196,7 +196,8 @@ class ImageResultTracker(ResultTracker):
             try:
                 possible_results = tuple(
                     r for r in new_results
-                    if (r.window_id == current.window_id) and (show_latest or (r.name == current.name))
+                    if (r.window_id == current.window_id)
+                    and (show_latest or (r.name == current.name))
                 )
             except AttributeError:
                 # current display is not a ResultRow, don't overwrite it

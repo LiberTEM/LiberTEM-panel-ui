@@ -264,7 +264,7 @@ class DisplayBase(abc.ABC):
     @property
     def glyph_names(self):
         return tuple(self._glyphs.keys())
-    
+
     def set_render_level(
         self,
         glyph_name: str,
@@ -432,7 +432,7 @@ def get_point_tool(
     num_objects: int = 0,
     empty_value: float = 1.,
     tool_name: str = 'default',
-    icon = None,
+    icon=None,
 ):
     tags = [tool_name]
     return PointDrawTool(

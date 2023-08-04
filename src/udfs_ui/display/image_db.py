@@ -182,7 +182,7 @@ class BokehImage(DisplayBase):
     @property
     def im(self) -> Image:
         return self._glyphs['image'][0].glyph
-    
+
     @property
     def array(self) -> np.ndarray:
         # A reference to the full, most-recent image array (after casting)

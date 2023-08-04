@@ -198,7 +198,7 @@ class UIWindow:
         if run_from is None:
             run_from = self.get_job
         await self._ui_context._run_handler(*e, run_from=[run_from])
-    
+
     async def run_from_btn(self, *e):
         # Subclass can override this method if it does not
         # want the run_btn to be disabled when pressed

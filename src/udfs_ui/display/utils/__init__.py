@@ -22,7 +22,7 @@ class PointYX(NamedTuple):
 
     def as_xy(self):
         return PointXY(self.x, self.y)
-    
+
     def as_yx(self):
         return self
 

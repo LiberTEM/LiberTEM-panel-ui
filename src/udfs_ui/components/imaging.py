@@ -98,16 +98,15 @@ cds.change.emit();
             width=widget_width,
         )
         self._radii_slider.param.watch(self._update_radii, 'value_throttled')
-        self._radii_slider.jscallback(        
+        self._radii_slider.jscallback(
             value="""
 // rather than hardcoding the column names could read from glyph
-cds.data.r0[0] = cb_obj.value[0];            
+cds.data.r0[0] = cb_obj.value[0];
 cds.data.r1[0] = cb_obj.value[1];
 cds.change.emit();
 """,
             args={'cds': self._ring_db.cds},
         )
-
 
         self._mode_mapping: dict[str, tuple[PointSet, pn.widgets.FloatSlider | None]] = {
             'Point': (self._point_db, None),

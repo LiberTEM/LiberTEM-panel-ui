@@ -11,7 +11,7 @@ class UILifecycle:
     def __init__(self, ui_context: UIContext):
         self.ui = ui_context
         self.enabled = True
-    
+
     def disable(self):
         self.enabled = False
 
