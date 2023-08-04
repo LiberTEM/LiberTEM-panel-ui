@@ -203,4 +203,4 @@ def get_initial_pos(shape: tuple[int, int]):
     h, w = shape
     cy, cx = h // 2, w // 2
     ri, r = h // 6, w // 4
-    return tuple(map(float, (cy, cx))), tuple(map(float, (ri, r))), float(max(h, w))
+    return tuple(map(float, (cy, cx))), tuple(map(float, (ri, r))), float(max(h, w)) * 0.5
