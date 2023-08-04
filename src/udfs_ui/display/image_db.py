@@ -10,7 +10,7 @@ from bokeh.models.sources import ColumnDataSource
 from .display_base import DisplayBase, PointSet
 from .utils import slider_step_size
 from .utils import colormaps as cmaps
-from bokeh.models.widgets import RangeSlider, CheckboxGroup
+from bokeh.models.widgets import RangeSlider, CheckboxGroup, Button
 from bokeh.models import CustomJS
 from bokeh.events import RangesUpdate
 
@@ -442,6 +442,7 @@ class BokehImageColor():
             init_range = self.img.current_minmax
 
         self._cbar_freeze = CheckboxGroup(labels=['Freeze color limits'], active=[])
+        self._full_scale_btn = Button(label="Full scale", button_type="default")
 
         self._cbar_slider = RangeSlider(title=title,
                                         start=init_range[0],
@@ -459,7 +460,8 @@ class BokehImageColor():
 
         clim_freeze_callback = CustomJS(args={'cds': self.img.cds,
                                               'clim_slider': self._cbar_slider,
-                                              'nstep': nstep},
+                                              'nstep': nstep,
+                                              'full_btn': self._full_scale_btn},
                                         code=self._clim_freeze_toggle_js())
         self._cbar_freeze.js_on_change('active', clim_freeze_callback)
 
@@ -470,6 +472,11 @@ class BokehImageColor():
                                               'freeze': self._cbar_freeze},
                                         code=self._clim_slider_update_image_js())
         self.img.cds.js_on_change('data', clim_update_callback)
+
+        full_scale_callback = CustomJS(args={'clim_slider': self._cbar_slider,
+                                             'freeze': self._cbar_freeze},
+                                       code=self._clim_full_scale_js())
+        self._full_scale_btn.js_on_event("button_click", full_scale_callback)
         return self.cbar_slider
 
     @staticmethod
@@ -518,10 +525,12 @@ cmapper.high = high;
         return '''
 if (cb_obj.active.length == 1){
     clim_slider.disabled = true
+    full_btn.disabled = true
     return
 }
 
 clim_slider.disabled = false
+full_btn.disabled = false
 
 var low = cds.data.val_low[0]
 var high = cds.data.val_high[0]
@@ -533,6 +542,21 @@ clim_slider.start = low
 clim_slider.end = high
 clim_slider.value = [new_val_low, new_val_high];
 clim_slider.step = (high - low) / nstep;
+'''
+
+    @staticmethod
+    def _clim_full_scale_js():
+        return '''
+if (freeze.active.length == 1){
+    return
+}
+
+var low = clim_slider.start
+var high = clim_slider.end
+
+// clim_slider.start = low
+// clim_slider.end = high
+clim_slider.value = [low, high];
 '''
 
     @property
