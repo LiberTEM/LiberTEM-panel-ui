@@ -290,6 +290,7 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
             width=widget_width,
         )
         self._mode_selector.param.watch(self._toggle_visible, 'value')
+        self._nav_cursor.set_visible(self._mode_selector.value == 'Pick')
 
         self.nav_plot.add_mask_tools(activate=False)
         clear_roi_button = self.nav_plot.get_clear_mask_btn()
