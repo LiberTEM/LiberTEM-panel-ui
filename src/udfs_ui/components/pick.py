@@ -123,6 +123,7 @@ class PickUDFBaseWindow(UIWindow):
             self._complete_cds_pick_job,
             params=params,
             roi=roi,
+            quiet=True,
         )
 
     def reset_title(self):
@@ -154,6 +155,7 @@ class PickUDFBaseWindow(UIWindow):
             {'cx': cx, 'cy': cy},
         )
         self.sig_plot.fig.title.text = self._pick_title((cy, cx))
+        pn.io.push_notebook(self.sig_plot.pane)
 
         # Pick frame saving needs re-working to
         # avoid piling up lots of frames
