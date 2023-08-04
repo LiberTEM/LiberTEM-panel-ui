@@ -82,6 +82,7 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         self._radius_slider.param.watch(self._update_radius, 'value_throttled')
         self._radius_slider.jscallback(
             value="""
+// rather than hardcoding the column name could read from glyph
 cds.data.r1[0] = cb_obj.value;
 cds.change.emit();
 """,
@@ -98,6 +99,7 @@ cds.change.emit();
         self._radii_slider.param.watch(self._update_radii, 'value_throttled')
         self._radii_slider.jscallback(        
             value="""
+// rather than hardcoding the column names could read from glyph
 cds.data.r0[0] = cb_obj.value[0];            
 cds.data.r1[0] = cb_obj.value[1];
 cds.change.emit();
