@@ -641,7 +641,7 @@ class Cursor(DisplayBase):
             line_width=2,
             fill_alpha=0,
             size=15,
-            hit_dilation=1.5,
+            hit_dilation=2.0,
         )
         self._register_glyph('cursor', glyph)
 
