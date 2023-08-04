@@ -402,7 +402,6 @@ class UIContext:
 
     async def run_live(self, *e, run_from: list[RunFromT] | None = None):
         lifecycle = LiveLifecycle(self)
-        lifecycle.before()
         live_ctx = self._resources.get_ctx(self._state)
         try:
             if (aq := self._resources.get_ds_for_run(self._state,
@@ -413,7 +412,6 @@ class UIContext:
 
     async def run_continuous(self, *e, run_from: list[RunFromT] | None = None):
         lifecycle = ContinuousLifecycle(self)
-        lifecycle.before()
         live_ctx = self._resources.get_ctx(self._state)
         self._continuous_acquire = True
         try:
@@ -427,7 +425,6 @@ class UIContext:
 
     async def run_replay(self, *e, run_from: list[RunFromT] | None = None):
         lifecycle = ReplayLifecycle(self)
-        lifecycle.before()
         ctx = self._resources.get_ctx(self._state)
         ds = self._resources.get_ds_for_run(self._state, self.current_ds_ident)
         roi = self.get_roi(ds)
@@ -445,8 +442,6 @@ class UIContext:
 
     async def run_offline(self, *e, run_from: list[RunFromT] | None = None):
         lifecycle = OfflineLifecycle(self)
-        lifecycle.before()
-
         ctx = self._resources.get_ctx(self._state)
         ds = self._resources.get_ds_for_run(self._state, self.current_ds_ident)
         roi = self.get_roi(ds)
@@ -495,13 +490,22 @@ class UIContext:
                 self.logger.info('Found conflicting ROIs, skipping '
                                  f'the following windows: {dropped_windows} in run.')
 
-        n_frames = ds.meta.shape.nav.size
-        if roi is not None:
-            n_frames = roi.sum()
+        quiet_mode = all(j.quiet for j in to_run)
+        if quiet_mode:
+            ui_lifecycle.disable()
+            progress = False
+        else:
+            ui_lifecycle.before()
 
-        roi_message = f" with ROI of {n_frames} frames" if roi is not None else ", no ROI"
-        self.logger.info(f'Start run, state {self._state.value.upper()} '
-                         f'on {len(to_run)} jobs{roi_message}')
+            n_frames = ds.meta.shape.nav.size
+            if roi is not None:
+                n_frames = roi.sum()
+
+            roi_message = f" with ROI of {n_frames} frames" if roi is not None else ", no ROI"
+            self.logger.info(f'Start run, state {self._state.value.upper()} '
+                            f'on {len(to_run)} jobs{roi_message}')
+            # Special optimisation for progress bar when using single-frame ROI
+            progress = False if (n_frames <= 1 and roi is not None) else self._p_reporter
 
         tstart = datetime.datetime.now()
         part_completed = 0
@@ -510,8 +514,7 @@ class UIContext:
                 dataset=ds,
                 udf=tuple(udf for job in to_run for udf in job.udfs),
                 plots=tuple(plot for job in to_run for plot in job.plots),
-                # Special optimisation for progress bar when using single-frame ROI
-                progress=False if (n_frames <= 1 and roi is not None) else self._p_reporter,
+                progress=progress,
                 sync=False,
                 roi=roi,
             ):
@@ -526,7 +529,7 @@ class UIContext:
             msg = 'Error during run_udf'
             self._logger.log_from_exception(err, reraise=True, msg=msg)
 
-        if self._continue_running:
+        if self._continue_running and not quiet_mode:
             proc_time = datetime.datetime.now() - tstart
             try:
                 data_rate = (
@@ -547,7 +550,8 @@ class UIContext:
                 'sig': tuple(ds.shape.sig),
             }
         )
-        self.logger.info(f'Results saved with run_id: {run_record.run_id}')
+        if not quiet_mode:
+            self.logger.info(f'Results saved with run_id: {run_record.run_id}')
 
         # Unpack results back to their window objects
         udfs_res: UDFResults

@@ -10,12 +10,18 @@ if TYPE_CHECKING:
 class UILifecycle:
     def __init__(self, ui_context: UIContext):
         self.ui = ui_context
+        self.enabled = True
+    
+    def disable(self):
+        self.enabled = False
 
     def setup(self):
         self.ui._tools.stop_btn.name = 'STOP'
         self.ui._tools.stop_btn.button_type = 'danger'
 
     def before(self):
+        if not self.enabled:
+            return
         self.ui._tools.stop_btn.disabled = False
 
     def during(self):
@@ -32,14 +38,20 @@ class OfflineLifecycle(UILifecycle):
         self.ui._tools.set_subtitle(UIState.OFFLINE.value)
 
     def before(self):
+        if not self.enabled:
+            return
         super().before()
         self.ui._tools.run_btn.name = 'Waiting...'
         self.ui._tools.run_btn.disabled = True
 
     def during(self):
+        if not self.enabled:
+            return
         self.ui._tools.run_btn.name = 'Running...'
 
     def after(self):
+        if not self.enabled:
+            return
         super().after()
         self.ui._tools.run_btn.name = 'Run all'
         self.ui._tools.run_btn.disabled = False
@@ -55,6 +67,8 @@ class LiveLifecycle(UILifecycle):
         self.ui._tools.continuous_btn.visible = True
 
     def before(self, is_continuous: bool = False):
+        if not self.enabled:
+            return
         super().before()
         self.ui._tools.run_btn.disabled = True
         self.ui._tools.run_btn.name = 'Waiting trigger...'
@@ -62,9 +76,13 @@ class LiveLifecycle(UILifecycle):
         self.ui._tools.continuous_btn.disabled = not is_continuous
 
     def during(self):
+        if not self.enabled:
+            return
         self.ui._tools.run_btn.name = 'Acquiring...'
 
     def after(self):
+        if not self.enabled:
+            return
         super().after()
         self.ui._tools.run_btn.disabled = False
         self.ui._tools.run_btn.name = 'Run once'
@@ -75,10 +93,17 @@ class LiveLifecycle(UILifecycle):
 
 
 class ContinuousLifecycle(LiveLifecycle):
+    def __init__(self, ui_context: UIContext):
+        super().__init__(ui_context)
+        self._before_done = False
+
     def before(self):
+        if self._before_done or (not self.enabled):
+            return
         super().before(is_continuous=True)
         self.ui._tools.continuous_btn.button_type = 'danger'
         self.ui._tools.continuous_btn.name = 'Stop continuous'
+        self._before_done = True
 
 
 class ReplayLifecycle(OfflineLifecycle):
@@ -91,9 +116,13 @@ class ReplayLifecycle(OfflineLifecycle):
         self.ui._tools.continuous_btn.visible = False
 
     def before(self):
+        if not self.enabled:
+            return
         super().before()
         self.ui._tools.mode_btn.disabled = True
 
     def after(self):
+        if not self.enabled:
+            return
         super().after()
         self.ui._tools.mode_btn.disabled = False
