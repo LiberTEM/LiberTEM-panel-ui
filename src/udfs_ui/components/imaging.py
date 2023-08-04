@@ -62,6 +62,7 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
             .make_editable(add=False)
             .set_visible(False)
         )
+        self._point_db.points.hit_dilation = 2.
         self._edit_tool = self.sig_plot.fig.tools[-1]
         self._edit_tool.renderers.clear()
         self._disk_db.make_editable()
