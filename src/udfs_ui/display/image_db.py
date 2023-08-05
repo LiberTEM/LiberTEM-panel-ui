@@ -392,19 +392,15 @@ class BokehImage(DisplayBase):
 class BokehImageColor():
     def __init__(self, img: BokehImage):
         self.img = img
+        self._colorbars: list[ColorBar] = []
+
         low, high = self.img.current_minmax
         palette = cmaps.get_colormap('Greys')
         self._lin_mapper: LinearColorMapper = LinearColorMapper(low=low, high=high)
         self._lin_mapper.palette = palette
-        if low <= 0. and high <= 0.:
-            low = 0.01
-            high = 1.
-        elif low <= 0.:
-            low = min(0.01, high * 0.1)
-        self._log_mapper: LogColorMapper = LogColorMapper(low=low, high=high)
+        self._log_mapper: LogColorMapper = LogColorMapper(**self._log_norm_py(low, high))
         self._log_mapper.palette = palette
         self.img.im.color_mapper = self._lin_mapper
-        self._colorbars: list[ColorBar] = []
 
     @property
     def color_mapper(self) -> ColorMapper:
@@ -515,6 +511,25 @@ class BokehImageColor():
             colorbar.color_mapper = self.img.im.color_mapper
 
     @staticmethod
+    def _log_norm_py(low, high):
+        if low <= 0. and high <= 0.:
+            low = 0.01
+            high = 1.
+        elif low <= 0.:
+            low = min(0.01, high * 0.1)
+        return {'low': low, 'high': high}
+
+    @staticmethod
+    def _log_norm_js():
+        return '''
+if (low <= 0.  && high <= 0.) {
+    low = 0.01
+    high = 1.
+} else if (low <= 0.){
+    low = Math.min(0.01, high * 0.1)
+}'''
+
+    @staticmethod
     def _clim_slider_update_image_js():
         return '''
 if (freeze.active.length == 1){
@@ -537,14 +552,7 @@ if (cb_obj.data.cbar_centered[0]){
 
 lin_mapper.low = low;
 lin_mapper.high = high;
-
-if (low <= 0.  && high <= 0.) {
-    low = 0.01
-    high = 1.
-} else if (low <= 0.){
-    low = Math.min(0.01, high * 0.1)
-}
-
+''' + BokehImageColor._log_norm_js() + '''
 log_mapper.low = low;
 log_mapper.high = high;
 '''
@@ -563,14 +571,7 @@ if (cds.data.cbar_centered[0]){
 
 lin_mapper.low = low;
 lin_mapper.high = high;
-
-if (low <= 0.  && high <= 0.) {
-    low = 0.01
-    high = 1.
-} else if (low <= 0.) {
-    low = Math.min(0.01, high * 0.1)
-}
-
+''' + BokehImageColor._log_norm_js() + '''
 log_mapper.low = low;
 log_mapper.high = high;
 '''
