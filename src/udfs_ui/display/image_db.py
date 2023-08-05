@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Callable
 
 import panel as pn
 from bokeh.models import Image
+from bokeh.models.mappers import LogColorMapper, LinearColorMapper
 from bokeh.models.sources import ColumnDataSource
 from bokeh.models.annotations import ColorBar
 
@@ -319,8 +320,11 @@ class BokehImage(DisplayBase):
     #     self.cds.patch(patches)
 
     @property
-    def current_minmax(self):
-        return self.cds.data['val_low'][0], self.cds.data['val_high'][0]
+    def current_minmax(self) -> tuple[float, float] | tuple[None, None]:
+        try:
+            return self.cds.data['val_low'][0], self.cds.data['val_high'][0]
+        except (KeyError, IndexError):
+            return None, None
 
     @property
     def last_update(self) -> float:
@@ -388,6 +392,18 @@ class BokehImage(DisplayBase):
 class BokehImageColor():
     def __init__(self, img: BokehImage):
         self.img = img
+        low, high = self.img.current_minmax
+        palette = cmaps.get_colormap('Greys')
+        self._lin_mapper: LinearColorMapper = LinearColorMapper(low=low, high=high)
+        self._lin_mapper.palette = palette
+        if low <= 0. and high <= 0.:
+            low = 0.01
+            high = 1.
+        elif low <= 0.:
+            low = min(0.01, high * 0.1)
+        self._log_mapper: LogColorMapper = LogColorMapper(low=low, high=high)
+        self._log_mapper.palette = palette
+        self.img.im.color_mapper = self._lin_mapper
         self._colorbars: list[ColorBar] = []
 
     @property
@@ -454,7 +470,8 @@ class BokehImageColor():
                                         syncable=False,
                                         **kwargs)
 
-        clim_value_callback = CustomJS(args={'cmapper': self.color_mapper,
+        clim_value_callback = CustomJS(args={'lin_mapper': self._lin_mapper,
+                                             'log_mapper': self._log_mapper,
                                              'cds': self.img.cds,
                                              'freeze': self._cbar_freeze},
                                        code=self._clim_slider_value_js())
@@ -469,17 +486,33 @@ class BokehImageColor():
 
         self.img.raw_update(cbar_slider=[True])
         clim_update_callback = CustomJS(args={'clim_slider': self._cbar_slider,
-                                              'cmapper': self.color_mapper,
+                                              'lin_mapper': self._lin_mapper,
+                                              'log_mapper': self._log_mapper,
                                               'nstep': nstep,
                                               'freeze': self._cbar_freeze},
                                         code=self._clim_slider_update_image_js())
         self.img.cds.js_on_change('data', clim_update_callback)
 
         full_scale_callback = CustomJS(args={'clim_slider': self._cbar_slider,
-                                             'freeze': self._cbar_freeze},
+                                             'freeze': self._cbar_freeze,
+                                             'im_glyph': self.img.im},
                                        code=self._clim_full_scale_js())
         self._full_scale_btn.js_on_event("button_click", full_scale_callback)
+
+        self._log_color_btn = pn.widgets.Toggle(
+            name='Log color',
+            value=False,
+        )
+        self._log_color_btn.param.watch(self._toggle_log_color, 'value')
         return self.cbar_slider
+
+    def _toggle_log_color(self, e):
+        if e.new:
+            self.img.im.color_mapper = self._log_mapper
+        else:
+            self.img.im.color_mapper = self._lin_mapper
+        for colorbar in self._colorbars:
+            colorbar.color_mapper = self.img.im.color_mapper
 
     @staticmethod
     def _clim_slider_update_image_js():
@@ -502,8 +535,18 @@ if (cb_obj.data.cbar_centered[0]){
     high = val
 }
 
-cmapper.low = low;
-cmapper.high = high;
+lin_mapper.low = low;
+lin_mapper.high = high;
+
+if (low <= 0.  && high <= 0.) {
+    low = 0.01
+    high = 1.
+} else if (low <= 0.){
+    low = Math.min(0.01, high * 0.1)
+}
+
+log_mapper.low = low;
+log_mapper.high = high;
 '''
 
     @staticmethod
@@ -518,8 +561,18 @@ if (cds.data.cbar_centered[0]){
     high = val
 }
 
-cmapper.low = low;
-cmapper.high = high;
+lin_mapper.low = low;
+lin_mapper.high = high;
+
+if (low <= 0.  && high <= 0.) {
+    low = 0.01
+    high = 1.
+} else if (low <= 0.) {
+    low = Math.min(0.01, high * 0.1)
+}
+
+log_mapper.low = low;
+log_mapper.high = high;
 '''
 
     @staticmethod
@@ -584,11 +637,11 @@ clim_slider.value = [low, high];
         """
         if palette is None:
             palette = event.new
-        if self.color_mapper is not None:
-            self._current_palette_name = palette
-            # can definitely be JS-linked!!!
-            self.color_mapper.palette = cmaps.get_colormap(palette,
-                                                           inverted=self.is_cmap_inverted())
+        self._current_palette_name = palette
+        # can definitely be JS-linked!!!
+        _palette_list = cmaps.get_colormap(palette, inverted=self.is_cmap_inverted())
+        self._lin_mapper.palette = _palette_list
+        self._log_mapper.palette = _palette_list
 
     def invert_cmap(self, event):
         if self.cmap_select is not None:
