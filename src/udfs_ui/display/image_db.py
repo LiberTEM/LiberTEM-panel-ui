@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Callable
 import panel as pn
 from bokeh.models import Image
 from bokeh.models.sources import ColumnDataSource
+from bokeh.models.annotations import ColorBar
 
 from .display_base import DisplayBase, PointSet
 from .utils import slider_step_size
@@ -387,6 +388,7 @@ class BokehImage(DisplayBase):
 class BokehImageColor():
     def __init__(self, img: BokehImage):
         self.img = img
+        self._colorbars: list[ColorBar] = []
 
     @property
     def color_mapper(self) -> ColorMapper:
@@ -675,3 +677,14 @@ clim_slider.value = [low, high];
         if event.new == current:
             return
         self.img.raw_update(cbar_centered=[event.new])
+
+    def add_colorbar(self, *figs, width=10, padding=2, position='right'):
+        if not figs:
+            figs = self.img.is_on()
+        for fig in figs:
+            for renderer in self.img.renderers_for_fig('image', fig):
+                color_bar = renderer.construct_color_bar(width=width, padding=padding)
+                fig.add_layout(color_bar, position)
+                # Need reference so we can change the mapper
+                # when switching from log to lin
+                self._colorbars.append(color_bar)
