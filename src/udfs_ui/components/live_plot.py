@@ -1,14 +1,19 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 import time
+import uuid
+
 import numpy as np
 import panel as pn
 pn.extension('floatpanel')
 from bokeh.plotting import figure
+from bokeh.models import CustomJS
+from bokeh.models.tools import CustomAction
 from libertem.viz.base import Live2DPlot
 
 from ..display.image_db import BokehImage
 from ..display.display_base import Rectangles, DisplayBase, Polygons
+from ..display.icons import options_icon
 
 if TYPE_CHECKING:
     from .results import ResultRow
@@ -231,10 +236,14 @@ class AperturePlot(AperturePlotBase):
         name: str = 'Image Controls',
     ):
         initial_vis = False
+
+        button_uuid = str(uuid.uuid4())
         open_btn = pn.widgets.Toggle(
             name=name,
             value=initial_vis,
             margin=(5, 5, 5, 5),
+            tags=[button_uuid],
+            visible=False,
         )
         floatpanel = pn.layout.FloatPanel(
             self.im.color.get_cmap_select(),
@@ -255,4 +264,21 @@ class AperturePlot(AperturePlotBase):
             visible=initial_vis,
         )
         open_btn.jslink(floatpanel, value='visible')
+
+        cb = CustomJS(args={'btn_uuid': button_uuid},
+                      code='''
+for (let model of this.document._all_models.values()){
+    if (model.properties.tags._value.includes(btn_uuid)){
+        model.active = !model.active
+        return
+    }
+}
+''')
+
+        action = CustomAction(
+            icon=options_icon(),
+            callback=cb,
+        )
+        self.fig.add_tools(action)
+
         return open_btn, floatpanel
