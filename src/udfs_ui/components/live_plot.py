@@ -13,7 +13,7 @@ from libertem.viz.base import Live2DPlot
 
 from ..display.image_db import BokehImage
 from ..display.display_base import Rectangles, DisplayBase, Polygons
-from ..display.icons import options_icon
+from ..display.icons import options_icon, options_icon_blue
 
 if TYPE_CHECKING:
     from .results import ResultRow
@@ -263,13 +263,25 @@ class AperturePlot(AperturePlotBase):
             margin=20,
             visible=initial_vis,
         )
-        open_btn.jslink(floatpanel, value='visible')
+        open_btn.jslink(floatpanel, value='visible', bidirectional=True)
 
-        cb = CustomJS(args={'btn_uuid': button_uuid},
-                      code='''
+        cb = CustomJS(
+            args={
+                'btn_uuid': button_uuid,
+                'icon_active': options_icon_blue(as_b64=True),
+                'icon_inactive': options_icon(as_b64=True),
+            },
+            code='''
 for (let model of this.document._all_models.values()){
     if (model.properties.tags._value.includes(btn_uuid)){
         model.active = !model.active
+        if (model.active){
+            cb_obj.properties.icon.set_value(icon_active)
+        } else {
+            cb_obj.properties.icon.set_value(icon_inactive)
+        }
+        cb_obj.properties.icon.change.emit()
+        cb_obj.change.emit()
         return
     }
 }
