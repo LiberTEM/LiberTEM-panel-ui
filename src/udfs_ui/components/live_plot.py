@@ -250,6 +250,7 @@ class AperturePlot(AperturePlotBase):
             self.im.color.get_cmap_slider(),
             self.im.color._cbar_freeze,
             self.im.color._full_scale_btn,
+            self.im.color._gamma_slider,
             self.im.color.get_cmap_invert(),
             name=name,
             config={

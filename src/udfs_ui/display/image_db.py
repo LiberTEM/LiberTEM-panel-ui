@@ -10,9 +10,10 @@ from bokeh.models.sources import ColumnDataSource
 from bokeh.models.annotations import ColorBar
 
 from .display_base import DisplayBase, PointSet
+from .gamma_cmap import GammaColorMapper
 from .utils import slider_step_size
 from .utils import colormaps as cmaps
-from bokeh.models.widgets import RangeSlider, CheckboxGroup, Button
+from bokeh.models.widgets import RangeSlider, CheckboxGroup, Button, Slider
 from bokeh.models import CustomJS
 from bokeh.events import RangesUpdate
 
@@ -396,7 +397,7 @@ class BokehImageColor():
 
         low, high = self.img.current_minmax
         palette = cmaps.get_colormap('Greys')
-        self._lin_mapper: LinearColorMapper = LinearColorMapper(low=low, high=high)
+        self._lin_mapper: LinearColorMapper = GammaColorMapper(low=low, high=high)
         self._lin_mapper.palette = palette
         self._log_mapper: LogColorMapper = LogColorMapper(**self._log_norm_py(low, high))
         self._log_mapper.palette = palette
@@ -500,6 +501,15 @@ class BokehImageColor():
             value=False,
         )
         self._log_color_btn.param.watch(self._toggle_log_color, 'value')
+
+        self._gamma_slider = Slider(title='Gamma',
+                                    start=0.01,
+                                    end=3.0,
+                                    value=1.0,
+                                    step=0.02,
+                                    syncable=False)
+        self._gamma_slider.js_link('value', self._lin_mapper, 'gamma')
+
         return self.cbar_slider
 
     def _toggle_log_color(self, e):
