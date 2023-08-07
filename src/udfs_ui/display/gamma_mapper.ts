@@ -12,11 +12,7 @@ export namespace GammaColorMapper {
     }
 }
 
-export type GammaScanData = {
-    min: number
-    max: number
-    norm_factor: number
-    normed_interval: number
+export type GammaScanData = LinearScanData & {
     do_gamma: boolean
     gamma_t: number
 }
@@ -54,8 +50,12 @@ export class GammaColorMapper extends LinearColorMapper {
     }
 
     override index_to_value(index: number): number {
-        const scan_data = this._scan_data as LinearScanData
-        return scan_data.min + Math.pow(scan_data.normed_interval * index, 1 / this.gamma) / scan_data.norm_factor
+        const scan_data = this._scan_data as GammaScanData
+        if (!scan_data.do_gamma) {
+            return scan_data.min + ((scan_data.normed_interval * index) / scan_data.norm_factor)
+        } else {
+            return scan_data.min + (Math.pow(scan_data.normed_interval * index, 1 / scan_data.gamma_t) / scan_data.norm_factor)
+        }
     }
 
     override value_to_index(value: number, palette_length: number): number {
