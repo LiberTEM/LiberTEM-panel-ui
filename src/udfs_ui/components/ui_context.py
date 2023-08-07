@@ -77,6 +77,10 @@ class UITools:
             name='Add window',
             button_type='primary',
             items=window_keys,
+            stylesheets=[
+                """.bk-menu {
+  position: unset;
+}"""],
             **common_params,
         )
 
