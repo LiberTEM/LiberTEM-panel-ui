@@ -23,11 +23,11 @@ if TYPE_CHECKING:
     from .results import ResultRow
 
 
-class ROIWindow(UIWindow, ui_type=UIType.TOOL):
+class ROIWindow(UIWindow, ui_type=UIType.RESERVED):
     name = 'roi'
     title_md = 'Global ROI'
-    is_unique = True
     can_self_run = False
+    header_remove = False
 
     def get_roi(self, dataset: DataSet) -> np.ndarray | None:
         if self.is_active:
@@ -61,10 +61,9 @@ class ROIWindow(UIWindow, ui_type=UIType.TOOL):
         self.nav_plot_tracker.on_results_deleted(*results)
 
 
-class RecordWindow(UIWindow, ui_type=UIType.TOOL):
+class RecordWindow(UIWindow):
     name = 'record'
     title_md = 'Record'
-    is_unique = True
     can_self_run = False
 
     def __init__(self, *args, **kwargs):
@@ -138,7 +137,7 @@ class RecordWindow(UIWindow, ui_type=UIType.TOOL):
             self.set_active(self._last_active.get(UIState.LIVE, True))
 
 
-class SignalMonitorUDFWindow(SimpleUDFUIWindow, ui_type=UIType.TOOL):
+class SignalMonitorUDFWindow(SimpleUDFUIWindow, ui_type=UIType.RESERVED):
     name = 'frame_monitor'
     title_md = 'Monitor'
     udf_class = SignalMonitorUDF

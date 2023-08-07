@@ -48,11 +48,11 @@ class UIState(Enum):
 class UIType(Enum):
     ANALYSIS = 'Analysis'
     TOOL = 'Tool'
+    RESERVED = 'Reserved'
 
 
 class UIWindow:
     title_md = 'UI Window'
-    is_unique = False
     inner_container_cls = pn.Row
 
     header_activate = True

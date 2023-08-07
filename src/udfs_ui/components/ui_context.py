@@ -68,6 +68,13 @@ class UITools:
             **common_params,
         )
 
+        self.roi_toggle_btn = pn.widgets.Toggle(
+            name='Global ROI',
+            button_type='primary',
+            width=100,
+            **common_params,
+        )
+
         window_keys = [
             *tuple(UIWindow.get_implementations(UIType.ANALYSIS).keys()),
             None,
@@ -112,7 +119,6 @@ class UIContext:
         self._run_lock = asyncio.Lock()
         self._continue_running = False
         self._continuous_acquire = False
-        self._removed_from_options: dict[str, pn.widgets.Select] = {}
         # Create helper classes
         self._tools = UITools()
         self._p_reporter = PanelProgressReporter(self._tools.pbar)
@@ -134,6 +140,7 @@ class UIContext:
             self._add_window_row,
             min_width=700,
         )
+        self._roi_window: ROIWindow | None = None
 
     def log_window(self, with_reload: bool = True):
         if with_reload:
@@ -211,15 +218,17 @@ class UIContext:
     def add(
         self,
         window_cls: Type[UIWindow] | str,
+        insert_at: int | None = None,
     ) -> UIContext:
         # Add a window and return self to allow method chaining
         # Internal methods use _add to get the created UIWindow
-        self._add(window_cls)
+        self._add(window_cls, insert_at=insert_at)
         return self
 
     def _add(
         self,
         window_cls: Type[UIWindow] | str,
+        insert_at: int | None = None,
     ) -> UIWindow:
         if isinstance(window_cls, str):
             window_cls = self._find_window_implem(window_cls)
@@ -228,12 +237,26 @@ class UIContext:
         self._windows[window_id] = window
         if window.ident != window_id:
             raise RuntimeError('Mismatching window IDs')
-        self._windows_area.append(window.layout())
+        if insert_at is not None:
+            self._windows_area.insert(insert_at, window.layout())
+        else:
+            self._windows_area.append(window.layout())
         self.logger.info(f'Added window {window.title_md} - {window.ident}')
         window.initialize(
             self._resources.get_ds_for_init(self._state, self.current_ds_ident)
         )
         return window
+
+    def _add_roi_window(self, e):
+        if e.new:
+            if self._roi_window is not None:
+                return
+            self._roi_window = self._add(ROIWindow, insert_at=0)
+        else:
+            if self._roi_window is None:
+                return
+            self._remove(self._roi_window)
+            self._roi_window = None
 
     def _remove(self, window: UIWindow):
         index = tuple(i for i, _lo
@@ -243,9 +266,6 @@ class UIContext:
             self._windows_area.pop(i)
         self._windows.pop(window.ident, None)
         self.logger.info(f'Removed window {window.title_md} - {window.ident}')
-        if window.is_unique and window.name in self._removed_from_options:
-            dropdown = self._removed_from_options.pop(window.name)
-            dropdown.options = dropdown.options + [window.name]
 
     def _set_state(self, new_state: UIState, *e):
         if new_state == UIState.REPLAY and not self._resources.recordings:
@@ -267,6 +287,7 @@ class UIContext:
         self._tools.add_window_btn.on_click(self._add_handler)
         self._tools.run_btn.on_click(self._run_handler)
         self._tools.stop_btn.on_click(self._stop_handler)
+        self._tools.roi_toggle_btn.param.watch(self._add_roi_window, 'value')
         if self._state in (UIState.LIVE, UIState.REPLAY):
             self._tools.mode_btn.on_click(self._mode_handler)
             self._tools.continuous_btn.on_click(self._continuous_handler)
@@ -308,10 +329,6 @@ class UIContext:
         except Exception as err:
             msg = f'Error while adding {selected}'
             self._logger.log_from_exception(err, reraise=True, msg=msg)
-        if window.is_unique:
-            self._tools.add_window_btn = [o for o in self._tools.add_window_btn.items
-                                          if o != window.name]
-            self._removed_from_options[window.name] = self._tools.add_window_btn
 
     async def _mode_handler(self, *e):
         if self._state == UIState.LIVE:
@@ -372,6 +389,7 @@ class UIContext:
             self._tools.title,
             self._tools.run_btn,
             self._tools.stop_btn,
+            self._tools.roi_toggle_btn,
         ]
         tool_row = [
             self._tools.add_window_btn,
@@ -385,10 +403,8 @@ class UIContext:
     def get_roi(self, ds: DataSet) -> np.ndarray | None:
         # Get an ROI from an roi window if present and roi is set
         roi = None
-        for w in self._windows.values():
-            if isinstance(w, ROIWindow):
-                roi = w.get_roi(ds)
-                break  # only take the first, should be unique
+        if self._roi_window is not None:
+            roi = self._roi_window.get_roi(ds)
         return roi
 
     async def run_live(self, *e, run_from: list[RunFromT] | None = None):
