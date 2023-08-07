@@ -502,14 +502,27 @@ class BokehImageColor():
         )
         self._log_color_btn.param.watch(self._toggle_log_color, 'value')
 
-        self._gamma_slider = Slider(title='Gamma',
-                                    start=0.01,
-                                    end=3.0,
-                                    value=1.0,
-                                    step=0.02,
-                                    syncable=False)
-        self._gamma_slider.js_link('value', self._lin_mapper, 'gamma')
+        self._gamma_slider = Slider(
+            title='Gamma',
+            start=-2.,
+            end=2.,
+            value=0.,
+            step=0.01,
+        )
+        self._gamma_slider.js_link('value_throttled', self._lin_mapper, 'gamma')
 
+        self._gamma_reset_btn = Button(
+            label="Reset gamma", button_type="default"
+        )
+        reset_gamma_callback = CustomJS(args={'gamma_slider': self._gamma_slider,
+                                              'lin_mapper': self._lin_mapper},
+                                       code='''
+lin_mapper.gamma = 0.
+lin_mapper.change.emit()
+gamma_slider.value = 0.
+gamma_slider.change.emit()
+''')        
+        self._gamma_reset_btn.js_on_event("button_click", reset_gamma_callback)
         return self.cbar_slider
 
     def _toggle_log_color(self, e):
