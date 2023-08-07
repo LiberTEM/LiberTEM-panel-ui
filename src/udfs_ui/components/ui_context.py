@@ -127,7 +127,6 @@ class UIContext:
         self._layout = pn.Column(
             self._button_row,
             self._tools.pbar,
-            self._add_window_row,
             min_width=700,
         )
         self._state: UIState = None
@@ -146,6 +145,12 @@ class UIContext:
                 collapsed=True
             )
         )
+        self._windows_area = pn.Column(
+            margin=(0, 0),
+        )
+        self._layout.append(self._windows_area)
+        self._layout.append(pn.layout.Divider())
+        self._layout.append(self._add_window_row)
 
     def log_window(self, with_reload: bool = True):
         if with_reload:
@@ -240,7 +245,7 @@ class UIContext:
         self._windows[window_id] = window
         if window.ident != window_id:
             raise RuntimeError('Mismatching window IDs')
-        self._layout.append(window.layout())
+        self._windows_area.append(window.layout())
         self.logger.info(f'Added window {window.title_md} - {window.ident}')
         window.initialize(
             self._resources.get_ds_for_init(self._state, self.current_ds_ident)
@@ -249,10 +254,10 @@ class UIContext:
 
     def _remove(self, window: UIWindow):
         index = tuple(i for i, _lo
-                      in enumerate(self._layout)
+                      in enumerate(self._windows_area)
                       if hasattr(_lo, 'ident') and _lo.ident == window.ident)
         for i in reversed(index):
-            self._layout.pop(i)
+            self._windows_area.pop(i)
         self._windows.pop(window.ident, None)
         self.logger.info(f'Removed window {window.title_md} - {window.ident}')
         if window.is_unique and window.name in self._removed_from_options:
