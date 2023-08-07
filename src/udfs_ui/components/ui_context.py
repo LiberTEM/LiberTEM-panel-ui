@@ -335,7 +335,7 @@ class UIContext:
             self.logger.warning(f'Cannot find window to create {selected}')
             return
         try:
-            window = self._add(
+            self._add(
                 window_cls
             )
         except Exception as err:
