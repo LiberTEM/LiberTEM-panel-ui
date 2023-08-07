@@ -177,7 +177,7 @@ class UIWindow:
     def inner_layout(self) -> pn.layout.ListPanel:
         return self._inner_layout
 
-    def layout(self) -> pn.layout.ListPanel:
+    def layout(self) -> pn.layout.ListPanel | None:
         return self._layout
 
     def set_state(self, old_state: UIState, new_state: UIState):

@@ -249,11 +249,15 @@ class UIContext:
         self._windows[window_id] = window
         if window.ident != window_id:
             raise RuntimeError('Mismatching window IDs')
-        if insert_at is not None:
-            self._windows_area.insert(insert_at, window.layout())
+        if (window_layout := window.layout()) is not None:
+            if insert_at is not None:
+                self._windows_area.insert(insert_at, window_layout)
+            else:
+                self._windows_area.append(window_layout)
+            self.logger.info(f'Added window {window.title_md} - {window.ident}')
         else:
-            self._windows_area.append(window.layout())
-        self.logger.info(f'Added window {window.title_md} - {window.ident}')
+            self.logger.info(f'Added window {window.__class__.__name__} - '
+                             f'{window.ident} but no layout provided')
         window.initialize(
             self._resources.get_ds_for_init(self._state, self.current_ds_ident)
         )
