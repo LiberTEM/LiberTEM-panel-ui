@@ -68,21 +68,19 @@ class UITools:
             **common_params,
         )
 
-        self.add_window_btn = pn.widgets.Button(
+        window_keys = [
+            *tuple(UIWindow.get_implementations(UIType.ANALYSIS).keys()),
+            None,
+            *tuple(UIWindow.get_implementations(UIType.TOOL).keys()),
+        ]
+        self.add_window_btn = pn.widgets.MenuButton(
             name='Add window',
             button_type='primary',
+            items=window_keys,
             **common_params,
         )
 
         common_params['min_width'] = 175
-
-        window_keys = list(UIWindow.get_all_implementations().keys())
-        self.add_window_dropdown = pn.widgets.Select(
-            value=window_keys[0],
-            options=window_keys,
-            **common_params,
-        )
-
         self.replay_select = pn.widgets.Select(
             name='Dataset',
             options=[],
@@ -292,23 +290,24 @@ class UIContext:
             elif self._state == UIState.REPLAY:
                 await self.run_replay(*e, run_from=run_from)
 
-    async def _add_handler(self, *e):
-        dropdown = self._tools.add_window_dropdown
+    async def _add_handler(self, e):
         mapper = UIWindow.get_all_implementations()
-        await self._add_from_dropdown(dropdown, mapper)
-
-    async def _add_from_dropdown(self, dropdown, mapper):
-        window_cls = mapper[dropdown.value]
+        selected = e.new
+        window_cls = mapper.get(selected, None)
+        if window_cls is None:
+            self.logger.warning(f'Cannot find window to create {selected}')
+            return
         try:
             window = self._add(
                 window_cls
             )
         except Exception as err:
-            msg = f'Error while adding {dropdown.value}'
+            msg = f'Error while adding {selected}'
             self._logger.log_from_exception(err, reraise=True, msg=msg)
         if window.is_unique:
-            dropdown.options = [o for o in dropdown.options if o != window.name]
-            self._removed_from_options[window.name] = dropdown
+            self._tools.add_window_btn = [o for o in self._tools.add_window_btn.items
+                                          if o != window.name]
+            self._removed_from_options[window.name] = self._tools.add_window_btn
 
     async def _mode_handler(self, *e):
         if self._state == UIState.LIVE:
@@ -372,7 +371,6 @@ class UIContext:
         ]
         tool_row = [
             self._tools.add_window_btn,
-            self._tools.add_window_dropdown,
         ]
         if self._state in (UIState.REPLAY, UIState.LIVE):
             button_row.insert(2, self._tools.continuous_btn)
