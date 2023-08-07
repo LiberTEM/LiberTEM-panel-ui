@@ -68,16 +68,9 @@ class UITools:
             **common_params,
         )
 
-        self.roi_toggle_txt = pn.widgets.StaticText(
-            value='<b>Global ROI:</b>',
-            align='center',
-            width=80,
-            margin=(5, 2, 5, 5)
-        )
-        self.roi_toggle_btn = pn.widgets.Switch(
-            width=35,
-            align='center',
-            margin=(5, 5, 8, 2)
+        self.roi_toggle_txt, self.roi_toggle_btn = self._get_switch(
+            label='Global ROI',
+            value=False,
         )
 
         window_keys = [
@@ -111,6 +104,22 @@ class UITools:
 
     def set_subtitle(self, subtitle: str):
         self.title.object = f'## UDFs UI - {subtitle}'
+
+    @staticmethod
+    def _get_switch(*, label, state, align='center'):
+        txt = pn.widgets.StaticText(
+            value=f'<b>{label}:</b>',
+            align=align,
+            width=80,
+            margin=(5, 2, 5, 5)
+        )
+        btn = pn.widgets.Switch(
+            width=35,
+            align=align,
+            margin=(5, 5, 8, 2),
+            value=state,
+        )
+        return txt, btn
 
 
 class UIContext:
