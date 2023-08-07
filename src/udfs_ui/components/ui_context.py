@@ -163,6 +163,10 @@ class UIContext:
     def logger(self):
         return self._logger.logger
 
+    @property
+    def save_root(self):
+        return self._save_root
+
     def for_live(
         self,
         live_ctx: LiveContext,
