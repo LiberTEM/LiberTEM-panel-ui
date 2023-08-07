@@ -68,31 +68,18 @@ class UITools:
             **common_params,
         )
 
-        self.add_btn = pn.widgets.Button(
-            name='Add analysis',
-            button_type='primary',
-            **common_params,
-        )
-
-        self.add_tool_btn = pn.widgets.Button(
-            name='Add tool',
+        self.add_window_btn = pn.widgets.Button(
+            name='Add window',
             button_type='primary',
             **common_params,
         )
 
         common_params['min_width'] = 175
 
-        udf_keys = list(UIWindow.get_implementations(UIType.ANALYSIS).keys())
-        self.add_analysis_dropdown = pn.widgets.Select(
-            value=udf_keys[0],
-            options=udf_keys,
-            **common_params,
-        )
-
-        tool_keys = list(UIWindow.get_implementations(UIType.TOOL).keys())
-        self.add_tool_dropdown = pn.widgets.Select(
-            value=tool_keys[0],
-            options=tool_keys,
+        window_keys = list(UIWindow.get_all_implementations().keys())
+        self.add_window_dropdown = pn.widgets.Select(
+            value=window_keys[0],
+            options=window_keys,
             **common_params,
         )
 
@@ -275,8 +262,7 @@ class UIContext:
         self._button_row.extend(base_controls_buttons)
         self._add_window_row.extend(base_controls_tools)
 
-        self._tools.add_btn.on_click(self._add_analysis_handler)
-        self._tools.add_tool_btn.on_click(self._add_tool_handler)
+        self._tools.add_window_btn.on_click(self._add_handler)
         self._tools.run_btn.on_click(self._run_handler)
         self._tools.stop_btn.on_click(self._stop_handler)
         if self._state in (UIState.LIVE, UIState.REPLAY):
@@ -306,14 +292,9 @@ class UIContext:
             elif self._state == UIState.REPLAY:
                 await self.run_replay(*e, run_from=run_from)
 
-    async def _add_analysis_handler(self, *e):
-        dropdown = self._tools.add_analysis_dropdown
-        mapper = UIWindow.get_implementations(UIType.ANALYSIS)
-        await self._add_from_dropdown(dropdown, mapper)
-
-    async def _add_tool_handler(self, *e):
-        dropdown = self._tools.add_tool_dropdown
-        mapper = UIWindow.get_implementations(UIType.TOOL)
+    async def _add_handler(self, *e):
+        dropdown = self._tools.add_window_dropdown
+        mapper = UIWindow.get_all_implementations()
         await self._add_from_dropdown(dropdown, mapper)
 
     async def _add_from_dropdown(self, dropdown, mapper):
@@ -390,10 +371,8 @@ class UIContext:
             self._tools.stop_btn,
         ]
         tool_row = [
-            self._tools.add_btn,
-            self._tools.add_analysis_dropdown,
-            self._tools.add_tool_btn,
-            self._tools.add_tool_dropdown,
+            self._tools.add_window_btn,
+            self._tools.add_window_dropdown,
         ]
         if self._state in (UIState.REPLAY, UIState.LIVE):
             button_row.insert(2, self._tools.continuous_btn)
