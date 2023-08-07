@@ -81,6 +81,13 @@ class UIWindow:
     def get_implementations(cls, ui_type: UIType) -> dict[str, UIWindow]:
         return cls._registry.get(ui_type, {})
 
+    @classmethod
+    def get_all_implementations(cls) -> dict[str, UIWindow]:
+        implementations = {}
+        for _implementations in cls._registry.values():
+            implementations.update(_implementations)
+        return implementations
+
     def __init__(self, ui_context: UIContext, ident: str | None = None):
         self._ui_context = ui_context
         if ident is None:
