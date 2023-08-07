@@ -42,14 +42,11 @@ class ROIWindow(UIWindow, ui_type=UIType.TOOL):
         self.inner_layout.append(self._plot.pane)
         clear_btn = self._plot.get_clear_mask_btn()
         self.inner_layout.append(clear_btn)
-
-        self.nav_plot_tracker = ImageResultTracker(
-            self,
+        self.nav_plot_tracker = self.link_image_plot(
+            'Nav',
             self._plot,
-            ('nav',),
-            'Nav image',
+            tags=('nav',)
         )
-        self.nav_plot_tracker.initialize()
         return self
 
     def on_results_registered(
