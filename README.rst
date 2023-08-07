@@ -23,8 +23,6 @@ In a Notebook (see :code:`prototypes/LivePlotMulti.ipynb`):
     # ui_context = UIContext().for_live(live_ctx, partial(get_aq, conn))
     
     # In separate cells:
-    # Display web-terminal log window
-    ui_context.log_window()
     # Display main window for running analyses
     ui_context.layout()
     # Display table / dataframe-based results manager
