@@ -13,7 +13,6 @@ from libertem.udf.sumsigudf import SumSigUDF
 from .live_plot import AperturePlot
 from .base import UIWindow, UIType, UIState, UDFWindowJob
 from .simple import SimpleUDFUIWindow
-from .result_tracker import ImageResultTracker
 from .result_containers import RecordResultContainer
 
 if TYPE_CHECKING:
