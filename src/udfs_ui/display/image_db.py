@@ -10,7 +10,7 @@ from bokeh.models.sources import ColumnDataSource
 from bokeh.models.annotations import ColorBar
 
 from .display_base import DisplayBase, PointSet
-from .gamma_cmap import GammaColorMapper
+from .gamma_mapper import GammaColorMapper
 from .utils import slider_step_size
 from .utils import colormaps as cmaps
 from bokeh.models.widgets import RangeSlider, CheckboxGroup, Button, Slider
