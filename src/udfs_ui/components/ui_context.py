@@ -114,7 +114,7 @@ class UITools:
 
 
 class UIContext:
-    def __init__(self, save_root: os.PathLike | None = None):
+    def __init__(self, save_root: os.PathLike | None = '.'):
         self._save_root = save_root
         self._windows: dict[str, UIWindow] = {}
         self._state: UIState = None
