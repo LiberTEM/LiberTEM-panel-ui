@@ -68,17 +68,20 @@ class UITools:
             **common_params,
         )
 
-        self.roi_toggle_btn = pn.widgets.Toggle(
-            name='Global ROI',
-            button_type='primary',
-            width=100,
-            **common_params,
+        self.roi_toggle_txt = pn.widgets.StaticText(
+            value='<b>Global ROI:</b>',
+            align='center',
+            width=80,
+            margin=(5, 2, 5, 5)
+        )
+        self.roi_toggle_btn = pn.widgets.Switch(
+            width=35,
+            align='center',
+            margin=(5, 5, 8, 2)
         )
 
         window_keys = [
             *tuple(UIWindow.get_implementations(UIType.ANALYSIS).keys()),
-            None,
-            *tuple(UIWindow.get_implementations(UIType.TOOL).keys()),
         ]
         self.add_window_btn = pn.widgets.MenuButton(
             name='Add window',
@@ -389,6 +392,7 @@ class UIContext:
             self._tools.title,
             self._tools.run_btn,
             self._tools.stop_btn,
+            self._tools.roi_toggle_txt,
             self._tools.roi_toggle_btn,
         ]
         tool_row = [
