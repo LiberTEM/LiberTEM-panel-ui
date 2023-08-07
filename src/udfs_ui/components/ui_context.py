@@ -32,9 +32,7 @@ if TYPE_CHECKING:
 
 
 class UITools:
-    def __init__(self, ui: UIContext):
-        self.ui = ui
-
+    def __init__(self):
         common_params = dict(
             width_policy='min',
             align='center',
@@ -118,32 +116,35 @@ class UITools:
 
 class UIContext:
     def __init__(self, save_root: os.PathLike | None = None):
+        self._save_root = save_root
         self._windows: dict[str, UIWindow] = {}
-        self._tools = UITools(self)
-        self._p_reporter = PanelProgressReporter(self._tools.pbar)
-        self._button_row = pn.Row()
-        self._add_window_row = pn.Row()
-        self._layout = pn.Column(
-            self._button_row,
-            self._tools.pbar,
-            min_width=700,
-        )
         self._state: UIState = None
         self._resources: OfflineResources | LiveResources = None
         self._run_lock = asyncio.Lock()
         self._continue_running = False
         self._continuous_acquire = False
         self._removed_from_options: dict[str, pn.widgets.Select] = {}
+        # Create helper classes
+        self._tools = UITools()
+        self._p_reporter = PanelProgressReporter(self._tools.pbar)
         self._results_manager = ResultsManager(save_root)
         self._results_manager.add_watcher(self)
         self._logger = UILog()
-        self._layout.append(self._logger.as_collapsible())
+        # Create layout
+        self._button_row = pn.Row(margin=(0, 0))
+        self._add_window_row = pn.Row(margin=(0, 0))
         self._windows_area = pn.Column(
             margin=(0, 0),
         )
-        self._layout.append(self._windows_area)
-        self._layout.append(pn.layout.Divider())
-        self._layout.append(self._add_window_row)
+        self._layout = pn.Column(
+            self._button_row,
+            self._tools.pbar,
+            self._logger.as_collapsible(),
+            self._windows_area,
+            pn.layout.Divider(),
+            self._add_window_row,
+            min_width=700,
+        )
 
     def log_window(self, with_reload: bool = True):
         if with_reload:
