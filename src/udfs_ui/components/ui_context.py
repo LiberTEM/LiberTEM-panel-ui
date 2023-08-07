@@ -218,14 +218,10 @@ class UIContext:
     def results_manager(self):
         return self._results_manager
 
-    def _find_window_implem(self, name):
+    def _find_window_implem(self, name) -> Type[UIWindow]:
         # This implies all implementations have unique names
         # probably a good idea to enforce this during registration
-        all_implems = {
-            **UIWindow.get_implementations(UIType.ANALYSIS),
-            **UIWindow.get_implementations(UIType.TOOL),
-        }
-        return all_implems[name]
+        return UIWindow.get_all_implementations()[name]
 
     def add(
         self,
