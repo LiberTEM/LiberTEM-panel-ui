@@ -22,7 +22,6 @@ from .tools import ROIWindow
 from .results import ResultsManager, ResultRow
 from .terminal_logger import UILog
 from ..utils.notebook_tools import get_ipyw_reload_button
-from ..utils.minimal_card import minimal_card
 
 if TYPE_CHECKING:
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
@@ -138,13 +137,7 @@ class UIContext:
         self._results_manager = ResultsManager(save_root)
         self._results_manager.add_watcher(self)
         self._logger = UILog()
-        self._layout.append(
-            minimal_card(
-                'Logs',
-                self._logger.widget,
-                collapsed=True
-            )
-        )
+        self._layout.append(self._logger.as_collapsible())
         self._windows_area = pn.Column(
             margin=(0, 0),
         )

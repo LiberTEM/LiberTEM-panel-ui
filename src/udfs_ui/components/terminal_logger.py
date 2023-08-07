@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+from io import StringIO
 import traceback
 import panel as pn
 pn.extension('terminal')
@@ -20,7 +21,7 @@ class UILog:
                 },
             },
             sizing_mode='stretch_width',
-            min_height=300,
+            height=450,
         )
 
         self.stream_handler = logging.StreamHandler(self._terminal)
@@ -30,6 +31,8 @@ class UILog:
         self.stream_handler.setFormatter(formatter)
         self.stream_handler.setLevel(DEFAULT_LEVEL)
         self.logger.addHandler(self.stream_handler)
+        self._is_held: bool = False
+        self._hold_buffer = StringIO()
 
     @property
     def logger(self):
@@ -50,3 +53,34 @@ class UILog:
             self.logger.error(msg)
         if reraise:
             raise err
+
+    def set_hold(self, hold: bool):
+        if hold == self._is_held:
+            # Nothing to do
+            pass
+        elif hold:
+            # Implementation of setStream will flush first
+            self.stream_handler.setStream(self._hold_buffer)
+            self._is_held = True
+        else:
+            # Write contents of buffer to terminal and create new buffer
+            self.stream_handler.setStream(self._terminal)
+            messages = self._hold_buffer.getvalue()
+            self._hold_buffer = StringIO()
+            self._terminal.write(messages)
+            self._is_held = False
+
+    def hold_callback(self, e):
+        return self.set_hold(e.new)
+    
+    def as_collapsible(self, title: str = 'Logs', collapsed: bool = True):
+        from ..utils.minimal_card import minimal_card
+
+        logger_card = minimal_card(
+            title,
+            self.widget,
+            collapsed=collapsed,
+        )
+        self.set_hold(collapsed)
+        logger_card.param.watch(self.hold_callback, 'collapsed')
+        return logger_card
