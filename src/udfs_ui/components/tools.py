@@ -4,14 +4,12 @@ import pathlib
 import datetime
 from typing import TYPE_CHECKING
 
-import panel as pn
-
 from libertem_live.udf.record import RecordUDF
 from libertem_live.udf.monitor import SignalMonitorUDF
 from libertem.udf.sumsigudf import SumSigUDF
 
 from .live_plot import AperturePlot
-from .base import UIWindow, UIType, UIState, UDFWindowJob
+from .base import UIWindow, UIType, UIState, UDFWindowJob, JobResults
 from .simple import SimpleUDFUIWindow
 from .result_containers import RecordResultContainer
 
@@ -19,7 +17,6 @@ if TYPE_CHECKING:
     import numpy as np
     from libertem.api import DataSet
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
-    from libertem.udf.base import BufferWrapper, UDFResultDict
     from .results import ResultRow
 
 
@@ -68,8 +65,9 @@ class RecordWindow(UIWindow):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Track previous active for a given state
-        self._last_active: dict[UIState, bool] = {}
+
+    def layout(self):
+        return None
 
     def get_job(
         self,
@@ -77,13 +75,21 @@ class RecordWindow(UIWindow):
         dataset: DataSet | AcquisitionProtocol,
         roi: np.ndarray | None,
     ):
+        if state in (UIState.OFFLINE, UIState.REPLAY):
+            # The UI state should ensure we never get here
+            # but early-return just in case
+            return None
         if self.is_active and roi is None and (record_udf := self.get_record_udf()):
-            return UDFWindowJob(self, [record_udf], [])
+            return UDFWindowJob(
+                window=self,
+                udfs=[record_udf],
+                plots=[],
+            )
         return None
 
     def get_record_udf(self):
         try:
-            file_root = pathlib.Path(self.save_dir.value)
+            file_root = pathlib.Path(self._ui_context.save_root)
         except (TypeError, ValueError):
             return None
 
@@ -96,20 +102,12 @@ class RecordWindow(UIWindow):
         return RecordUDF(filepath)
 
     def initialize(self, dataset: DataSet):
-        self.save_dir = pn.widgets.TextInput(
-            name='Save directory',
-            value='.',
-            min_width=200,
-        )
-        self.inner_layout.append(self.save_dir)
         return self
 
     def complete_job(
         self,
-        run_id: str,
         job: UDFWindowJob,
-        results: tuple[UDFResultDict],
-        damage: BufferWrapper | None = None
+        results: JobResults,
     ) -> tuple[ResultRow, ...]:
         udfs = job.udfs
         if not udfs:
@@ -123,18 +121,10 @@ class RecordWindow(UIWindow):
         except AttributeError:
             pass
 
-        window_row = self.results_manager.new_window_run(self, run_id)
+        window_row = self.results_manager.new_window_run(self, results.run_id)
         rc = RecordResultContainer('recording', str(filepath), meta=params)
-        result = self.results_manager.new_result(rc, run_id, window_row)
+        result = self.results_manager.new_result(rc, results.run_id, window_row)
         return (result,)
-
-    def set_state(self, old_state: UIState, new_state: UIState):
-        self._last_active[old_state] = self.is_active
-
-        if new_state == UIState.REPLAY:
-            self.set_active(self._last_active.get(UIState.REPLAY, False))
-        elif new_state == UIState.LIVE:
-            self.set_active(self._last_active.get(UIState.LIVE, True))
 
 
 class SignalMonitorUDFWindow(SimpleUDFUIWindow, ui_type=UIType.RESERVED):
