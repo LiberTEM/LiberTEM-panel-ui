@@ -22,6 +22,7 @@ from .tools import ROIWindow
 from .results import ResultsManager, ResultRow
 from .terminal_logger import UILog
 from ..utils.notebook_tools import get_ipyw_reload_button
+from ..utils.minimal_card import minimal_card
 
 if TYPE_CHECKING:
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
@@ -107,7 +108,10 @@ class UITools:
         self.pbar = pn.widgets.Tqdm(
             width=650,
             align=('start', 'center'),
+            margin=(5, 5, 0, 5),
         )
+        self.pbar.progress.margin = (0, 10, 0, 10)
+        self.pbar.progress.height = 10
 
     def set_subtitle(self, subtitle: str):
         self.title.object = f'## UDFs UI - {subtitle}'
@@ -135,6 +139,13 @@ class UIContext:
         self._results_manager = ResultsManager(save_root)
         self._results_manager.add_watcher(self)
         self._logger = UILog()
+        self._layout.append(
+            minimal_card(
+                'Logs',
+                self._logger.widget,
+                collapsed=True
+            )
+        )
 
     def log_window(self, with_reload: bool = True):
         if with_reload:
