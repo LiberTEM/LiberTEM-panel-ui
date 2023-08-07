@@ -259,7 +259,7 @@ class UIContext:
         )
         return window
 
-    def _add_roi_window(self, e):
+    def _toggle_roi_window(self, e):
         if e.new:
             if self._roi_window is not None:
                 return
@@ -299,7 +299,7 @@ class UIContext:
         self._tools.add_window_btn.on_click(self._add_handler)
         self._tools.run_btn.on_click(self._run_handler)
         self._tools.stop_btn.on_click(self._stop_handler)
-        self._tools.roi_toggle_btn.param.watch(self._add_roi_window, 'value')
+        self._tools.roi_toggle_btn.param.watch(self._toggle_roi_window, 'value')
         if self._state in (UIState.LIVE, UIState.REPLAY):
             self._tools.mode_btn.on_click(self._mode_handler)
             self._tools.continuous_btn.on_click(self._continuous_handler)
