@@ -257,6 +257,12 @@ class ResultsManager:
             if row.window_id == window_id:
                 return row
         return None
+    
+    def get_run(self, run_id: str) -> RunRow | None:
+        for row in self._runs:
+            if row.run_id == run_id:
+                return row
+        return None
 
     def delete_result(self, result_id: str) -> ResultContainer | None:
         rc = self._result_data.pop(result_id, None)
