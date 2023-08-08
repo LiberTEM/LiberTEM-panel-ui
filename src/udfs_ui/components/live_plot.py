@@ -1,6 +1,7 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable
 import time
+from functools import partial
 import uuid
 
 import numpy as np
@@ -58,6 +59,7 @@ class AperturePlotBase(Live2DPlot):
         self._pane: pn.pane.Bokeh | None = None
         self._fig: figure | None = None
         self._im: BokehImage | None = None
+        self._last_res = None
 
     @property
     def pane(self) -> pn.pane.Bokeh | None:
@@ -129,7 +131,7 @@ class AperturePlotBase(Live2DPlot):
             raise RuntimeError('Cannot display plot before set_plot called')
         return self.fig
 
-    def new_data(self, udf_results, damage, force=False):
+    def new_data(self, udf_results, damage, force=False, manual=False):
         """
         This method is called with the raw `udf_results` any time a new
         partition has finished processing.
@@ -141,8 +143,12 @@ class AperturePlotBase(Live2DPlot):
         t0 = time.time()
         delta = t0 - self.last_update
         rate_limited = delta < self.min_delta
-        if force or not rate_limited:
-            self.data, damage = self.extract(udf_results, damage)
+        # The manual flag is only necessary because we are
+        # assuming force= is only used at the end of a UDF run
+        # when this is changed then manual= can be removed
+        if manual or force or not rate_limited:
+            self._last_res = (udf_results, damage)
+            self.data, damage = self.extract(*self._last_res)
             self.update(damage, force=force)
         else:
             self._was_rate_limited = rate_limited
@@ -156,6 +162,15 @@ class AperturePlot(AperturePlotBase):
     def __init__(
             self, dataset, udf, roi=None, channel=None, title=None, min_delta=0.25, udfresult=None
     ):
+        self._channel_map: dict[str, str | tuple[str, Callable] | Callable] | None = None
+        self._channel_select = None
+        if isinstance(channel, dict):
+            self._channel_map = channel
+            channel_names = tuple(self._channel_map.keys())
+            # can be {name: str | tuple[str, Callable[buffer]] | Callable(udf_result, damage)}
+            # following the base class behaviour
+            # name does not have to correspond to UDF buffer names
+            channel = self._channel_map[channel_names[0]]
         super().__init__(
             dataset, udf,
             roi=roi, channel=channel,
@@ -295,3 +310,60 @@ for (let model of this.document._all_models.values()){
         self.fig.add_tools(action)
 
         return open_btn, floatpanel
+
+    def get_channel_select(
+            self,
+            selected: str | None = None,
+            label: str = 'Display channel',
+            update_title: bool = True,
+        ) -> pn.widgets.Select:
+        if self._channel_select is not None:
+            return self._channel_select
+        elif self._channel_map is None:
+            raise RuntimeError('Cannot select channels if a channel map '
+                               'was not provided')
+        channel_names = list(self._channel_map.keys())
+        if selected is None:
+            selected = channel_names[0]
+        self._channel_select = pn.widgets.Select(
+            name=label,
+            options=channel_names,
+            value=selected,
+        )
+        self._channel_select.param.watch(
+            partial(self._switch_channel_cb, update_title=update_title),
+            'value',
+        )
+        return self._channel_select
+    
+    def _switch_channel_cb(self, e, update_title=True):
+        return self.change_channel(e.new, update_title=update_title)
+    
+    def change_channel(
+        self,
+        channel_name: str,
+        push_update: bool = True,
+        update_title: bool = True,
+    ):
+        try:
+            channel = self._channel_map[channel_name]
+        except (TypeError, KeyError):
+            raise RuntimeError('Invalid channel_map / channel_name')
+
+        if callable(channel):
+            extract = channel
+            channel = None
+        elif isinstance(channel, (tuple, list)):
+            channel, func = channel
+            def extract(udf_results, damage):
+                return (func(udf_results[channel].data), damage)
+        else:
+            extract = None
+
+        self._extract = extract
+        self.channel = channel
+        if update_title:
+            self.fig.title.text = channel_name
+        # Will cause a double update if called during UDF run
+        if push_update and self._last_res is not None:
+            self.new_data(*self._last_res, manual=push_update)
