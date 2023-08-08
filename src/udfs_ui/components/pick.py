@@ -159,7 +159,7 @@ class PickUDFBaseWindow(UIWindow):
 
         cy, cx = job.params['cy'], job.params['cx']
         self._last_pick = PointYX(cy, cx)
-        self.sig_plot.fig.title.text = self._pick_title((cy, cx))
+        self.reset_title()
         pn.io.push_notebook(self.sig_plot.pane)
         return tuple()
 
