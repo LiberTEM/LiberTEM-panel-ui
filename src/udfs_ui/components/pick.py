@@ -37,7 +37,6 @@ class PickUDFBaseWindow(UIWindow):
             title=self._pick_title(),
         )
         self._last_pick: PointYX | None = None
-        self._udf_plots = [self.sig_plot]
 
         self.nav_plot = AperturePlot.new(
             dataset,
@@ -125,7 +124,7 @@ class PickUDFBaseWindow(UIWindow):
         return UDFWindowJob(
             self,
             with_udfs,
-            self._udf_plots,
+            [self.sig_plot],
             self._complete_cds_pick_job,
             params=params,
             roi=roi,
