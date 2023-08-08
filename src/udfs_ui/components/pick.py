@@ -2,7 +2,6 @@ from __future__ import annotations
 from functools import partial
 import numpy as np
 from typing import TYPE_CHECKING
-from typing_extensions import Literal
 
 import panel as pn
 from libertem.udf.raw import PickUDF
