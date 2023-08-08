@@ -81,6 +81,7 @@ class PickUDFBaseWindow(UIWindow):
         state: UIState,
         dataset: DataSet | AcquisitionProtocol,
         roi: np.ndarray | None,
+        quiet: bool = True,
     ):
         if state == UIState.LIVE:
             return
@@ -123,7 +124,7 @@ class PickUDFBaseWindow(UIWindow):
             self._complete_cds_pick_job,
             params=params,
             roi=roi,
-            quiet=True,
+            quiet=quiet,
         )
 
     def reset_title(self):
