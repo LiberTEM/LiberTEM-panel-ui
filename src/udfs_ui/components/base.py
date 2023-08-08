@@ -180,6 +180,21 @@ class UIWindow:
     def layout(self) -> pn.layout.ListPanel | None:
         return self._layout
 
+    @property
+    def hidden(self):
+        if self._layout is None:
+            # Something which doesn't exist is not hidden
+            return False
+        return (not self._layout.visible)
+
+    def hide(self):
+        if self._layout is not None:
+            self._layout.visible = False
+
+    def unhide(self):
+        if self._layout is not None:
+            self._layout.visible = True
+
     def set_state(self, old_state: UIState, new_state: UIState):
         # Called on UI state transitions
         pass
