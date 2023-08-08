@@ -16,16 +16,16 @@ from ..utils import get_initial_pos
 
 if TYPE_CHECKING:
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
+    from libertem.udf.base import UDF
     from .results import ResultRow
     from libertem.api import DataSet
 
 
 class PickUDFBaseWindow(UIWindow):
+    pick_cls = PickUDF
+    
     def _pick_base(self, dataset: DataSet):
-        try:
-            self._udf_pick = self.pick_cls()
-        except AttributeError:
-            self._udf_pick = PickUDF()
+        self._udf_pick = self.pick_cls()
         roi = np.zeros(dataset.shape.nav, dtype=bool)
         roi[0, 0] = True
         self.sig_plot = AperturePlot.new(
@@ -82,6 +82,7 @@ class PickUDFBaseWindow(UIWindow):
         dataset: DataSet | AcquisitionProtocol,
         roi: np.ndarray | None,
         quiet: bool = True,
+        with_udfs: list[UDF] | None = None,
     ):
         if state == UIState.LIVE:
             return
@@ -117,9 +118,12 @@ class PickUDFBaseWindow(UIWindow):
             'cy': cy,
         }
 
+        if with_udfs is None:
+            with_udfs = [self._udf_pick]
+
         return UDFWindowJob(
             self,
-            [self._udf_pick],
+            with_udfs,
             self._udf_plots,
             self._complete_cds_pick_job,
             params=params,
@@ -161,26 +165,12 @@ class PickUDFBaseWindow(UIWindow):
         )
         self.sig_plot.fig.title.text = self._pick_title((cy, cx))
         pn.io.push_notebook(self.sig_plot.pane)
-
-        # Pick frame saving needs re-working to
-        # avoid piling up lots of frames
-        # now that everything goes via a job
-        # Probably save all necessary to run the below
-        # lines, but only run then when the save button is pressed
-        # remember to set the 'sig' tag !
-
-        # window_row = self.results_manager.new_window_run(self, run_id, params=job.params)
-        # image: np.ndarray = results[0]['intensity'].data.squeeze(axis=0)
-        # rc = Numpy2DResultContainer('intensity', image)
-        # result = self.results_manager.new_result(rc, run_id, window_row.window_id)
-
-        return tuple()  # (result,)
+        return tuple()
 
 
 class PickUDFWindow(PickUDFBaseWindow):
     name = 'pick_frame'
     title_md = 'PickUDF'
-    pick_cls = PickUDF
     self_run_only = True
     header_activate = False
 
