@@ -131,8 +131,12 @@ class PickUDFBaseWindow(UIWindow):
         cyx = (params['cy'], params['cx'])
         self.sig_plot.fig.title.text = self._pick_title(cyx)
 
-    def _pick_title(self, cyx: tuple[int, int] | None = None, suffix: str | None = None):
-        title_stub = 'Pick frame'
+    def _pick_title(
+        self,
+        cyx: tuple[int, int] | None = None,
+        suffix: str | None = None,
+        title_stub: str = f'Pick frame',
+    ):
         if cyx is None:
             return title_stub
         cy, cx = cyx
