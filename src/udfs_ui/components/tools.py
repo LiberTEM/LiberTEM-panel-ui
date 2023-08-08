@@ -4,9 +4,13 @@ import pathlib
 import datetime
 from typing import TYPE_CHECKING
 
+import numpy as np
+from humanize import naturalsize
+
 from libertem_live.udf.record import RecordUDF
 from libertem_live.udf.monitor import SignalMonitorUDF
 from libertem.udf.sumsigudf import SumSigUDF
+from libertem.common.math import prod
 
 from .live_plot import AperturePlot
 from .base import UIWindow, UIType, UIState, UDFWindowJob, JobResults
@@ -84,6 +88,7 @@ class RecordWindow(UIWindow):
                 window=self,
                 udfs=[record_udf],
                 plots=[],
+                result_handler=self.complete_job
             )
         return None
 
@@ -98,7 +103,7 @@ class RecordWindow(UIWindow):
             f'data_{dt.year:>02d}{dt.month:>02d}{dt.day:>02d}'
             f'_{dt.hour:>02d}{dt.minute:>02d}{dt.second:>02d}.npy'
         )
-        filepath = file_root / fnm
+        filepath = file_root.resolve() / fnm
         return RecordUDF(filepath)
 
     def initialize(self, dataset: DataSet):
@@ -114,6 +119,14 @@ class RecordWindow(UIWindow):
             return
         record_udf: RecordUDF = udfs[0]
         filepath = record_udf.params.filename
+        try:
+            n_px = prod(record_udf.meta.dataset_shape)
+            filesize = np.dtype(record_udf.meta.input_dtype).itemsize * n_px
+            self.logger.info(f'Data recorded at {filepath} [{naturalsize(filesize)}]')
+        except (TypeError, AttributeError):
+            # In case the the UDFMeta is not correctly set
+            self.logger.info(f'Data recorded at {filepath}')
+
         params = {}
         try:
             ident = f'ds-{str(uuid.uuid4())[:5]}'
