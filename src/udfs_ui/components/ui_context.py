@@ -2,11 +2,13 @@ from __future__ import annotations
 import os
 import asyncio
 import uuid
+from functools import partial
 import datetime
 from humanize import naturalsize, precisedelta
 import numpy as np
 import panel as pn
-from typing import Callable, TYPE_CHECKING, Type
+from typing import Callable, TYPE_CHECKING, Type, TypedDict, overload
+from typing_extensions import Literal
 
 from .progress import PanelProgressReporter
 from .base import UIWindow, UIType, UIState, UDFWindowJob, JobResults
@@ -18,7 +20,7 @@ from .lifecycles import (
     ContinuousLifecycle,
 )
 from .resources import LiveResources, OfflineResources
-from .tools import ROIWindow
+from .tools import ROIWindow, RecordWindow, SignalMonitorUDFWindow
 from .results import ResultsManager, ResultRow
 from .terminal_logger import UILog
 from ..utils.notebook_tools import get_ipyw_reload_button
@@ -26,6 +28,7 @@ from ..utils.notebook_tools import get_ipyw_reload_button
 if TYPE_CHECKING:
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import UDFResults
+    from libertem.io.dataset.npy import NPYDataSet
     from libertem_live.api import LiveContext
     from libertem.api import DataSet, Context
     from .base import RunFromT
@@ -70,7 +73,16 @@ class UITools:
 
         self.roi_toggle_txt, self.roi_toggle_btn = self._get_switch(
             label='Global ROI',
-            value=False,
+            state=False,
+        )
+        self.record_toggle_txt, self.record_toggle_btn = self._get_switch(
+            label='Record data',
+            state=False,
+        )
+        self.monitor_toggle_txt, self.monitor_toggle_btn = self._get_switch(
+            label='Frame monitor',
+            state=False,
+            text_width=100,
         )
 
         window_keys = [
@@ -106,11 +118,11 @@ class UITools:
         self.title.object = f'## UDFs UI - {subtitle}'
 
     @staticmethod
-    def _get_switch(*, label, state, align='center'):
+    def _get_switch(label: str, state: bool, align='center', text_width: int = 80):
         txt = pn.widgets.StaticText(
             value=f'<b>{label}:</b>',
             align=align,
-            width=80,
+            width=text_width,
             margin=(5, 2, 5, 5)
         )
         btn = pn.widgets.Switch(
@@ -122,6 +134,12 @@ class UITools:
         return txt, btn
 
 
+class UniqueWindows(TypedDict):
+    roi: str | None
+    record: str | None
+    monitor: str | None
+
+
 class UIContext:
     def __init__(self, save_root: os.PathLike | None = '.'):
         self._save_root = save_root
@@ -131,6 +149,7 @@ class UIContext:
         self._run_lock = asyncio.Lock()
         self._continue_running = False
         self._continuous_acquire = False
+        self._unique_windows = UniqueWindows()
         # Create helper classes
         self._tools = UITools()
         self._p_reporter = PanelProgressReporter(self._tools.pbar)
@@ -152,7 +171,6 @@ class UIContext:
             self._add_window_row,
             min_width=700,
         )
-        self._roi_window: ROIWindow | None = None
 
     def log_window(self, with_reload: bool = True):
         if with_reload:
@@ -263,16 +281,26 @@ class UIContext:
         )
         return window
 
-    def _toggle_roi_window(self, e):
+    def _toggle_unique_window(self, label, window_cls, e, insert_at: int | None = 0):
+        window_id = self._unique_windows.get(label, None)
+        window = self._windows.get(window_id, None)
         if e.new:
-            if self._roi_window is not None:
-                return
-            self._roi_window = self._add(ROIWindow, insert_at=0)
+            window = self._add(window_cls, insert_at=insert_at)
+            self._unique_windows[label] = window.ident
         else:
-            if self._roi_window is None:
-                return
-            self._remove(self._roi_window)
-            self._roi_window = None
+            self._remove(window)
+            self._unique_windows[label] = None
+    
+    @overload
+    def _get_unique_window(self, name: Literal['roi']) -> ROIWindow | None: ...
+    @overload
+    def _get_unique_window(self, name: Literal['record']) -> RecordWindow | None: ...
+    @overload
+    def _get_unique_window(self, name: Literal['monitor']) -> SignalMonitorUDFWindow | None: ...
+
+    def _get_unique_window(self, name: Literal['roi', 'record', 'monitor']):
+        window_id = self._unique_windows.get(name)
+        return self._windows.get(window_id, None)
 
     def _remove(self, window: UIWindow):
         index = tuple(i for i, _lo
@@ -303,10 +331,21 @@ class UIContext:
         self._tools.add_window_btn.on_click(self._add_handler)
         self._tools.run_btn.on_click(self._run_handler)
         self._tools.stop_btn.on_click(self._stop_handler)
-        self._tools.roi_toggle_btn.param.watch(self._toggle_roi_window, 'value')
+        self._tools.roi_toggle_btn.param.watch(
+            partial(self._toggle_unique_window, 'roi', ROIWindow),
+            'value'
+        )
         if self._state in (UIState.LIVE, UIState.REPLAY):
             self._tools.mode_btn.on_click(self._mode_handler)
             self._tools.continuous_btn.on_click(self._continuous_handler)
+            self._tools.record_toggle_btn.param.watch(
+                partial(self._toggle_unique_window, 'record', RecordWindow),
+                'value'
+            )
+            self._tools.monitor_toggle_btn.param.watch(
+                partial(self._toggle_unique_window, 'monitor', SignalMonitorUDFWindow),
+                'value'
+            )
 
     async def _run_handler(
         self,
@@ -390,11 +429,9 @@ class UIContext:
 
     def _setup_replay(self):
         ReplayLifecycle(self).setup()
-        # Record mode should just be a checkbutton on the top row
-        # Save files directly into the root directory of the UIContext
-        # (could provide a method to change the directory)
-        # Better still use ResultManager to handle dataset recordings!
         self._tools.replay_select.options = [*self.get_recordings_map().keys()]
+        if len(self._tools.replay_select.options):
+            self._tools.replay_select.value = self._tools.replay_select.options[0]
 
     def _setup_offline(self):
         OfflineLifecycle(self).setup()
@@ -413,20 +450,30 @@ class UIContext:
         ]
         if self._state in (UIState.REPLAY, UIState.LIVE):
             button_row.insert(2, self._tools.continuous_btn)
-            button_row.append(self._tools.mode_btn)
+            button_row.insert(-2, self._tools.mode_btn)
+            button_row.append(self._tools.record_toggle_txt)
+            button_row.append(self._tools.record_toggle_btn)
+            button_row.append(self._tools.monitor_toggle_txt)
+            button_row.append(self._tools.monitor_toggle_btn)
             button_row.append(self._tools.replay_select)
         return button_row, tool_row
 
     def get_roi(self, ds: DataSet) -> np.ndarray | None:
         # Get an ROI from an roi window if present and roi is set
         roi = None
-        if self._roi_window is not None:
-            roi = self._roi_window.get_roi(ds)
+        if (roi_window := self._get_unique_window('roi')) is not None:
+            roi = roi_window.get_roi(ds)
         return roi
 
     async def run_live(self, *e, run_from: list[RunFromT] | None = None):
         lifecycle = LiveLifecycle(self)
         live_ctx = self._resources.get_ctx(self._state)
+        # If the record_window is available then it is implicitly active
+        record_window = self._get_unique_window('record')
+        if record_window is not None:
+            record_window.set_active(True)
+            if run_from is not None:
+                run_from.append(record_window.get_job)
         try:
             if (aq := self._resources.get_ds_for_run(self._state,
                                                      self.current_ds_ident)) is not None:
@@ -438,6 +485,13 @@ class UIContext:
         lifecycle = ContinuousLifecycle(self)
         live_ctx = self._resources.get_ctx(self._state)
         self._continuous_acquire = True
+        # If the record_window is available then it is implicitly active
+        record_window = self._get_unique_window('record')
+        if record_window is not None:
+            record_window.set_active(True)
+            if run_from is not None:
+                # This will be called on each iteration so new filename
+                run_from.append(record_window.get_job)
         try:
             while self._continuous_acquire and self._continue_running:
                 if (aq := self._resources.get_ds_for_run(self._state,
@@ -450,7 +504,12 @@ class UIContext:
     async def run_replay(self, *e, run_from: list[RunFromT] | None = None):
         lifecycle = ReplayLifecycle(self)
         ctx = self._resources.get_ctx(self._state)
-        ds = self._resources.get_ds_for_run(self._state, self.current_ds_ident)
+        ds: NPYDataSet | None = self._resources.get_ds_for_run(
+            self._state,
+            self.current_ds_ident,
+        )
+        if ds is None:
+            self.logger.error(f'Cannot find dataset {self.current_ds_ident}')
         roi = self.get_roi(ds)
 
         try:

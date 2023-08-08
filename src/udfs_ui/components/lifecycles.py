@@ -65,6 +65,17 @@ class LiveLifecycle(UILifecycle):
         self.ui._tools.set_subtitle(UIState.LIVE.value)
         self.ui._tools.mode_btn.name = f'Go to {UIState.REPLAY.value}'
         self.ui._tools.continuous_btn.visible = True
+        #Toggles    
+        self.ui._tools.roi_toggle_btn.value = False
+        self.ui._tools.roi_toggle_btn.disabled = True
+        self.ui._tools.roi_toggle_btn.visible = False
+        self.ui._tools.roi_toggle_txt.visible = False
+        self.ui._tools.record_toggle_btn.disabled = False
+        self.ui._tools.record_toggle_btn.visible = True
+        self.ui._tools.record_toggle_txt.visible = True
+        self.ui._tools.monitor_toggle_btn.disabled = False
+        self.ui._tools.monitor_toggle_btn.visible = True
+        self.ui._tools.monitor_toggle_txt.visible = True
 
     def before(self, is_continuous: bool = False):
         if not self.enabled:
@@ -114,6 +125,18 @@ class ReplayLifecycle(OfflineLifecycle):
         self.ui._tools.mode_btn.name = f'Go to {UIState.LIVE.value}'
         self.ui._tools.mode_btn.disabled = False
         self.ui._tools.continuous_btn.visible = False
+        #Toggles    
+        self.ui._tools.roi_toggle_btn.disabled = False
+        self.ui._tools.roi_toggle_btn.visible = True
+        self.ui._tools.roi_toggle_txt.visible = True
+        self.ui._tools.record_toggle_btn.value = False
+        self.ui._tools.record_toggle_btn.disabled = True
+        self.ui._tools.record_toggle_btn.visible = False
+        self.ui._tools.record_toggle_txt.visible = False
+        self.ui._tools.monitor_toggle_btn.value = False
+        self.ui._tools.monitor_toggle_btn.disabled = True
+        self.ui._tools.monitor_toggle_btn.visible = False
+        self.ui._tools.monitor_toggle_txt.visible = False
 
     def before(self):
         if not self.enabled:

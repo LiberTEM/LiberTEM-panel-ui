@@ -145,3 +145,4 @@ class SignalMonitorUDFWindow(SimpleUDFUIWindow, ui_type=UIType.RESERVED):
     title_md = 'Monitor'
     udf_class = SignalMonitorUDF
     can_self_run = False
+    header_remove = False
