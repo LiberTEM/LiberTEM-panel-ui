@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 import panel as pn
 import numpy as np
 
-from bokeh.models import HelpButton, Tooltip
+from bokeh.models import Tooltip
 from bokeh.models.dom import HTML
 
 from libertem.udf.base import UDF, DataTile
@@ -126,15 +126,16 @@ cds.change.emit();
         )
         self._mode_selector.param.watch(self._toggle_visible, 'value')
 
-        help_button = HelpButton(
-            tooltip=Tooltip(
+        help_button = pn.widgets.TooltipIcon(
+            # value='Help text',
+            value=Tooltip(
                 content=HTML("""
 This tooltip provides help text.<br />
 It can use <b>HTML tags</b> like <a href="https://bokeh.org">links</a>!<br />
 Right now it isn't very helpful...
 """),
                 position="right"
-            )
+            ),
         )
 
         self.nav_plot.add_mask_tools(activate=False)
