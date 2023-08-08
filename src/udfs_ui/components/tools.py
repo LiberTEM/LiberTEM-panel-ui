@@ -62,7 +62,7 @@ class ROIWindow(UIWindow, ui_type=UIType.RESERVED):
         self.nav_plot_tracker.on_results_deleted(*results)
 
 
-class RecordWindow(UIWindow):
+class RecordWindow(UIWindow, ui_type=UIType.RESERVED):
     name = 'record'
     title_md = 'Record'
     can_self_run = False
