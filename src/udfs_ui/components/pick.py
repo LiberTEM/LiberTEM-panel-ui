@@ -11,6 +11,7 @@ from libertem.udf.sumsigudf import SumSigUDF
 from .live_plot import AperturePlot
 from .base import UIWindow, UIState, UDFWindowJob, JobResults
 from ..display.display_base import Cursor
+from ..display.utils import PointYX
 from ..utils import get_initial_pos
 
 
@@ -35,7 +36,7 @@ class PickUDFBaseWindow(UIWindow):
             channel='intensity',
             title=self._pick_title(),
         )
-        self._last_pick = (None, None)
+        self._last_pick: PointYX | None = None
         self._udf_plots = [self.sig_plot]
 
         self.nav_plot = AperturePlot.new(
@@ -132,9 +133,7 @@ class PickUDFBaseWindow(UIWindow):
         )
 
     def reset_title(self):
-        _, params = self._last_pick
-        cyx = (params['cy'], params['cx'])
-        self.sig_plot.fig.title.text = self._pick_title(cyx)
+        self.sig_plot.fig.title.text = self._pick_title(self._last_pick)
 
     def _pick_title(
         self,
@@ -159,10 +158,7 @@ class PickUDFBaseWindow(UIWindow):
             return tuple()
 
         cy, cx = job.params['cy'], job.params['cx']
-        self._last_pick = (
-            job_results.udf_results[0]['intensity'].data.squeeze(axis=0),
-            {'cx': cx, 'cy': cy},
-        )
+        self._last_pick = PointYX(cy, cx)
         self.sig_plot.fig.title.text = self._pick_title((cy, cx))
         pn.io.push_notebook(self.sig_plot.pane)
         return tuple()
