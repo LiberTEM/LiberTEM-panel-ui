@@ -3,7 +3,8 @@ import os
 import asyncio
 import uuid
 from functools import partial
-import datetime
+import time
+from datetime import timedelta
 from humanize import naturalsize, precisedelta
 import numpy as np
 import panel as pn
@@ -542,6 +543,7 @@ class UIContext:
         roi: np.ndarray | None = None,
         run_from: list[RunFromT] | None = None,
     ):
+        t_start = time.monotonic()
 
         if ds is None:
             self.logger.error('Dataset is None')
@@ -555,6 +557,7 @@ class UIContext:
                                       if (job := job_getter(self._state, ds, roi))
                                       is not None]
         num_jobs = len(to_run)
+        t_got_jobs = time.monotonic()
 
         if num_jobs == 0:
             self.logger.info('No jobs to run')
@@ -589,8 +592,8 @@ class UIContext:
                              f'on {len(to_run)} jobs{roi_message}')
             # Special optimisation for progress bar when using single-frame ROI
             progress = False if (n_frames <= 1 and roi is not None) else self._p_reporter
-
-        tstart = datetime.datetime.now()
+        
+        t_start_run = time.monotonic()
         part_completed = 0
         try:
             async for udfs_res in ctx.run_udf_iter(
@@ -611,19 +614,18 @@ class UIContext:
         except Exception as err:
             msg = 'Error during run_udf'
             self._logger.log_from_exception(err, reraise=True, msg=msg)
+        
+        t_end_run = time.monotonic()
 
-        if self._continue_running and not quiet_mode:
-            proc_time = datetime.datetime.now() - tstart
+        data_rate = float('nan')
+        if self._continue_running:
             try:
                 data_rate = (
                     n_frames * ds.meta.shape.sig.size * np.dtype(ds.meta.raw_dtype).itemsize
-                ) / proc_time.total_seconds()
+                ) / (t_end_run - t_start_run)
             except (TypeError, ValueError, AttributeError):
                 # Missing or wrong values on dataset implementation
-                data_rate = float('nan')
-            self.logger.info('End run, completed in '
-                             f'{precisedelta(proc_time, minimum_unit="milliseconds")} '
-                             f'({naturalsize(data_rate)}/s)')
+                pass
 
         run_record = self.results_manager.new_run(
             has_roi=roi is not None,
@@ -633,8 +635,6 @@ class UIContext:
                 'sig': tuple(ds.shape.sig),
             }
         )
-        if not quiet_mode:
-            self.logger.info(f'Results saved with run_id: {run_record.run_id}')
 
         # Unpack results back to their window objects
         udfs_res: UDFResults
@@ -653,8 +653,27 @@ class UIContext:
             if job.result_handler is not None:
                 result_entries = job.result_handler(job, job_results)
                 all_results.extend(result_entries)
-
+        
+        t_complete_jobs = time.monotonic()
         self.notify_new_results(*all_results)
+        t_notify = time.monotonic()
+
+        if not quiet_mode:
+
+            total_time = timedelta(seconds=t_notify - t_start)
+            proc_time = timedelta(seconds=t_end_run - t_start_run)
+            get_job_time = timedelta(seconds=t_got_jobs - t_start)
+            complete_job_time = timedelta(seconds=t_complete_jobs - t_end_run)
+            notify_time = timedelta(seconds=t_notify - t_complete_jobs)
+            self.logger.info(
+                f'End run [id {run_record.run_id}], completed in '
+                f'{precisedelta(total_time, minimum_unit="milliseconds")}.\n'
+                f'- Get jobs: {precisedelta(get_job_time, minimum_unit="milliseconds")}\n'
+                f'- Run jobs: {precisedelta(proc_time, minimum_unit="milliseconds")} '
+                f'({naturalsize(data_rate)}/s).\n'
+                f'- Complete jobs: {precisedelta(complete_job_time, minimum_unit="milliseconds")}\n'
+                f'- Notify: {precisedelta(notify_time, minimum_unit="milliseconds")}'
+            )
 
     def notify_new_results(self, *results: ResultRow):
         if not results:
