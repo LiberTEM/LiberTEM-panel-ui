@@ -315,15 +315,18 @@ class UIWindow:
                     'height': '35px',
                 }
             )
-            select_text = pn.widgets.StaticText(
-                value='Display',
+            self._tracker_display_toggle = pn.widgets.Toggle(
+                name='Display',
+                value=False,
+                button_type='default',
                 align='center',
                 margin=(5, 5, 5, 5),
             )
             self._header_layout.extend((
                 divider,
-                select_text,
+                self._tracker_display_toggle,
             ))
+            self._tracker_display_toggle.param.watch(self._toggle_tracker_visible, 'value')
             tracker_name = tuple(self.trackers.keys())[0]
             tracker = self.trackers[tracker_name]
             self._tracker_select = pn.widgets.RadioButtonGroup(
@@ -333,9 +336,14 @@ class UIWindow:
                 align='center',
                 min_width=75,
             )
-            self._header_layout.append(self._tracker_select)
+            self._tracker_layouts = pn.Row(
+                self._tracker_select,
+                margin=(0, 0),
+                visible=self._tracker_display_toggle.value,
+            )
+            self._header_layout.append(self._tracker_layouts)
         elif n_trackers == 2:
-            self._tracker_select.param.watch(self.toggle_selected, 'value')
+            self._tracker_select.param.watch(self._toggle_trackers_selected, 'value')
 
         self._tracker_select.options = list(self.trackers.keys())
         for tracker in self.trackers.values():
@@ -344,12 +352,16 @@ class UIWindow:
                     *tracker.components(),
                     align='center',
                 )
-                self._header_layout.append(tracker.layout)
+                self._tracker_layouts.append(tracker.layout)
 
         if n_trackers > 1:
-            self.toggle_selected()
+            self._toggle_trackers_selected()
 
-    def toggle_selected(self, *e):
+    def _toggle_tracker_visible(self, e):
+        visible = e.new
+        self._tracker_layouts.visible = visible
+
+    def _toggle_trackers_selected(self, *e):
         for tracker_name, tracker in self.trackers.items():
             is_selected = self._tracker_select.value == tracker_name
             if not is_selected:
