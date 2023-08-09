@@ -8,7 +8,7 @@ from datetime import timedelta
 from humanize import naturalsize, precisedelta
 import numpy as np
 import panel as pn
-from typing import Callable, TYPE_CHECKING, Type, TypedDict, overload
+from typing import Callable, TYPE_CHECKING, Type, TypedDict, overload, Any
 from typing_extensions import Literal
 
 from .progress import PanelProgressReporter
@@ -251,23 +251,32 @@ class UIContext:
         window_cls: Type[UIWindow] | str,
         insert_at: int | None = None,
         collapsed: bool = False,
+        window_kwargs: dict[str, Any] | None = None,
     ) -> UIContext:
         # Add a window and return self to allow method chaining
         # Internal methods use _add to get the created UIWindow
-        window = self._add(window_cls, insert_at=insert_at)
-        if collapsed:
-            window._collapse_cb(None)
+        self._add(
+            window_cls, 
+            insert_at=insert_at,
+            collapsed=collapsed,
+            window_kwargs=window_kwargs,
+        )
         return self
 
     def _add(
         self,
         window_cls: Type[UIWindow] | str,
         insert_at: int | None = None,
+        collapsed: bool = False,        
+        window_kwargs: dict[str, Any] | None = None,
     ) -> UIWindow:
         if isinstance(window_cls, str):
             window_cls = self._find_window_implem(window_cls)
         window_id = str(uuid.uuid4())[:6]
-        window: UIWindow = window_cls(self, window_id)
+        if window_kwargs is not None:
+            window: UIWindow = window_cls(self, window_id, **window_kwargs)
+        else:
+            window: UIWindow = window_cls(self, window_id)
         self._windows[window_id] = window
         if window.ident != window_id:
             raise RuntimeError('Mismatching window IDs')
@@ -283,6 +292,8 @@ class UIContext:
         window.initialize(
             self._resources.get_ds_for_init(self._state, self.current_ds_ident)
         )
+        if collapsed:
+            window._collapse_cb(None)
         return window
 
     def _toggle_unique_window(self, label, window_cls, e, insert_at: int | None = 0):
