@@ -71,6 +71,8 @@ class UIWindow:
     ):
         super().__init_subclass__(**kwargs)
         if ui_type is not None and not is_abstract:
+            if ui_type not in cls._registry.keys():
+                cls._registry[ui_type] = {}
             if not force and cls.name in cls._registry[ui_type]:
                 raise TypeError(f'Cannot register a second UI with name {cls.name}, '
                                 'use force=True in class definition to over-write '
