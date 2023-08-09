@@ -241,10 +241,10 @@ class UIContext:
     def results_manager(self):
         return self._results_manager
 
-    def _find_window_implem(self, name) -> Type[UIWindow]:
+    def _find_window_implem(self, name) -> Type[UIWindow] | None:
         # This implies all implementations have unique names
         # probably a good idea to enforce this during registration
-        return UIWindow.get_all_implementations()[name]
+        return UIWindow.get_all_implementations().get(name, None)
 
     def add(
         self,
@@ -270,13 +270,29 @@ class UIContext:
         collapsed: bool = False,        
         window_kwargs: dict[str, Any] | None = None,
     ) -> UIWindow:
-        if isinstance(window_cls, str):
-            window_cls = self._find_window_implem(window_cls)
         window_id = str(uuid.uuid4())[:6]
-        window: UIWindow = window_cls(self, window_id)
+        try:
+            if isinstance(window_cls, str):
+                window_name = window_cls
+                window_cls = self._find_window_implem(window_cls)
+                if window_cls is None:
+                    raise RuntimeError(f'Unable to find implementation for {window_name}')
+            else:
+                try:
+                    window_name = window_cls.__name__
+                except AttributeError:
+                    raise RuntimeError(f'window_cls must be a UIWindow sub-class, got {window_cls}')
+            window: UIWindow = window_cls(self, window_id)
+            window.initialize(
+                self._resources.get_ds_for_init(self._state, self.current_ds_ident),
+                **(window_kwargs if window_kwargs else {}),
+            )
+            if window.ident != window_id:
+                raise RuntimeError('Mismatching window IDs')
+        except Exception as e:
+            msg = f'Error while adding {window_name}'
+            self._logger.log_from_exception(e, reraise=True, msg=msg)
         self._windows[window_id] = window
-        if window.ident != window_id:
-            raise RuntimeError('Mismatching window IDs')
         if (window_layout := window.layout()) is not None:
             if insert_at is not None:
                 self._windows_area.insert(insert_at, window_layout)
@@ -286,10 +302,6 @@ class UIContext:
         else:
             self.logger.info(f'Added window {window.__class__.__name__} - '
                              f'{window.ident} but no layout provided')
-        window.initialize(
-            self._resources.get_ds_for_init(self._state, self.current_ds_ident),
-            **(window_kwargs if window_kwargs else {}),
-        )
         if collapsed:
             window._collapse_cb(None)
         return window
@@ -390,13 +402,7 @@ class UIContext:
         if window_cls is None:
             self.logger.warning(f'Cannot find window to create {selected}')
             return
-        try:
-            self._add(
-                window_cls
-            )
-        except Exception as err:
-            msg = f'Error while adding {selected}'
-            self._logger.log_from_exception(err, reraise=True, msg=msg)
+        self._add(window_cls)
 
     async def _mode_handler(self, *e):
         if self._state == UIState.LIVE:
