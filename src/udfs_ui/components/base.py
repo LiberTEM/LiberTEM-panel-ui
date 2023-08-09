@@ -157,7 +157,18 @@ class UIWindow:
             visible=self.can_self_run,
         )
         self._run_btn.on_click(self.run_from_btn)
+
+        self._collapse_button = pn.widgets.Button(
+            name='▼',
+            button_type='default',
+            width=35,
+            height=35,
+            align='center',
+            margin=(0, 0),
+        )
+        self._collapse_button.param.watch(self._collapse_cb, 'value')
         return pn.Row(
+            self._collapse_button,
             self._title_text,
             self._id_text,
             self._active_cbox,
@@ -194,6 +205,14 @@ class UIWindow:
     def unhide(self):
         if self._layout is not None:
             self._layout.visible = True
+
+    def _collapse_cb(self, e):
+        if self._inner_layout.visible:
+            self._inner_layout.visible = False
+            self._collapse_button.name = '▶'
+        else:
+            self._inner_layout.visible = True
+            self._collapse_button.name = '▼'
 
     def set_state(self, old_state: UIState, new_state: UIState):
         # Called on UI state transitions
