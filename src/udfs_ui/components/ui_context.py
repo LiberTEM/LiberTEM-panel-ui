@@ -250,10 +250,13 @@ class UIContext:
         self,
         window_cls: Type[UIWindow] | str,
         insert_at: int | None = None,
+        collapsed: bool = False,
     ) -> UIContext:
         # Add a window and return self to allow method chaining
         # Internal methods use _add to get the created UIWindow
-        self._add(window_cls, insert_at=insert_at)
+        window = self._add(window_cls, insert_at=insert_at)
+        if collapsed:
+            window._collapse_cb(None)
         return self
 
     def _add(
