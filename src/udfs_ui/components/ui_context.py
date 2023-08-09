@@ -273,10 +273,7 @@ class UIContext:
         if isinstance(window_cls, str):
             window_cls = self._find_window_implem(window_cls)
         window_id = str(uuid.uuid4())[:6]
-        if window_kwargs is not None:
-            window: UIWindow = window_cls(self, window_id, **window_kwargs)
-        else:
-            window: UIWindow = window_cls(self, window_id)
+        window: UIWindow = window_cls(self, window_id)
         self._windows[window_id] = window
         if window.ident != window_id:
             raise RuntimeError('Mismatching window IDs')
@@ -290,7 +287,8 @@ class UIContext:
             self.logger.info(f'Added window {window.__class__.__name__} - '
                              f'{window.ident} but no layout provided')
         window.initialize(
-            self._resources.get_ds_for_init(self._state, self.current_ds_ident)
+            self._resources.get_ds_for_init(self._state, self.current_ds_ident),
+            **(window_kwargs if window_kwargs else {}),
         )
         if collapsed:
             window._collapse_cb(None)
