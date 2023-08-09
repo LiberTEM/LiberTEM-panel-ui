@@ -16,12 +16,9 @@ if TYPE_CHECKING:
 class SimpleUDFUIWindow(UIWindow):
     udf_class: type[UDF] = None
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def initialize(self, dataset: DataSet):
         self._udf = self.udf_class()
         self._plot: AperturePlot = None
-
-    def initialize(self, dataset: DataSet):
         self._plot = AperturePlot.new(
             dataset,
             self._udf,

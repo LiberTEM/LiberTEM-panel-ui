@@ -67,9 +67,6 @@ class RecordWindow(UIWindow, ui_type=UIType.RESERVED):
     title_md = 'Record'
     can_self_run = False
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     def layout(self):
         return None
 
