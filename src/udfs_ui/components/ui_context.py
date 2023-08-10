@@ -635,16 +635,6 @@ class UIContext:
         
         t_end_run = time.monotonic()
 
-        data_rate = float('nan')
-        if self._continue_running:
-            try:
-                data_rate = (
-                    n_frames * ds.meta.shape.sig.size * np.dtype(ds.meta.raw_dtype).itemsize
-                ) / (t_end_run - t_start_run)
-            except (TypeError, ValueError, AttributeError):
-                # Missing or wrong values on dataset implementation
-                pass
-
         run_record = self.results_manager.new_run(
             has_roi=roi is not None,
             state=self._state.value,
@@ -677,7 +667,15 @@ class UIContext:
         t_notify = time.monotonic()
 
         if not quiet_mode:
-
+            data_rate = float('nan')
+            if self._continue_running:
+                try:
+                    data_rate = (
+                        n_frames * ds.meta.shape.sig.size * np.dtype(ds.meta.raw_dtype).itemsize
+                    ) / (t_end_run - t_start_run)
+                except (TypeError, ValueError, AttributeError):
+                    # Missing or wrong values on dataset implementation
+                    pass
             total_time = timedelta(seconds=t_notify - t_start)
             proc_time = timedelta(seconds=t_end_run - t_start_run)
             get_job_time = timedelta(seconds=t_got_jobs - t_start)

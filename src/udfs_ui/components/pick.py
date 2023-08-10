@@ -124,14 +124,14 @@ class PickUDFBaseWindow(UIWindow):
             self,
             with_udfs,
             [self.sig_plot],
-            self._complete_cds_pick_job,
+            result_handler=self._complete_cds_pick_job,
             params=params,
             roi=roi,
             quiet=quiet,
         )
 
     def reset_title(self):
-        self.sig_plot.fig.title.text = self._pick_title(self._last_pick)
+        self.sig_plot.fig.title.text = self._pick_title(cyx=self._last_pick)
 
     def _pick_title(
         self,
