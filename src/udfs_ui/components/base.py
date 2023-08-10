@@ -253,7 +253,26 @@ class UIWindow:
             self._run_btn.disabled = False
 
     def run_this_bk(self, attr, old, new, run_from: RunFromT | None = None):
-        asyncio.gather(self.run_this(run_from=run_from))
+        # Run a job from a Bokeh-style callback, asynchronously
+        # (attr, old, new) are required in the signature by Bokeh
+        return self.run_async(run_from=run_from)
+
+    def run_async(self, run_from: RunFromT | None = None):
+        self._futures.append(
+            asyncio.gather(self.run_this(run_from=run_from), return_exceptions=False)
+        )
+        self._futures[-1].add_done_callback(self._cleanup_future)
+
+    def _cleanup_future(self, future: asyncio.Future):
+        try:
+            future.result()
+        except Exception as e:
+            self._ui_context._logger.log_from_exception(e, reraise=True)
+        finally:
+            try:
+                self._futures.pop(self._futures.index(future))
+            except ValueError:
+                pass
 
     def get_job(
         self,
