@@ -49,3 +49,29 @@ def minimal_card(
         collapsed=collapsed,
         **card_kwargs,
     )
+
+
+def button_divider(height: int = 35, width: int = 2, color: str = '#757575'):
+    return pn.pane.HTML(
+        R"""<div></div>""",
+        styles={
+            'border-left': f'{width}px solid {color}',
+            'height': f'{height}px',
+        }
+    )
+
+
+def labelled_switch(label: str, state: bool, align='center', text_width: int = 80):
+    txt = pn.widgets.StaticText(
+        value=f'<b>{label}:</b>',
+        align=align,
+        width=text_width,
+        margin=(5, 2, 5, 5)
+    )
+    btn = pn.widgets.Switch(
+        width=35,
+        align=align,
+        margin=(5, 5, 8, 2),
+        value=state,
+    )
+    return txt, btn

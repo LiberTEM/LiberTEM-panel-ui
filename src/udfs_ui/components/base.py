@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, TypeVar, NamedTuple, Any, Callable
 import panel as pn
 
 from .result_tracker import ImageResultTracker
+from ..utils.panel_components import button_divider
 
 if TYPE_CHECKING:
     import numpy as np
@@ -103,6 +104,9 @@ class UIWindow:
             self._inner_layout,
         )
         self._trackers: dict[str, ResultTracker] = {}
+        # stores references to in-flight Futures launched
+        # using asyncio, to avoid tasks being garbage collected
+        self._futures: list[asyncio.Future] = []
 
     @property
     def ident(self) -> str:
@@ -327,13 +331,6 @@ class UIWindow:
         if n_trackers == 0:
             return
         elif n_trackers == 1:
-            divider = pn.pane.HTML(
-                R"""<div></div>""",
-                styles={
-                    'border-left': '2px solid #757575',
-                    'height': '35px',
-                }
-            )
             self._tracker_display_toggle = pn.widgets.Toggle(
                 name='Display',
                 value=False,
@@ -342,7 +339,7 @@ class UIWindow:
                 margin=(5, 5, 5, 5),
             )
             self._header_layout.extend((
-                divider,
+                button_divider(),
                 self._tracker_display_toggle,
             ))
             self._tracker_display_toggle.param.watch(self._toggle_tracker_visible, 'value')

@@ -25,6 +25,7 @@ from .tools import ROIWindow, RecordWindow, SignalMonitorUDFWindow
 from .results import ResultsManager, ResultRow
 from .terminal_logger import UILog
 from ..utils.notebook_tools import get_ipyw_reload_button
+from ..utils.panel_components import labelled_switch
 
 if TYPE_CHECKING:
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
@@ -72,15 +73,15 @@ class UITools:
             **common_params,
         )
 
-        self.roi_toggle_txt, self.roi_toggle_btn = self._get_switch(
+        self.roi_toggle_txt, self.roi_toggle_btn = labelled_switch(
             label='Global ROI',
             state=False,
         )
-        self.record_toggle_txt, self.record_toggle_btn = self._get_switch(
+        self.record_toggle_txt, self.record_toggle_btn = labelled_switch(
             label='Record data',
             state=False,
         )
-        self.monitor_toggle_txt, self.monitor_toggle_btn = self._get_switch(
+        self.monitor_toggle_txt, self.monitor_toggle_btn = labelled_switch(
             label='Frame monitor',
             state=False,
             text_width=100,
@@ -117,22 +118,6 @@ class UITools:
 
     def set_subtitle(self, subtitle: str):
         self.title.object = f'## UDFs UI - {subtitle}'
-
-    @staticmethod
-    def _get_switch(label: str, state: bool, align='center', text_width: int = 80):
-        txt = pn.widgets.StaticText(
-            value=f'<b>{label}:</b>',
-            align=align,
-            width=text_width,
-            margin=(5, 2, 5, 5)
-        )
-        btn = pn.widgets.Switch(
-            width=35,
-            align=align,
-            margin=(5, 5, 8, 2),
-            value=state,
-        )
-        return txt, btn
 
 
 class UniqueWindows(TypedDict):
