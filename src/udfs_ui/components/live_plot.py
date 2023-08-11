@@ -18,6 +18,7 @@ from ..display.icons import options_icon, options_icon_blue
 
 if TYPE_CHECKING:
     from .results import ResultRow
+    from libertem.udf.base import UDFResultDict
 
 def adapt_figure(fig, shape, maxdim: int | None = 450, mindim: int | None = None):
     if mindim is None:
@@ -59,7 +60,7 @@ class AperturePlotBase(Live2DPlot):
         self._pane: pn.pane.Bokeh | None = None
         self._fig: figure | None = None
         self._im: BokehImage | None = None
-        self._last_res = None
+        self._last_res: tuple[UDFResultDict, np.ndarray | bool] | None = None
 
     @property
     def pane(self) -> pn.pane.Bokeh | None:
@@ -131,7 +132,7 @@ class AperturePlotBase(Live2DPlot):
             raise RuntimeError('Cannot display plot before set_plot called')
         return self.fig
 
-    def new_data(self, udf_results, damage, force=False, manual=False):
+    def new_data(self, udf_results: UDFResultDict, damage: np.ndarray | bool, force=False, manual=False):
         """
         This method is called with the raw `udf_results` any time a new
         partition has finished processing.
@@ -273,6 +274,8 @@ class AperturePlot(AperturePlotBase):
                     "maximize": "remove",
                     "normalize": "remove",
                     "minimize": "remove",
+                    # Really needs a close-type button !
+                    # even if self-implemented
                     "close": "remove",
                 },
             },
