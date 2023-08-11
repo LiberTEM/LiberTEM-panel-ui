@@ -644,7 +644,11 @@ class UIContext:
                 damage=damage,
             )
             if job.result_handler is not None:
-                result_entries = job.result_handler(job, job_results)
+                try:
+                    result_entries = job.result_handler(job, job_results)
+                except Exception as err:
+                    msg = 'Error while unpacking result'
+                    self._logger.log_from_exception(err, msg=msg)
                 all_results.extend(result_entries)
         
         t_complete_jobs = time.monotonic()
