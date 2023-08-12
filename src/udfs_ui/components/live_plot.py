@@ -10,6 +10,8 @@ pn.extension('floatpanel')
 from bokeh.plotting import figure
 from bokeh.models import CustomJS
 from bokeh.models.tools import CustomAction
+from bokeh.models.annotations import Title
+from bokeh.events import MouseMove, MouseLeave
 from libertem.viz.base import Live2DPlot
 
 from ..display.image_db import BokehImage
@@ -37,7 +39,7 @@ def adapt_figure(fig, shape, maxdim: int | None = 450, mindim: int | None = None
     fig.frame_height = fh
     fig.frame_width = fw
 
-    if fh > 1.2 * fw:
+    if fh > 0.8 * fw:
         location = 'right'
     else:
         location = 'below'
@@ -73,6 +75,10 @@ class AperturePlotBase(Live2DPlot):
     @property
     def im(self) -> BokehImage | None:
         return self._im
+
+    def _setup(self):
+        # Do any custom setup after fig/im are created and set
+        pass
 
     def set_plot(
         self,
@@ -115,6 +121,7 @@ class AperturePlotBase(Live2DPlot):
             im.enable_downsampling()
         plot.set_plot(fig=fig, im=im)
         adapt_figure(fig, plot.data.shape, maxdim=maxdim, mindim=mindim)
+        plot._setup()
         return plot
 
     def update(self, damage, force=False, push_nb: bool = True):
@@ -132,7 +139,13 @@ class AperturePlotBase(Live2DPlot):
             raise RuntimeError('Cannot display plot before set_plot called')
         return self.fig
 
-    def new_data(self, udf_results: UDFResultDict, damage: np.ndarray | bool, force=False, manual=False):
+    def new_data(
+        self,
+        udf_results: UDFResultDict,
+        damage: np.ndarray | bool,
+        force=False,
+        manual=False
+    ):
         """
         This method is called with the raw `udf_results` any time a new
         partition has finished processing.
@@ -192,6 +205,9 @@ class AperturePlot(AperturePlotBase):
     def update(self, damage, force=False, push_nb: bool = True):
         self.displayed = time.monotonic()
         return super().update(damage, force=force, push_nb=push_nb)
+
+    def _setup(self):
+        self.add_hover_position_text()
 
     def add_mask_tools(
         self,
@@ -315,11 +331,11 @@ for (let model of this.document._all_models.values()){
         return open_btn, floatpanel
 
     def get_channel_select(
-            self,
-            selected: str | None = None,
-            label: str = 'Display channel',
-            update_title: bool = True,
-        ) -> pn.widgets.Select:
+        self,
+        selected: str | None = None,
+        label: str = 'Display channel',
+        update_title: bool = True,
+    ) -> pn.widgets.Select:
         if self._channel_select is not None:
             return self._channel_select
         elif self._channel_map is None:
@@ -338,10 +354,10 @@ for (let model of this.document._all_models.values()){
             'value',
         )
         return self._channel_select
-    
+
     def _switch_channel_cb(self, e, update_title=True):
         return self.change_channel(e.new, update_title=update_title)
-    
+
     def change_channel(
         self,
         channel_name: str,
@@ -358,6 +374,7 @@ for (let model of this.document._all_models.values()){
             channel = None
         elif isinstance(channel, (tuple, list)):
             channel, func = channel
+
             def extract(udf_results, damage):
                 return (func(udf_results[channel].data), damage)
         else:
@@ -370,3 +387,33 @@ for (let model of this.document._all_models.values()){
         # Will cause a double update if called during UDF run
         if push_update and self._last_res is not None:
             self.new_data(*self._last_res, manual=push_update)
+
+    def add_hover_position_text(self):
+        title = Title(
+            text=' ',
+            align='left',
+            syncable=False,
+        )
+        self.fig.add_layout(
+            title,
+            place="below",
+        )
+        cb_code = 'pos_title.text = `[x: ${(cb_obj.x).toFixed(1)}, y: ${(cb_obj.y).toFixed(1)}]`'
+        self.fig.js_on_event(
+            MouseMove,
+            CustomJS(
+                args={
+                    'pos_title': title,
+                },
+                code=cb_code,
+            ),
+        )
+        self.fig.js_on_event(
+            MouseLeave,
+            CustomJS(
+                args={
+                    'pos_title': title,
+                },
+                code='pos_title.text = " "',
+            ),
+        )
