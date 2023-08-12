@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 
 class PickUDFBaseWindow(UIWindow):
     pick_cls = PickUDF
-    
+
     def _pick_base(self, dataset: DataSet):
         self._udf_pick = self.pick_cls()
         roi = np.zeros(dataset.shape.nav, dtype=bool)
@@ -137,7 +137,7 @@ class PickUDFBaseWindow(UIWindow):
         self,
         cyx: tuple[int, int] | None = None,
         suffix: str | None = None,
-        title_stub: str = f'Pick frame',
+        title_stub: str = 'Pick frame',
     ):
         if cyx is None:
             return title_stub

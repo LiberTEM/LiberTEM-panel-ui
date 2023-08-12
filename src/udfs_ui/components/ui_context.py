@@ -241,7 +241,7 @@ class UIContext:
         # Add a window and return self to allow method chaining
         # Internal methods use _add to get the created UIWindow
         self._add(
-            window_cls, 
+            window_cls,
             insert_at=insert_at,
             collapsed=collapsed,
             window_kwargs=window_kwargs,
@@ -252,7 +252,7 @@ class UIContext:
         self,
         window_cls: Type[UIWindow] | str,
         insert_at: int | None = None,
-        collapsed: bool = False,        
+        collapsed: bool = False,
         window_kwargs: dict[str, Any] | None = None,
     ) -> UIWindow:
         window_id = str(uuid.uuid4())[:6]
@@ -300,13 +300,18 @@ class UIContext:
         else:
             self._remove(window)
             self._unique_windows[label] = None
-    
+
     @overload
-    def _get_unique_window(self, name: Literal['roi']) -> ROIWindow | None: ...
+    def _get_unique_window(self, name: Literal['roi']) -> ROIWindow | None:
+        ...
+
     @overload
-    def _get_unique_window(self, name: Literal['record']) -> RecordWindow | None: ...
+    def _get_unique_window(self, name: Literal['record']) -> RecordWindow | None:
+        ...
+
     @overload
-    def _get_unique_window(self, name: Literal['monitor']) -> SignalMonitorUDFWindow | None: ...
+    def _get_unique_window(self, name: Literal['monitor']) -> SignalMonitorUDFWindow | None:
+        ...
 
     def _get_unique_window(self, name: Literal['roi', 'record', 'monitor']):
         window_id = self._unique_windows.get(name)
@@ -595,7 +600,7 @@ class UIContext:
                              f'on {len(to_run)} jobs{roi_message}')
             # Special optimisation for progress bar when using single-frame ROI
             progress = False if (n_frames <= 1 and roi is not None) else self._p_reporter
-        
+
         t_start_run = time.monotonic()
         part_completed = 0
         try:
@@ -617,7 +622,7 @@ class UIContext:
         except Exception as err:
             msg = 'Error during run_udf'
             self._logger.log_from_exception(err, reraise=True, msg=msg)
-        
+
         t_end_run = time.monotonic()
 
         run_record = self.results_manager.new_run(
@@ -650,7 +655,7 @@ class UIContext:
                     msg = 'Error while unpacking result'
                     self._logger.log_from_exception(err, msg=msg)
                 all_results.extend(result_entries)
-        
+
         t_complete_jobs = time.monotonic()
         self.notify_new_results(*all_results)
         t_notify = time.monotonic()

@@ -18,7 +18,6 @@ from .simple import SimpleUDFUIWindow
 from .result_containers import RecordResultContainer
 
 if TYPE_CHECKING:
-    import numpy as np
     from libertem.api import DataSet
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from .results import ResultRow

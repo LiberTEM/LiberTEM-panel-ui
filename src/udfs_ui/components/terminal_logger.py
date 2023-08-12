@@ -72,7 +72,7 @@ class UILog:
 
     def hold_callback(self, e):
         return self.set_hold(e.new)
-    
+
     def as_collapsible(self, title: str = 'Logs', collapsed: bool = True):
         from ..utils.panel_components import minimal_card
 
