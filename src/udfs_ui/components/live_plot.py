@@ -11,6 +11,7 @@ from bokeh.plotting import figure
 from bokeh.models import CustomJS
 from bokeh.models.tools import CustomAction
 from bokeh.models.annotations import Title
+from bokeh.models.widgets import Button
 from bokeh.events import MouseMove, MouseLeave
 from libertem.viz.base import Live2DPlot
 
@@ -319,19 +320,10 @@ class AperturePlot(AperturePlotBase):
             width=2,
             height=2,
         )
-        close_btn = pn.widgets.Button(
-            name='✖',
-            margin=(5, 5, 5, 5),
-            button_type='default',
+        close_btn = Button(
+            label='✖',
         )
-# FIXME can't get the JS callback version to work ?
-#         close_btn.js_on_click(
-#             args=dict(toggle=open_btn),
-#             code='''
-# toggle.properties.active.set_value(false)
-# toggle.properties.active.change.emit()
-# toggle.change.emit()
-# ''')
+
         self._floatpanel = pn.layout.FloatPanel(
             close_btn,
             self.im.color.get_cmap_select(),
@@ -386,14 +378,16 @@ for (let model of this.document._all_models.values()){
         )
         self.fig.add_tools(action)
 
-        def _close_fp(e):
-            open_btn.param.update(value=False)
-            # FIXME icon color update is buggy, should probably use _static .png ?
-            # Maybe a better solution is to use a Bokeh button and directly trigger
-            # the toolbar button rather than trying to toggle the toggle button from panel ?
-            # action.update(icon=options_icon())
-
-        close_btn.on_click(_close_fp)
+        close_btn.js_on_click(
+            CustomJS(
+                args={
+                    'action': action,
+                },
+                code='''
+action.callback.execute(action)
+'''
+            )
+        )
 
         self._toolbar.extend((
             open_btn,
