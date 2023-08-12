@@ -514,14 +514,17 @@ class BokehImageColor():
         self._gamma_reset_btn = Button(
             label="Reset gamma", button_type="default"
         )
-        reset_gamma_callback = CustomJS(args={'gamma_slider': self._gamma_slider,
-                                              'lin_mapper': self._lin_mapper},
-                                       code='''
+        reset_gamma_callback = CustomJS(
+            args={
+                'gamma_slider': self._gamma_slider,
+                'lin_mapper': self._lin_mapper
+            },
+            code='''
 lin_mapper.gamma = 0.
 lin_mapper.change.emit()
 gamma_slider.value = 0.
 gamma_slider.change.emit()
-''')        
+''')
         self._gamma_reset_btn.js_on_event("button_click", reset_gamma_callback)
         return self.cbar_slider
 
