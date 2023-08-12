@@ -197,8 +197,15 @@ class AperturePlot(AperturePlotBase):
         )
         self._mask_elements: list[DisplayBase] = []
         self._displayed = None
+        self._toolbar = pn.Row(
+            pn.Spacer(
+                width=40,
+                height=40,
+            ),
+            margin=(0, 0)
+        )
         self._layout = pn.Column(
-            pn.Row(margin=(0, 0)),
+            self._toolbar,
             margin=(0, 0),
         )
 
@@ -288,7 +295,9 @@ class AperturePlot(AperturePlotBase):
             width=width,
         )
         clear_btn.on_click(self.clear_mask)
-        return clear_btn
+        self._toolbar.extend((
+            clear_btn,
+        ))
 
     def get_control_panel(
         self,
@@ -303,6 +312,8 @@ class AperturePlot(AperturePlotBase):
             margin=(5, 5, 5, 5),
             tags=[button_uuid],
             visible=False,
+            width=2,
+            height=2,
         )
         close_btn = pn.widgets.Button(
             name='✖',
@@ -380,7 +391,10 @@ for (let model of this.document._all_models.values()){
 
         close_btn.on_click(_close_fp)
 
-        return open_btn, floatpanel
+        self._toolbar.extend((
+            open_btn,
+            floatpanel,
+        ))
 
     def get_channel_select(
         self,
