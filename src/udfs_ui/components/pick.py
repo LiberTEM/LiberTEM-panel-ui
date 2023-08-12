@@ -64,13 +64,13 @@ class PickUDFBaseWindow(UIWindow):
         self.inner_layout.extend((
             pn.Column(
                 *left_before,
-                self.nav_plot.pane,
+                self.nav_plot.layout,
                 self.toolbox,
                 *left_after,
             ),
             pn.Column(
                 *right_before,
-                self.sig_plot.pane,
+                self.sig_plot.layout,
                 *right_after,
             )
         ))

@@ -76,6 +76,10 @@ class AperturePlotBase(Live2DPlot):
     def im(self) -> BokehImage | None:
         return self._im
 
+    @property
+    def layout(self):
+        return self.pane
+
     def _setup(self):
         # Do any custom setup after fig/im are created and set
         pass
@@ -193,6 +197,10 @@ class AperturePlot(AperturePlotBase):
         )
         self._mask_elements: list[DisplayBase] = []
         self._displayed = None
+        self._layout = pn.Column(
+            pn.Row(margin=(0, 0)),
+            margin=(0, 0),
+        )
 
     @property
     def displayed(self) -> ResultRow | float | None:
@@ -201,6 +209,25 @@ class AperturePlot(AperturePlotBase):
     @displayed.setter
     def displayed(self, val: ResultRow | float):
         self._displayed = val
+
+    @property
+    def layout(self) -> pn.Column:
+        return self._layout
+
+    def set_plot(
+        self,
+        *,
+        plot: 'AperturePlot' | None = None,
+        fig: figure | None = None,
+        im: BokehImage | None = None
+    ):
+        super().set_plot(
+            plot=plot,
+            fig=fig,
+            im=im,
+        )
+        if plot is None:
+            self._layout.append(self.pane)
 
     def update(self, damage, force=False, push_nb: bool = True):
         self.displayed = time.monotonic()

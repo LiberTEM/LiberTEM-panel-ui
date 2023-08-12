@@ -38,7 +38,7 @@ class ROIWindow(UIWindow, ui_type=UIType.RESERVED):
         udf = SumSigUDF()
         self._plot = AperturePlot.new(dataset, udf)
         self._plot.add_mask_tools(activate=True)
-        self.inner_layout.append(self._plot.pane)
+        self.inner_layout.append(self._plot.layout)
         clear_btn = self._plot.get_clear_mask_btn()
         self.inner_layout.append(clear_btn)
         self.nav_plot_tracker = self.link_image_plot(

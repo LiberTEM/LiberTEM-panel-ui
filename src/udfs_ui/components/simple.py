@@ -24,7 +24,7 @@ class SimpleUDFUIWindow(UIWindow):
             self._udf,
             title=self.title_md,
         )
-        self.inner_layout.append(self._plot.pane)
+        self.inner_layout.append(self._plot.layout)
         return self
 
     def get_job(
