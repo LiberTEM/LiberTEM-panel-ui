@@ -106,7 +106,7 @@ class UIWindow:
         self._trackers: dict[str, ResultTracker] = {}
         # stores references to in-flight Futures launched
         # using asyncio, to avoid tasks being garbage collected
-        self._futures: list[asyncio.Future] = []
+        self._futures: set[asyncio.Future] = set()
 
     @property
     def ident(self) -> str:
@@ -262,10 +262,9 @@ class UIWindow:
         return self.run_async(run_from=run_from)
 
     def run_async(self, run_from: RunFromT | None = None):
-        self._futures.append(
-            asyncio.gather(self.run_this(run_from=run_from), return_exceptions=False)
-        )
-        self._futures[-1].add_done_callback(self._cleanup_future)
+        future = asyncio.gather(self.run_this(run_from=run_from), return_exceptions=False)
+        future.add_done_callback(self._cleanup_future)
+        self._futures.add(future)
 
     def _cleanup_future(self, future: asyncio.Future):
         try:
@@ -273,10 +272,7 @@ class UIWindow:
         except Exception as e:
             self._ui_context._logger.log_from_exception(e, reraise=True)
         finally:
-            try:
-                self._futures.pop(self._futures.index(future))
-            except ValueError:
-                pass
+            self._futures.discard(future)
 
     def get_job(
         self,
