@@ -198,10 +198,7 @@ class AperturePlot(AperturePlotBase):
         self._mask_elements: list[DisplayBase] = []
         self._displayed = None
         self._toolbar = pn.Row(
-            pn.Spacer(
-                width=40,
-                height=40,
-            ),
+            height=40,
             margin=(0, 0)
         )
         self._layout = pn.Column(
