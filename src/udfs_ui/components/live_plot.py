@@ -206,6 +206,9 @@ class AperturePlot(AperturePlotBase):
             margin=(0, 0),
         )
 
+        self._clear_btn: pn.widgets.Button | None = None
+        self._floatpanel: pn.layout.FloatPanel | None = None
+
     @property
     def displayed(self) -> ResultRow | float | None:
         return self._displayed
@@ -239,12 +242,14 @@ class AperturePlot(AperturePlotBase):
 
     def _setup(self):
         self.add_hover_position_text()
+        self.add_control_panel()
 
     def add_mask_tools(
         self,
         rectangles: bool = True,
         polygons: bool = True,
         activate: bool = True,
+        clear_btn: bool = True,
     ):
         if polygons:
             self._mask_elements.append(
@@ -264,6 +269,8 @@ class AperturePlot(AperturePlotBase):
             )
         if activate and len(self.fig.tools):
             self.fig.toolbar.active_drag = self.fig.tools[-1]
+        if clear_btn:
+            self.get_clear_mask_btn()
         return self
 
     def get_mask(self, shape: tuple[int, int]) -> np.ndarray | None:
@@ -285,18 +292,18 @@ class AperturePlot(AperturePlotBase):
             element.clear()
         pn.io.push_notebook(self.pane)
 
-    def get_clear_mask_btn(self, label='Clear ROI', width=100, button_type='default'):
-        clear_btn = pn.widgets.Button(
-            name=label,
-            button_type=button_type,
-            width=width,
-        )
-        clear_btn.on_click(self.clear_mask)
-        self._toolbar.extend((
-            clear_btn,
-        ))
+    def get_clear_mask_btn(self):
+        if self._clear_btn is None:
+            self._clear_btn = pn.widgets.Button(
+                name='Clear ROI',
+                button_type='default',
+                width=100,
+            )
+            self._clear_btn.on_click(self.clear_mask)
+            self._toolbar.insert(0, self._clear_btn)
+        return self._clear_btn
 
-    def get_control_panel(
+    def add_control_panel(
         self,
         name: str = 'Image Controls',
     ):
@@ -325,7 +332,7 @@ class AperturePlot(AperturePlotBase):
 # toggle.properties.active.change.emit()
 # toggle.change.emit()
 # ''')
-        floatpanel = pn.layout.FloatPanel(
+        self._floatpanel = pn.layout.FloatPanel(
             close_btn,
             self.im.color.get_cmap_select(),
             self.im.color.get_cmap_slider(),
@@ -347,7 +354,7 @@ class AperturePlot(AperturePlotBase):
             margin=20,
             visible=initial_vis,
         )
-        open_btn.jslink(floatpanel, value='visible')
+        open_btn.jslink(self._floatpanel, value='visible')
 
         cb = CustomJS(
             args={
@@ -390,8 +397,11 @@ for (let model of this.document._all_models.values()){
 
         self._toolbar.extend((
             open_btn,
-            floatpanel,
+            self._floatpanel,
         ))
+
+    def get_float_panel(self):
+        return self._floatpanel
 
     def get_channel_select(
         self,

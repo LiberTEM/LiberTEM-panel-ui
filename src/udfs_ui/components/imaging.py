@@ -139,20 +139,11 @@ Right now it isn't very helpful...
         )
 
         self.nav_plot.add_mask_tools(activate=False)
-        self.nav_plot.get_clear_mask_btn()
 
         self.toolbox.extend((
             self._mode_selector,
             help_button,
         ))
-        self.nav_plot.get_control_panel(
-            name='Nav image controls',
-        )
-        # nav_c_open_btn.name = 'Nav controls'
-        self.sig_plot.get_control_panel(
-            name='Sig image controls',
-        )
-        # sig_c_open_btn.name = 'Sig controls'
         self._standard_layout(
             right_after=(
                 self._radius_slider,
@@ -316,7 +307,6 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
         self._nav_cursor.set_visible(self._mode_selector.value == 'Pick')
 
         self.nav_plot.add_mask_tools(activate=False)
-        self.nav_plot.get_clear_mask_btn()
 
         self._standard_layout(
             right_after=(self._mode_selector,),
