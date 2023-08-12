@@ -277,7 +277,21 @@ class AperturePlot(AperturePlotBase):
             tags=[button_uuid],
             visible=False,
         )
+        close_btn = pn.widgets.Button(
+            name='✖',
+            margin=(5, 5, 5, 5),
+            button_type='default',
+        )
+# FIXME can't get the JS callback version to work ?
+#         close_btn.js_on_click(
+#             args=dict(toggle=open_btn),
+#             code='''
+# toggle.properties.active.set_value(false)
+# toggle.properties.active.change.emit()
+# toggle.change.emit()
+# ''')
         floatpanel = pn.layout.FloatPanel(
+            close_btn,
             self.im.color.get_cmap_select(),
             self.im.color.get_cmap_slider(),
             self.im.color._cbar_freeze,
@@ -298,7 +312,7 @@ class AperturePlot(AperturePlotBase):
             margin=20,
             visible=initial_vis,
         )
-        open_btn.jslink(floatpanel, value='visible', bidirectional=True)
+        open_btn.jslink(floatpanel, value='visible')
 
         cb = CustomJS(
             args={
@@ -327,6 +341,13 @@ for (let model of this.document._all_models.values()){
             callback=cb,
         )
         self.fig.add_tools(action)
+
+        def _close_fp(e):
+            # FIXME icon color update is buggy, should probably use _static .png ?
+            # action.update(icon=options_icon(as_b64=True))
+            open_btn.param.update(value=False)
+
+        close_btn.on_click(_close_fp)
 
         return open_btn, floatpanel
 
