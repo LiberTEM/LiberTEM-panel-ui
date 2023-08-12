@@ -321,6 +321,7 @@ class AperturePlot(AperturePlotBase):
                 'icon_inactive': options_icon(as_b64=True),
             },
             code='''
+// searching through *all* models is really a hack...
 for (let model of this.document._all_models.values()){
     if (model.properties.tags._value.includes(btn_uuid)){
         model.active = !model.active
@@ -339,13 +340,16 @@ for (let model of this.document._all_models.values()){
         action = CustomAction(
             icon=options_icon(),
             callback=cb,
+            description='Open plot toolbox',
         )
         self.fig.add_tools(action)
 
         def _close_fp(e):
-            # FIXME icon color update is buggy, should probably use _static .png ?
-            # action.update(icon=options_icon(as_b64=True))
             open_btn.param.update(value=False)
+            # FIXME icon color update is buggy, should probably use _static .png ?
+            # Maybe a better solution is to use a Bokeh button and directly trigger
+            # the toolbar button rather than trying to toggle the toggle button from panel ?
+            # action.update(icon=options_icon())
 
         close_btn.on_click(_close_fp)
 
