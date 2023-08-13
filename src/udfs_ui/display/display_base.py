@@ -372,7 +372,7 @@ class PointSet(DisplayBase):
         add: bool = True,
         drag: bool = True,
         tag_name: str = 'default',
-    ):
+    ) -> PointSet:
         if not (add or drag):
             raise ValueError('Cannot make editable without one of add or drag')
         self._add_to_tool(
@@ -575,7 +575,7 @@ class RingSet(DisplayBase):
         add: bool = True,
         drag: bool = True,
         tag_name: str = 'default',
-    ) -> DiskSet:
+    ) -> RingSet:
         if not (add or drag):
             raise ValueError('Cannot make editable without one of add or drag')
         self._add_to_tool(
