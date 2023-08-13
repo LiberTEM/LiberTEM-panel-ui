@@ -195,7 +195,8 @@ class DisplayBase(abc.ABC):
         except IndexError:
             return 0
 
-    def _update_filter_none(self, **data: np.ndarray | list | None):
+    @staticmethod
+    def _update_filter_none(**data: np.ndarray | list | None):
         return {k: v for k, v in data.items() if v is not None}
 
     def raw_update(self, **data: np.ndarray | list):
@@ -258,7 +259,7 @@ class DisplayBase(abc.ABC):
                 if glyph_on.fig is fig:
                     yield glyph_on.renderer
 
-    def renderers_for_fig(self, glyph_name: str, fig: BkFigure) -> tuple[GlyphRenderer]:
+    def renderers_for_fig(self, glyph_name: str, fig: BkFigure) -> tuple[GlyphRenderer, ...]:
         return tuple(self._renderers_for_fig(glyph_name, fig))
 
     @property
