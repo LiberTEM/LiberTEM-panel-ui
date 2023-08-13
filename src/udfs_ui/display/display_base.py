@@ -5,7 +5,8 @@ from dataclasses import dataclass, field
 import numpy as np
 import itertools
 import pandas as pd
-from typing import TYPE_CHECKING, Sequence, NamedTuple, Callable
+from typing import TYPE_CHECKING, Sequence, NamedTuple, Callable, TypeVar, Type
+from typing_extensions import Self
 import colorcet as cc
 from skimage.draw import polygon as draw_polygon
 
@@ -308,21 +309,27 @@ class DisplayBase(abc.ABC):
         return where
 
 
+T = TypeVar('T', bound='DisplayBase')
+
+
 class ConsBase(abc.ABC):
-    constructs = DisplayBase
     default_keys = tuple()
 
     @classmethod
-    def empty(cls):
+    def empty(cls, constructs: Type[T]) -> T:
         """
         Need to figure out how to give the return Type dynamically
-        before using this base class
+
+        Self type from py3.11 or typing_extensions
+        https://stackoverflow.com/a/75337086
+        https://realpython.com/python-type-self/
+        but these constructors do not return self...
         """
         data = {
             k: [] for k in cls.default_keys
         }
         cds = ColumnDataSource(data)
-        return cls.constructs(cds)
+        return constructs(cds)
 
 
 class PointSet(DisplayBase):
@@ -407,7 +414,7 @@ def get_point_tool(
     )
 
 
-class PointSetCons:
+class PointSetCons(ConsBase):
     default_keys = ('cx', 'cy')
 
     @staticmethod
@@ -427,9 +434,9 @@ class PointSetCons:
     ):
         ...
 
-    @staticmethod
-    def empty() -> PointSet:
-        return PointSetCons.from_vectors([], [])
+    @classmethod
+    def empty(cls):
+        return super().empty(PointSet)
 
 
 class DiskSet(DisplayBase):
@@ -497,7 +504,7 @@ class DiskSet(DisplayBase):
         return self
 
 
-class DiskSetCons:
+class DiskSetCons(ConsBase):
     default_keys = ('cx', 'cy', 'r0')
 
     @staticmethod
@@ -513,6 +520,10 @@ class DiskSetCons:
         }
         cds = ColumnDataSource(data)
         return DiskSet(cds)
+
+    @classmethod
+    def empty(cls):
+        return super().empty(DiskSet)
 
 
 class RingSet(DisplayBase):
@@ -587,7 +598,7 @@ class RingSet(DisplayBase):
         return self
 
 
-class RingSetCons:
+class RingSetCons(ConsBase):
     default_keys = ('cx', 'cy', 'r0', 'r1')
 
     @staticmethod
@@ -606,6 +617,10 @@ class RingSetCons:
         }
         cds = ColumnDataSource(data)
         return RingSet(cds)
+
+    @classmethod
+    def empty(cls):
+        return super().empty(RingSet)
 
 
 class Cursor(DisplayBase):
@@ -703,7 +718,7 @@ class Cursor(DisplayBase):
         return self
 
 
-class CursorCons:
+class CursorCons(ConsBase):
     default_keys = ('cx', 'cy')
 
     @staticmethod
@@ -716,6 +731,10 @@ class CursorCons:
         }
         cds = ColumnDataSource(data)
         return Cursor(cds)
+
+    @classmethod
+    def empty(cls) -> Cursor:
+        return super().empty()
 
 
 class Curve(DisplayBase):
@@ -755,7 +774,7 @@ class Curve(DisplayBase):
         return super().update(**data)
 
 
-class CurveCons:
+class CurveCons(ConsBase):
     default_keys = ('xvals', 'yvals')
 
     @staticmethod
@@ -793,6 +812,10 @@ class CurveCons:
             xkey=xkey,
             ykey=ykey,
         )
+
+    @classmethod
+    def empty(cls):
+        return super().empty(Curve)
 
 
 class MultiCurve(DisplayBase):
@@ -864,7 +887,7 @@ class MultiCurve(DisplayBase):
         return MultiCurveCons.array_to_dict(array, self._array_col_labels)
 
 
-class MultiCurveCons:
+class MultiCurveCons(ConsBase):
     default_xkey = 'xvals'
 
     @staticmethod
@@ -906,6 +929,10 @@ class MultiCurveCons:
             xkey=xkey,
             ykeys=ykeys,
         )
+
+    @classmethod
+    def empty(cls):
+        return super().empty(MultiCurve)
 
 
 class Rectangles(DisplayBase):
@@ -1010,7 +1037,7 @@ def rectangle_to_mask(*, cx, cy, w, h, mask, fill_value: bool = True):
     return mask
 
 
-class RectanglesCons:
+class RectanglesCons(ConsBase):
     default_keys = ('cx', 'cy', 'w', 'h')
 
     @classmethod
@@ -1033,11 +1060,7 @@ class RectanglesCons:
 
     @classmethod
     def empty(cls):
-        data = {
-            k: [] for k in cls.default_keys
-        }
-        cds = ColumnDataSource(data)
-        return Rectangles(cds)
+        return super().empty(Rectangles)
 
 
 class Polygons(DisplayBase):
@@ -1168,7 +1191,7 @@ class Polygons(DisplayBase):
         return mask
 
 
-class PolygonsCons:
+class PolygonsCons(ConsBase):
     default_keys = ('xs', 'ys')
 
     @classmethod
@@ -1189,12 +1212,8 @@ class PolygonsCons:
         return Polygons(cds)
 
     @classmethod
-    def empty(cls) -> Polygons:
-        data = {
-            k: [] for k in cls.default_keys
-        }
-        cds = ColumnDataSource(data)
-        return Polygons(cds)
+    def empty(cls):
+        return super().empty(Polygons)
 
 
 class Text(DisplayBase):
@@ -1240,7 +1259,7 @@ class Text(DisplayBase):
         return super().update(**data)
 
 
-class TextCons:
+class TextCons(ConsBase):
     default_keys = ('x', 'y', 'text')
 
     @classmethod
@@ -1258,3 +1277,7 @@ class TextCons:
         }
         cds = ColumnDataSource(data)
         return Text(cds)
+
+    @classmethod
+    def empty(cls):
+        return super().empty(Text)
