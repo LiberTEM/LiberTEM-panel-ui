@@ -322,6 +322,7 @@ class AperturePlot(AperturePlotBase):
         )
         close_btn = Button(
             label='✖',
+            button_type='light',
         )
 
         self._floatpanel = pn.layout.FloatPanel(
