@@ -243,7 +243,7 @@ class DisplayBase(abc.ABC):
         empty = {k: [] for k in self.cds.data.keys()}
         DisplayBase.update(self, **empty)
 
-    def is_on(self) -> tuple[BkFigure]:
+    def is_on(self) -> tuple[BkFigure, ...]:
         figs = []
         for wrappers in self._glyphs.values():
             figs.extend(o.fig for wrapper in wrappers for o in wrapper.on)
@@ -265,22 +265,10 @@ class DisplayBase(abc.ABC):
     def glyph_names(self):
         return tuple(self._glyphs.keys())
 
-    def set_render_level(
-        self,
-        glyph_name: str,
-        level: Literal['image', 'underlay', 'glyph', 'annotation', 'overlay']
-    ):
-        figs = self.is_on()
-        if not figs:
-            raise NotImplementedError('Setting render level before '
-                                      'adding to figure not yet supported')
-        for fig in figs:
-            for renderer in self.renderers_for_fig(glyph_name, fig):
-                renderer.level = level
-
 
 class ConsBase(abc.ABC):
     constructs = DisplayBase
+    default_keys = tuple()
 
     @classmethod
     def empty(cls):
@@ -735,7 +723,12 @@ class Cursor(DisplayBase):
 
     def on(self, *figs: BkFigure):
         super().on(*figs)
-        self.set_render_level('cursor', 'annotation')
+        # Could move render level control onto baseclass
+        # or have it as a kwarg to .on when we create the rendere
+        for fig in figs:
+            for renderer in self.renderers_for_fig('cursor', fig):
+                renderer.level = 'annotation'
+        return self
 
 
 class CursorCons:
