@@ -1,11 +1,11 @@
 from __future__ import annotations
 import abc
+from functools import partial
 from dataclasses import dataclass, field
 import numpy as np
 import itertools
 import pandas as pd
-from typing import TYPE_CHECKING, Sequence, NamedTuple
-from typing_extensions import Literal
+from typing import TYPE_CHECKING, Sequence, NamedTuple, Callable
 import colorcet as cc
 from skimage.draw import polygon as draw_polygon
 
@@ -14,6 +14,7 @@ from bokeh.models.glyphs import Line, Scatter, Circle, Annulus, Rect, Patches
 from bokeh.models.glyphs import Text as BkText
 from bokeh.models.tools import PointDrawTool, BoxEditTool, PolyDrawTool, PolyEditTool
 
+from .icons import cursor_icon
 from ..utils import pop_from_list
 from ..utils.masks import clip_posxy_array
 from .utils import PointXY
@@ -23,6 +24,7 @@ if TYPE_CHECKING:
     from bokeh.plotting import figure as BkFigure
     from bokeh.models.glyphs import Glyph
     from bokeh.models.renderers import GlyphRenderer
+    from bokeh.models.tools import EditTool, Tool
 
 
 def unique_length(*items):
@@ -219,6 +221,7 @@ class DisplayBase(abc.ABC):
         if new > current:
             # This is a choice to prevent unexpected bugs
             # Could have an .add method which doesn't do this check
+            # CDS already has an add method for this
             raise KeyError('Cannot add columns using .update(), '
                            f'current keys = {current}, '
                            f'new keys = {new}.')
@@ -265,6 +268,44 @@ class DisplayBase(abc.ABC):
     @property
     def glyph_names(self):
         return tuple(self._glyphs.keys())
+
+    def editable(self, *figs: BkFigure) -> DisplayBase:
+        raise NotImplementedError
+
+    def _add_to_tool(
+        self,
+        *,
+        figs: tuple[BkFigure, ...],
+        glyph_name: str,
+        tool_filter: Callable[[Tool], bool],
+        make_tool: Callable[[], EditTool],
+    ):
+        all_figs = self.is_on()
+        if figs and not all(f in all_figs for f in figs):
+            raise ValueError('Cannot make DiplayBase editable on a '
+                             'figure before adding it to that figure')
+        elif not figs:
+            if not all_figs:
+                raise ValueError('Cannot make DiplayBase editable before adding to figures')
+            figs = all_figs
+
+        where: list[tuple[BkFigure, EditTool]] = []
+        for fig in figs:
+            matching_tools = [
+                t for t in fig.tools
+                if tool_filter(t)
+            ]
+            try:
+                tool = matching_tools[0]
+            except IndexError:
+                tool = make_tool()
+                fig.add_tools(tool)
+            renderers = self.renderers_for_fig(glyph_name, fig)
+            for renderer in renderers:
+                tool.renderers.append(renderer)
+            where.append((fig, tool))
+
+        return where
 
 
 class ConsBase(abc.ABC):
@@ -325,69 +366,45 @@ class PointSet(DisplayBase):
         data[self.points.y] = y
         return super().update(**data)
 
-    def make_editable(
+    def editable(
         self,
         *figs: BkFigure,
         add: bool = True,
         drag: bool = True,
-        tool_name: str = 'default',
+        tag_name: str = 'default',
     ):
-        make_editable(
-            self, *figs, add=add, drag=drag, tool_name=tool_name, glyph_name='points'
+        if not (add or drag):
+            raise ValueError('Cannot make editable without one of add or drag')
+        self._add_to_tool(
+            figs=figs,
+            glyph_name='points',
+            tool_filter=lambda t: tag_name in t.tags and isinstance(t, PointDrawTool),
+            make_tool=partial(get_point_tool, add=add, drag=drag, tag_name=tag_name)
         )
         return self
 
 
-def make_editable(
-    display_base: DisplayBase,
-    *figs: BkFigure,
+def get_point_tool(
     add: bool = True,
     drag: bool = True,
-    tool_name: str = 'default',
-    glyph_name: str = 'points',
+    num_objects: int = 0,
+    empty_value: float = 1.,
+    tag_name: str = 'default',
+    name='Point Draw/Edit',
+    description='Draw points on figure',
+    icon=None,
 ):
-    """
-    If figs is empty, add to all registered figures
-    If no figures, raise
-    If no compatible figures, raise ?
-    If fig in figs does not have this DisplayBase on it, raise
-
-    If fig has
-
-    # TODO Need to handle both the case of .make_editable before
-    .on and .make_editable after .on. Assume that if we make_editable
-    before .on then the caller wants the displaybase to be editable
-    on all future figures. This ties into the idea of re-adding renderers
-    onto tools on a figure if the displaybase was removed but previously
-    editable on that figure
-    """
-    all_figs = display_base.is_on()
-    if figs and not all(f in all_figs for f in figs):
-        raise ValueError('Cannot make DiplayBase editable on a '
-                         'figure before adding it to that figure')
-    elif not figs:
-        if not all_figs:
-            raise ValueError('Cannot make DiplayBase editable before adding to figures')
-        figs = all_figs
-
-    if not (add or drag):
-        raise ValueError('Cannot make editable without one of add or drag')
-
-    for fig in figs:
-        matching_tools = [t for t in fig.tools
-                          if (isinstance(t, PointDrawTool)
-                              and tool_name in t.tags)]
-        if matching_tools:
-            tool = matching_tools[0]
-            # check if add/drag etc are matching
-            # raise if non-matching ??
-        else:
-            tool = get_point_tool(add=add, drag=drag, tool_name=tool_name)
-            fig.add_tools(tool)
-
-        renderers = display_base.renderers_for_fig(glyph_name, fig)
-        for renderer in renderers:
-            tool.renderers.append(renderer)
+    return PointDrawTool(
+        name=name,
+        description=description,
+        renderers=[],
+        add=add,
+        drag=drag,
+        num_objects=num_objects,
+        empty_value=empty_value,
+        tags=[tag_name],
+        icon=icon,
+    )
 
 
 class PointSetCons:
@@ -413,28 +430,6 @@ class PointSetCons:
     @staticmethod
     def empty() -> PointSet:
         return PointSetCons.from_vectors([], [])
-
-
-def get_point_tool(
-    add: bool = True,
-    drag: bool = True,
-    num_objects: int = 0,
-    empty_value: float = 1.,
-    tool_name: str = 'default',
-    icon=None,
-):
-    tags = [tool_name]
-    return PointDrawTool(
-        name='Point Draw/Edit',
-        description='Draw points on figure',
-        renderers=[],
-        add=add,
-        drag=drag,
-        num_objects=num_objects,
-        empty_value=empty_value,
-        tags=tags,
-        icon=icon,
-    )
 
 
 class DiskSet(DisplayBase):
@@ -484,15 +479,20 @@ class DiskSet(DisplayBase):
         data[self.disks.radius] = radius
         return super().update(**data)
 
-    def make_editable(
+    def editable(
         self,
         *figs: BkFigure,
         add: bool = True,
         drag: bool = True,
-        tool_name: str = 'default',
+        tag_name: str = 'default',
     ) -> DiskSet:
-        make_editable(
-            self, *figs, add=add, drag=drag, tool_name=tool_name, glyph_name='disks'
+        if not (add or drag):
+            raise ValueError('Cannot make editable without one of add or drag')
+        self._add_to_tool(
+            figs=figs,
+            glyph_name='disks',
+            tool_filter=lambda t: tag_name in t.tags and isinstance(t, PointDrawTool),
+            make_tool=partial(get_point_tool, add=add, drag=drag, tag_name=tag_name)
         )
         return self
 
@@ -569,15 +569,20 @@ class RingSet(DisplayBase):
         data[self.rings.outer_radius] = outer_radius
         return super().update(**data)
 
-    def make_editable(
+    def editable(
         self,
         *figs: BkFigure,
         add: bool = True,
         drag: bool = True,
-        tool_name: str = 'default',
-    ) -> RingSet:
-        make_editable(
-            self, *figs, add=add, drag=drag, tool_name=tool_name, glyph_name='rings'
+        tag_name: str = 'default',
+    ) -> DiskSet:
+        if not (add or drag):
+            raise ValueError('Cannot make editable without one of add or drag')
+        self._add_to_tool(
+            figs=figs,
+            glyph_name='rings',
+            tool_filter=lambda t: tag_name in t.tags and isinstance(t, PointDrawTool),
+            make_tool=partial(get_point_tool, add=add, drag=drag, tag_name=tag_name)
         )
         return self
 
@@ -645,57 +650,23 @@ class Cursor(DisplayBase):
         data[self.cursor.y] = [y]
         return super().update(**data)
 
-    def make_editable(
+    def editable(
         self,
         *figs: BkFigure,
-        tool_name: str = 'cursor',
-    ):
-        """
-        If figs is empty, add to all registered figures
-        If no figures, raise
-        If no compatible figures, raise ?
-        If fig in figs does not have this DisplayBase on it, raise
-
-        If fig has
-
-        # TODO Need to handle both the case of .make_editable before
-        .on and .make_editable after .on. Assume that if we make_editable
-        before .on then the caller wants the displaybase to be editable
-        on all future figures. This ties into the idea of re-adding renderers
-        onto tools on a figure if the displaybase was removed but previously
-        editable on that figure
-        """
-        all_figs = self.is_on()
-        if figs and not all(f in all_figs for f in figs):
-            raise ValueError('Cannot make DiplayBase editable on a '
-                             'figure before adding it to that figure')
-        elif not figs:
-            if not all_figs:
-                raise ValueError('Cannot make DiplayBase editable before adding to figures')
-            figs = all_figs
-
-        for fig in figs:
-            matching_tools = [t for t in fig.tools
-                              if (isinstance(t, PointDrawTool)
-                                  and tool_name in t.tags)]
-            if matching_tools:
-                tool = matching_tools[0]
-                # check if add/drag etc are matching
-                # raise if non-matching ??
-            else:
-                from .icons import cursor_icon
-                tool = get_point_tool(
-                    add=False,
-                    drag=True,
-                    tool_name=tool_name,
-                    icon=cursor_icon(),
-                )
-                fig.add_tools(tool)
-
-            renderers = self.renderers_for_fig('cursor', fig)
-            for renderer in renderers:
-                tool.renderers.append(renderer)
-
+        tag_name: str = 'cursor',
+    ) -> Cursor:
+        self._add_to_tool(
+            figs=figs,
+            glyph_name='cursor',
+            tool_filter=lambda t: tag_name in t.tags and isinstance(t, PointDrawTool),
+            make_tool=partial(
+                get_point_tool,
+                add=False,
+                drag=True,
+                tag_name=tag_name,
+                icon=cursor_icon(),
+            )
+        )
         return self
 
     def current_pos(
@@ -963,56 +934,26 @@ class Rectangles(DisplayBase):
         )
         self._register_glyph('rectangles', glyph)
 
-    def make_editable(
+    def editable(
         self,
         *figs: BkFigure,
-        tool_name: str = 'default',
-    ):
-        """
-        If figs is empty, add to all registered figures
-        If no figures, raise
-        If no compatible figures, raise ?
-        If fig in figs does not have this DisplayBase on it, raise
+        tag_name: str = 'default',
+    ) -> Rectangles:
 
-        If fig has
+        def _make_tool():
+            return BoxEditTool(
+                name='Rectangle Draw/Edit',
+                description='Draw rectangles on figure',
+                renderers=[],
+                tags=[tag_name],
+            )
 
-        # TODO Need to handle both the case of .make_editable before
-        .on and .make_editable after .on. Assume that if we make_editable
-        before .on then the caller wants the displaybase to be editable
-        on all future figures. This ties into the idea of re-adding renderers
-        onto tools on a figure if the displaybase was removed but previously
-        editable on that figure
-        """
-        all_figs = self.is_on()
-        if figs and not all(f in all_figs for f in figs):
-            raise ValueError('Cannot make DiplayBase editable on a '
-                             'figure before adding it to that figure')
-        elif not figs:
-            if not all_figs:
-                raise ValueError('Cannot make DiplayBase editable before adding to figures')
-            figs = all_figs
-
-        for fig in figs:
-            matching_tools = [t for t in fig.tools
-                              if (isinstance(t, BoxEditTool)
-                                  and tool_name in t.tags)]
-            if matching_tools:
-                tool = matching_tools[0]
-                # check if add/drag etc are matching
-                # raise if non-matching ??
-            else:
-                tool = BoxEditTool(
-                    name='Rectangle Draw/Edit',
-                    description='Draw rectangles on figure',
-                    renderers=[],
-                    tags=[tool_name],
-                )
-                fig.add_tools(tool)
-
-            renderers = self.renderers_for_fig('rectangles', fig)
-            for renderer in renderers:
-                tool.renderers.append(renderer)
-
+        self._add_to_tool(
+            figs=figs,
+            glyph_name='rectangles',
+            tool_filter=lambda t: tag_name in t.tags and isinstance(t, BoxEditTool),
+            make_tool=_make_tool,
+        )
         return self
 
     @property
@@ -1120,100 +1061,71 @@ class Polygons(DisplayBase):
             line_dash='dashed',
         )
         self._register_glyph('polys', glyph)
-        # This glyph is created when calling 'make_editable'
-        # There is an underlying PointSet but this could be
-        # shared with other instances of Polygons
-        self._vertices_glyph = None
+        # This DisplayBase is used by PolyEditTool/PolyDrawTool
+        # to display the vertice of polygons. If the tool is first
+        # added to a figure by this instance of Polygons, it will 'own'
+        # the vertex renderer, otherwise it will 'borrow' the
+        # PointSet / vertex renderer of another DisplayBase
+        # To style the vertex glyph in this case, use the 'owner'
+        # polygons or find the associated glyph through the tool itself
+        self._vertex_pointset: PointSet | None = None
 
-    def make_editable(
+    def editable(
         self,
         *figs: BkFigure,
-        tool_name: str = 'default',
+        tag_name: str = 'default',
+    ) -> Polygons:
+
+        def _make_draw_tool():
+            return PolyDrawTool(
+                name='Polygon Draw',
+                description='Draw polygons on figure',
+                renderers=[],
+                tags=[tag_name],
+            )
+        where = self._add_to_tool(
+            figs=figs,
+            glyph_name='polys',
+            tool_filter=lambda t: tag_name in t.tags and isinstance(t, PolyDrawTool),
+            make_tool=_make_draw_tool,
+        )
+        self._setup_vertex_renderer(where)
+
+        def _make_edit_tool():
+            return PolyEditTool(
+                name='Polygon Draw',
+                description='Edit polygons on figure',
+                renderers=[],
+                tags=[tag_name],
+            )
+        where = self._add_to_tool(
+            figs=figs,
+            glyph_name='polys',
+            tool_filter=lambda t: tag_name in t.tags and isinstance(t, PolyEditTool),
+            make_tool=_make_edit_tool,
+        )
+        self._setup_vertex_renderer(where)
+        return self
+
+    def _setup_vertex_renderer(
+        self,
+        where: list[tuple[BkFigure, EditTool]]
     ):
-        """
-        If figs is empty, add to all registered figures
-        If no figures, raise
-        If no compatible figures, raise ?
-        If fig in figs does not have this DisplayBase on it, raise
-
-        If fig has
-
-        # TODO Need to handle both the case of .make_editable before
-        .on and .make_editable after .on. Assume that if we make_editable
-        before .on then the caller wants the displaybase to be editable
-        on all future figures. This ties into the idea of re-adding renderers
-        onto tools on a figure if the displaybase was removed but previously
-        editable on that figure
-        """
-        all_figs = self.is_on()
-        if figs and not all(f in all_figs for f in figs):
-            raise ValueError('Cannot make DiplayBase editable on a '
-                             'figure before adding it to that figure')
-        elif not figs:
-            if not all_figs:
-                raise ValueError('Cannot make DiplayBase editable before adding to figures')
-            figs = all_figs
-
-        # Need a PointSet child to allow editing
-        # This is one-renderer-per-tool so is potentially shared
-        # between different instances of Polygons
-        vertex_pointset = PointSet.new().empty()
-
-        for fig in figs:
-            renderers = self.renderers_for_fig('polys', fig)
-
-            matching_tools = [t for t in fig.tools
-                              if (isinstance(t, PolyDrawTool)
-                                  and tool_name in t.tags)]
-            if matching_tools:
-                tool = matching_tools[0]
-                vertex_renderer = tool.vertex_renderer
-            else:
-                # If we didn't find a matching tool assume
-                # that the corresponding vertex_renderer
-                # does not exist
+        if self._vertex_pointset is None:
+            self._vertex_pointset = PointSet.new().empty()
+        for fig, poly_tool in where:
+            if poly_tool.vertex_renderer is not None:
+                continue
+            renderers = self._vertex_pointset.renderers_for_fig('points', fig)
+            if len(renderers) == 0:
                 vertex_renderer = (
-                    vertex_pointset
+                    self._vertex_pointset
                     .on(fig)
                     .renderers_for_fig('points', fig)[0]
                 )
-                tool = PolyDrawTool(
-                    name='Polygon Draw',
-                    description='Draw polygons on figure',
-                    renderers=[],
-                    vertex_renderer=vertex_renderer,
-                    tags=[tool_name],
-                )
-                fig.add_tools(tool)
-
-            # This is set for the DB even if the underlying PointSet
-            # was created elsewhere, so that the .vertices property
-            # can have its properties modified for style
-            self._vertices_glyph = vertex_renderer.glyph
-            for renderer in renderers:
-                tool.renderers.append(renderer)
-
-            matching_tools = [t for t in fig.tools
-                              if (isinstance(t, PolyEditTool)
-                                  and tool_name in t.tags)]
-            if matching_tools:
-                tool = matching_tools[0]
-                # check if add/drag etc are matching
-                # raise if non-matching ??
             else:
-                tool = PolyEditTool(
-                    name='Polygon Draw',
-                    description='Edit polygons on figure',
-                    renderers=[],
-                    tags=[tool_name],
-                    vertex_renderer=vertex_renderer,
-                )
-                fig.add_tools(tool)
-
-            for renderer in renderers:
-                tool.renderers.append(renderer)
-
-        return self
+                vertex_renderer = renderers[0]
+            poly_tool.vertex_renderer = vertex_renderer
 
     @property
     def polys(self) -> Patches:

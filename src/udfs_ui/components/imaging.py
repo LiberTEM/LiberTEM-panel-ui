@@ -46,7 +46,7 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
                 outer_radius=ro,
             )
             .on(self.sig_plot.fig)
-            .make_editable(add=False)
+            .editable(add=False)
             .set_visible(False)
         )
         self._disk_db = (
@@ -55,20 +55,20 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
                 radius=self._ring_db.rings.outer_radius,
             )
             .on(self.sig_plot.fig)
-            .make_editable(add=False)
+            .editable(add=False)
         )
         self._point_db = (
             PointSet(
                 self._ring_db.cds,
             )
             .on(self.sig_plot.fig)
-            .make_editable(add=False)
+            .editable(add=False)
             .set_visible(False)
         )
         self._point_db.points.hit_dilation = 2.
         self._edit_tool = self.sig_plot.fig.tools[-1]
         self._edit_tool.renderers.clear()
-        self._disk_db.make_editable()
+        self._disk_db.editable()
         self.sig_plot.fig.toolbar.active_drag = self._edit_tool
 
         widget_width = 350

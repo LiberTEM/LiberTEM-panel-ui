@@ -258,7 +258,7 @@ class AperturePlot(AperturePlotBase):
                 .new()
                 .empty()
                 .on(self.fig)
-                .make_editable()
+                .editable()
             )
         if rectangles:
             self._mask_elements.append(
@@ -266,7 +266,7 @@ class AperturePlot(AperturePlotBase):
                 .new()
                 .empty()
                 .on(self.fig)
-                .make_editable()
+                .editable()
             )
         if activate and len(self.fig.tools):
             self.fig.toolbar.active_drag = self.fig.tools[-1]

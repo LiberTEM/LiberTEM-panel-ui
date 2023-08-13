@@ -46,7 +46,7 @@ class PickUDFBaseWindow(UIWindow):
         (ny, nx), _, _ = get_initial_pos(dataset.shape.nav)
         self._nav_cursor = Cursor.new().from_pos(nx, ny)
         self._nav_cursor.on(self.nav_plot.fig)
-        self._nav_cursor.make_editable()
+        self._nav_cursor.editable()
         self._nav_cursor.cds.on_change(
             'data',
             partial(self.run_this_bk, run_from=self._cds_pick_job),
