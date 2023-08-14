@@ -128,7 +128,6 @@ class UniqueWindows(TypedDict):
 
 class UIContext:
     def __init__(self, save_root: os.PathLike | None = '.'):
-        self._save_root = save_root
         self._windows: dict[str, UIWindow] = {}
         self._state: UIState = None
         self._resources: OfflineResources | LiveResources = None
@@ -169,7 +168,7 @@ class UIContext:
 
     @property
     def save_root(self):
-        return self._save_root
+        return self.results_manager.save_root
 
     def for_live(
         self,

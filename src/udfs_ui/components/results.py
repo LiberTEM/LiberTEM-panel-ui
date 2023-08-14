@@ -4,6 +4,7 @@ import uuid
 import json
 from typing import Any, NamedTuple, TYPE_CHECKING, Protocol, Iterator
 import os
+import pathlib
 
 import panel as pn
 import humanize
@@ -76,6 +77,11 @@ class RunRow(NamedTuple):
 
 class ResultsManager:
     def __init__(self, save_root: os.PathLike | None = '.'):
+        # Where to save files by default, None implies no saving
+        if save_root is not None:
+            self._save_root = pathlib.Path(save_root)
+        else:
+            self._save_root = save_root
         # This is basically a simple relational database!
         # Could implement it in squite3 without too much effort
         self._runs: list[RunRow] = []
@@ -91,6 +97,10 @@ class ResultsManager:
     @property
     def all_results(self):
         return self._results
+
+    @property
+    def save_root(self):
+        return self._save_root
 
     def add_watcher(self, watcher: ResultWatcher):
         self._watchers.append(watcher)

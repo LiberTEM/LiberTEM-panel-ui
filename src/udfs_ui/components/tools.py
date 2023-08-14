@@ -87,11 +87,8 @@ class RecordWindow(UIWindow, ui_type=UIType.RESERVED):
         return None
 
     def get_record_udf(self):
-        try:
-            file_root = pathlib.Path(self._ui_context.save_root)
-        except (TypeError, ValueError):
-            return None
-
+        if (file_root := self.results_manager.save_root) is None:
+            return
         dt = datetime.datetime.now()
         fnm = (
             f'data_{dt.year:>02d}{dt.month:>02d}{dt.day:>02d}'
