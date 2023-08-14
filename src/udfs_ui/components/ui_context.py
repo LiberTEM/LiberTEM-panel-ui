@@ -276,7 +276,7 @@ class UIContext:
                 raise RuntimeError('Mismatching window IDs')
         except Exception as e:
             msg = f'Error while adding {window_name}'
-            self._logger.log_from_exception(e, reraise=True, msg=msg)
+            self.logger.log_from_exception(e, reraise=True, msg=msg)
         self._windows[window_id] = window
         if (window_layout := window.layout()) is not None:
             if insert_at is not None:
@@ -561,9 +561,14 @@ class UIContext:
             run_from = [w.get_job for w in self._windows.values()
                         if len(self._windows) <= 1 or (not w.self_run_only)]
 
-        to_run: list[UDFWindowJob] = [job for job_getter in run_from
-                                      if (job := job_getter(self._state, ds, roi))
-                                      is not None]
+        try:
+            to_run: list[UDFWindowJob] = [job for job_getter in run_from
+                                          if (job := job_getter(self._state, ds, roi))
+                                          is not None]
+        except Exception as err:
+            msg = 'Error during get jobs for run'
+            self.logger.log_from_exception(err, reraise=True, msg=msg)
+
         num_jobs = len(to_run)
         t_got_jobs = time.monotonic()
 
@@ -621,7 +626,7 @@ class UIContext:
                     break
         except Exception as err:
             msg = 'Error during run_udf'
-            self._logger.log_from_exception(err, reraise=True, msg=msg)
+            self.logger.log_from_exception(err, reraise=True, msg=msg)
 
         t_end_run = time.monotonic()
 
@@ -653,7 +658,7 @@ class UIContext:
                     result_entries = job.result_handler(job, job_results)
                 except Exception as err:
                     msg = 'Error while unpacking result'
-                    self._logger.log_from_exception(err, msg=msg)
+                    self.logger.log_from_exception(err, msg=msg)
                 all_results.extend(result_entries)
 
         t_complete_jobs = time.monotonic()

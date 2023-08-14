@@ -270,7 +270,7 @@ class UIWindow:
         try:
             future.result()
         except Exception as e:
-            self._ui_context._logger.log_from_exception(e, reraise=True)
+            self.logger.log_from_exception(e, reraise=True)
         finally:
             self._futures.discard(future)
 
