@@ -23,11 +23,13 @@ from .lifecycles import (
 from .resources import LiveResources, OfflineResources
 from .tools import ROIWindow, RecordWindow, SignalMonitorUDFWindow
 from .results import ResultsManager, ResultRow
+from .result_containers import RecordResultContainer
 from .terminal_logger import UILog
 from ..utils.notebook_tools import get_ipyw_reload_button
 from ..utils.panel_components import labelled_switch
 
 if TYPE_CHECKING:
+    import pathlib
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import UDFResults
     from libertem.io.dataset.npy import NPYDataSet
@@ -173,19 +175,18 @@ class UIContext:
     def for_live(
         self,
         live_ctx: LiveContext,
+        aq_plan: AcquisitionProtocol | DataSet,
         get_aq: Callable[[LiveContext], AcquisitionProtocol | None],
         offline_ctx: Context | None = None,
-        aq_plan: AcquisitionProtocol | None = None,
     ):
         if not hasattr(live_ctx, 'make_acquisition'):
             raise TypeError('Cannot instantiate live UIContext '
                             f'with Context of type {type(live_ctx)}')
         self._resources = LiveResources(
             live_ctx=live_ctx,
+            aq_plan=aq_plan,
             get_aq=get_aq,
             offline_ctx=offline_ctx,
-            recordings={},
-            aq_plan=aq_plan,
         )
         self._state = UIState.LIVE
         self._inital_setup()
@@ -268,7 +269,7 @@ class UIContext:
                     raise RuntimeError(f'window_cls must be a UIWindow sub-class, got {window_cls}')
             window: UIWindow = window_cls(self, window_id)
             window.initialize(
-                self._resources.get_ds_for_init(self._state, self.current_ds_ident),
+                self._resources.init_with(),
                 **(window_kwargs if window_kwargs else {}),
             )
             if window.ident != window_id:
@@ -326,10 +327,6 @@ class UIContext:
         self.logger.info(f'Removed window {window.title_md} - {window.ident}')
 
     def _set_state(self, new_state: UIState, *e):
-        if new_state == UIState.REPLAY and not self._resources.recordings:
-            # Don't switch to replay mode unless we have recordings
-            self.logger.info('Cannot switch to replay state without recorded data')
-            return
         self.logger.info(f'Set UI-state {new_state.value.upper()}')
         old_state = self._state
         self._state = new_state
@@ -420,29 +417,30 @@ class UIContext:
         elif self._state == UIState.REPLAY:
             self._setup_replay()
 
-    def get_recordings_map(self):
-        return {str(p.stem): ident
-                for ident, p
-                in self._resources.recordings.items()
-                if p.is_file()}
-
-    @property
-    def current_ds_ident(self) -> str | None:
-        if self._state == UIState.REPLAY:
-            return self.get_recordings_map()[self._tools.replay_select.value]
-        return None
+    def _setup_offline(self):
+        OfflineLifecycle(self).setup()
 
     def _setup_live(self):
         LiveLifecycle(self).setup()
 
+    def _get_recordings_map(self):
+        recordings = tuple(self.results_manager.yield_of_type(RecordResultContainer))
+        recordings = tuple(reversed(sorted(recordings, key=lambda r: r.timestamp)))
+        containers: tuple[RecordResultContainer, ...] = tuple(
+            self.results_manager.get_result_container(recording.result_id)
+            for recording in recordings
+        )
+        return {
+            cont.filepath.stem: row for row, cont in zip(recordings, containers)
+            if cont.filepath.is_file()
+        }
+
     def _setup_replay(self):
         ReplayLifecycle(self).setup()
-        self._tools.replay_select.options = [*self.get_recordings_map().keys()]
+        self._recording_map = self._get_recordings_map()
+        self._tools.replay_select.options = [*self._recording_map.keys()]
         if len(self._tools.replay_select.options):
             self._tools.replay_select.value = self._tools.replay_select.options[0]
-
-    def _setup_offline(self):
-        OfflineLifecycle(self).setup()
 
     def _controls(self):
         self._tools.title.object = f'## UDFs UI - {self._state.value}'
@@ -475,7 +473,7 @@ class UIContext:
 
     async def run_live(self, *e, run_from: list[RunFromT] | None = None):
         lifecycle = LiveLifecycle(self)
-        live_ctx = self._resources.get_ctx(self._state)
+        live_ctx = self._resources.live_ctx
         # If the record_window is available then it is implicitly active
         record_window = self._get_unique_window('record')
         if record_window is not None:
@@ -483,15 +481,14 @@ class UIContext:
             if run_from is not None:
                 run_from.append(record_window.get_job)
         try:
-            if (aq := self._resources.get_ds_for_run(self._state,
-                                                     self.current_ds_ident)) is not None:
+            if (aq := self._resources.get_aq(live_ctx)) is not None:
                 await self._run(live_ctx, aq, lifecycle, run_from=run_from)
         finally:
             lifecycle.after()
 
     async def run_continuous(self, *e, run_from: list[RunFromT] | None = None):
         lifecycle = ContinuousLifecycle(self)
-        live_ctx = self._resources.get_ctx(self._state)
+        live_ctx = self._resources.live_ctx
         self._continuous_acquire = True
         # If the record_window is available then it is implicitly active
         record_window = self._get_unique_window('record')
@@ -502,8 +499,7 @@ class UIContext:
                 run_from.append(record_window.get_job)
         try:
             while self._continuous_acquire and self._continue_running:
-                if (aq := self._resources.get_ds_for_run(self._state,
-                                                         self.current_ds_ident)) is not None:
+                if (aq := self._resources.get_aq(live_ctx)) is not None:
                     await self._run(live_ctx, aq, lifecycle, run_from=run_from)
         finally:
             self._continuous_acquire = False
@@ -511,13 +507,19 @@ class UIContext:
 
     async def run_replay(self, *e, run_from: list[RunFromT] | None = None):
         lifecycle = ReplayLifecycle(self)
-        ctx = self._resources.get_ctx(self._state)
-        ds: NPYDataSet | None = self._resources.get_ds_for_run(
-            self._state,
-            self.current_ds_ident,
-        )
-        if ds is None:
-            self.logger.error(f'Cannot find dataset {self.current_ds_ident}')
+        ctx = self._resources.replay_context
+        try:
+            recording = self._recording_map.get(self._tools.replay_select.value, None)
+            if recording is None:
+                raise FileNotFoundError
+            path: pathlib.Path = self.results_manager.get_result_container(recording.result_id).data
+            ds = ctx.load('npy', path)
+        except (AttributeError, FileNotFoundError):
+            self.logger.error(f'Cannot find dataset {self._tools.replay_select.value}')
+            return
+        except Exception as err:
+            self.logger.log_from_exception(err, reraise=True)
+
         roi = self.get_roi(ds)
 
         try:
@@ -533,8 +535,8 @@ class UIContext:
 
     async def run_offline(self, *e, run_from: list[RunFromT] | None = None):
         lifecycle = OfflineLifecycle(self)
-        ctx = self._resources.get_ctx(self._state)
-        ds = self._resources.get_ds_for_run(self._state, self.current_ds_ident)
+        ctx = self._resources.ctx
+        ds = self._resources.ds
         roi = self.get_roi(ds)
 
         try:
