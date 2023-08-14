@@ -561,4 +561,11 @@ class ResultsManager:
         *result_type: type[ResultContainer],
         from_rows: tuple[ResultRow] | None = None,
     ) -> Iterator[ResultRow]:
-        raise NotImplementedError
+        result_iter = self._results
+        if from_rows is not None:
+            if len(from_rows) == 0:
+                raise ValueError("Must supply rows to search")
+            result_iter = from_rows
+        for result in result_iter:
+            if result.result_type in result_type:
+                yield result
