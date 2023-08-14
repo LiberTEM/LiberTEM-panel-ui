@@ -109,7 +109,7 @@ class RecordWindow(UIWindow, ui_type=UIType.RESERVED):
         if not udfs:
             return
         record_udf: RecordUDF = udfs[0]
-        filepath = record_udf.params.filename
+        filepath = pathlib.Path(record_udf.params.filename)
         try:
             n_px = prod(record_udf.meta.dataset_shape)
             filesize = np.dtype(record_udf.meta.input_dtype).itemsize * n_px
@@ -118,15 +118,8 @@ class RecordWindow(UIWindow, ui_type=UIType.RESERVED):
             # In case the the UDFMeta is not correctly set
             self.logger.info(f'Data recorded at {filepath}')
 
-        params = {}
-        try:
-            ident = f'ds-{str(uuid.uuid4())[:5]}'
-            self._ui_context._resources.recordings[ident] = filepath
-        except AttributeError:
-            pass
-
         window_row = self.results_manager.new_window_run(self, results.run_id)
-        rc = RecordResultContainer('recording', str(filepath), meta=params)
+        rc = RecordResultContainer('recording', filepath, meta={})
         result = self.results_manager.new_result(rc, results.run_id, window_row)
         return (result,)
 
