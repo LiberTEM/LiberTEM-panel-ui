@@ -1,6 +1,7 @@
 from __future__ import annotations
 import uuid
 import asyncio
+from types import SimpleNamespace
 from enum import Enum
 from typing import TYPE_CHECKING, TypeVar, NamedTuple, Any, Callable, TypedDict
 
@@ -145,6 +146,7 @@ class UIWindow:
         # using asyncio, to avoid tasks being garbage collected
         self._futures: set[asyncio.Future] = set()
 
+        self._header_ns = SimpleNamespace()
         self._header_layout = self.build_header_layout()
         self._inner_layout = self.build_inner_container()
         self._layout = self.build_outer_container(
@@ -180,7 +182,7 @@ class UIWindow:
         return pn.Row
 
     def build_header_layout(self):
-        self._collapse_button = pn.widgets.Button(
+        self._header_ns._collapse_button = pn.widgets.Button(
             name='▼',
             button_type='light',
             width=35,
@@ -188,33 +190,33 @@ class UIWindow:
             align='center',
             margin=(0, 0),
         )
-        self._collapse_button.param.watch(self._collapse_cb, 'value')
-        self._title_text = pn.pane.Markdown(
+        self._header_ns._collapse_button.param.watch(self._collapse_cb, 'value')
+        self._header_ns._title_text = pn.pane.Markdown(
             object=f'### {self.properties.title_md}',
             align='center',
         )
-        self._id_text = pn.widgets.StaticText(
+        self._header_ns._id_text = pn.widgets.StaticText(
             value=f'[<b>{self._ident}</b>]',
             align='center',
         )
 
         lo = pn.Row(
-            self._collapse_button,
-            self._title_text,
-            self._id_text,
+            self._header_ns._collapse_button,
+            self._header_ns._title_text,
+            self._header_ns._id_text,
         )
 
         if self.properties.header_activate:
-            self._active_cbox = pn.widgets.Checkbox(
+            self._header_ns._active_cbox = pn.widgets.Checkbox(
                 name='Active',
                 value=True,
                 align='center',
                 min_width=50,
             )
-            lo.append(self._active_cbox)
+            lo.append(self._header_ns._active_cbox)
 
         if self.properties.header_remove:
-            self._remove_btn = pn.widgets.Button(
+            self._header_ns._remove_btn = pn.widgets.Button(
                 name='Remove',
                 button_type='danger',
                 width_policy='min',
@@ -226,19 +228,19 @@ class UIWindow:
                 # it is being run completes gracefully
                 self._ui_context._remove(self)
 
-            self._remove_btn.on_click(_remove_self)
-            lo.append(self._remove_btn)
+            self._header_ns._remove_btn.on_click(_remove_self)
+            lo.append(self._header_ns._remove_btn)
 
         if self.properties.header_run:
-            self._run_btn = pn.widgets.Button(
+            self._header_ns._run_btn = pn.widgets.Button(
                 name='Run this',
                 button_type='success',
                 width_policy='min',
                 align='center',
                 min_width=75,
             )
-            self._run_btn.on_click(self.run_from_btn)
-            lo.append(self._run_btn)
+            self._header_ns._run_btn.on_click(self.run_from_btn)
+            lo.append(self._header_ns._run_btn)
 
         return lo
 
@@ -275,10 +277,10 @@ class UIWindow:
     def _collapse_cb(self, e):
         if self._inner_layout.visible:
             self._inner_layout.visible = False
-            self._collapse_button.name = '▶'
+            self._header_ns._collapse_button.name = '▶'
         else:
             self._inner_layout.visible = True
-            self._collapse_button.name = '▼'
+            self._header_ns._collapse_button.name = '▼'
 
     def set_state(self, old_state: UIState, new_state: UIState):
         # Called on UI state transitions
@@ -294,13 +296,13 @@ class UIWindow:
     @property
     def is_active(self) -> bool:
         try:
-            return self._active_cbox.value
+            return self._header_ns._active_cbox.value
         except AttributeError:
             return True
 
     def set_active(self, val: bool):
         try:
-            self._active_cbox.value = val
+            self._header_ns._active_cbox.value = val
         except AttributeError:
             raise AttributeError('Cannot set_active on window without active/disable option.')
 
@@ -316,11 +318,11 @@ class UIWindow:
         # Subclass can override this method if it does not
         # want the run_btn to be disabled when pressed
         # (i.e. if job.quiet == True)
-        self._run_btn.disabled = True
+        self._header_ns._run_btn.disabled = True
         try:
             await self.run_this(*e, run_from=self.get_job)
         finally:
-            self._run_btn.disabled = False
+            self._header_ns._run_btn.disabled = False
 
     def run_this_bk(self, attr, old, new, run_from: RunFromT | None = None):
         # Run a job from a Bokeh-style callback, asynchronously
@@ -393,7 +395,7 @@ class UIWindow:
         if n_trackers == 0:
             return
         elif n_trackers == 1:
-            self._tracker_display_toggle = pn.widgets.Toggle(
+            self._header_ns._tracker_display_toggle = pn.widgets.Toggle(
                 name='Display',
                 value=False,
                 button_type='default',
@@ -402,12 +404,14 @@ class UIWindow:
             )
             self._header_layout.extend((
                 button_divider(),
-                self._tracker_display_toggle,
+                self._header_ns._tracker_display_toggle,
             ))
-            self._tracker_display_toggle.param.watch(self._toggle_tracker_visible, 'value')
+            self._header_ns._tracker_display_toggle.param.watch(
+                self._toggle_tracker_visible, 'value'
+            )
             tracker_name = tuple(self.trackers.keys())[0]
             tracker = self.trackers[tracker_name]
-            self._tracker_select = pn.widgets.RadioButtonGroup(
+            self._header_ns._tracker_select = pn.widgets.RadioButtonGroup(
                 options=[tracker_name],
                 button_type='default',
                 value=tracker_name,
@@ -415,15 +419,17 @@ class UIWindow:
                 min_width=75,
             )
             self._tracker_layouts = pn.Row(
-                self._tracker_select,
+                self._header_ns._tracker_select,
                 margin=(0, 0),
-                visible=self._tracker_display_toggle.value,
+                visible=self._header_ns._tracker_display_toggle.value,
             )
             self._header_layout.append(self._tracker_layouts)
         elif n_trackers == 2:
-            self._tracker_select.param.watch(self._toggle_trackers_selected, 'value')
+            self._header_ns._tracker_select.param.watch(
+                self._toggle_trackers_selected, 'value'
+            )
 
-        self._tracker_select.options = list(self.trackers.keys())
+        self._header_ns._tracker_select.options = list(self.trackers.keys())
         for tracker in self.trackers.values():
             if tracker.layout is None:
                 tracker.layout = pn.Row(
@@ -441,10 +447,10 @@ class UIWindow:
 
     def _toggle_trackers_selected(self, *e):
         for tracker_name, tracker in self.trackers.items():
-            is_selected = self._tracker_select.value == tracker_name
+            is_selected = self._header_ns._tracker_select.value == tracker_name
             if not is_selected:
                 tracker.set_visible(is_selected)
-        self.trackers[self._tracker_select.value].set_visible(True)
+        self.trackers[self._header_ns._tracker_select.value].set_visible(True)
 
 
 class UDFWindowJob(NamedTuple):
