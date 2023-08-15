@@ -32,10 +32,9 @@ if TYPE_CHECKING:
     import pathlib
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import UDFResults
-    from libertem.io.dataset.npy import NPYDataSet
     from libertem_live.api import LiveContext
     from libertem.api import DataSet, Context
-    from .base import RunFromT
+    from .base import RunFromT, WindowPropertiesTDict
 
 
 class UITools:
@@ -234,26 +233,23 @@ class UIContext:
     def add(
         self,
         window_cls: Type[UIWindow] | str,
-        insert_at: int | None = None,
-        collapsed: bool = False,
-        window_kwargs: dict[str, Any] | None = None,
+        window_props: WindowPropertiesTDict | None = None,
+        window_data: Any | None = None,
     ) -> UIContext:
         # Add a window and return self to allow method chaining
         # Internal methods use _add to get the created UIWindow
         self._add(
             window_cls,
-            insert_at=insert_at,
-            collapsed=collapsed,
-            window_kwargs=window_kwargs,
+            window_props=window_props,
+            window_data=window_data,
         )
         return self
 
     def _add(
         self,
         window_cls: Type[UIWindow] | str,
-        insert_at: int | None = None,
-        collapsed: bool = False,
-        window_kwargs: dict[str, Any] | None = None,
+        window_props: WindowPropertiesTDict | None = None,
+        window_data: Any | None = None,
     ) -> UIWindow:
         window_id = str(uuid.uuid4())[:6]
         try:
@@ -267,11 +263,13 @@ class UIContext:
                     window_name = window_cls.__name__
                 except AttributeError:
                     raise RuntimeError(f'window_cls must be a UIWindow sub-class, got {window_cls}')
-            window: UIWindow = window_cls(self, window_id)
-            window.initialize(
-                self._resources.init_with(),
-                **(window_kwargs if window_kwargs else {}),
+            window: UIWindow = window_cls(
+                self,
+                window_id,
+                prop_overrides=window_props if window_props else {},
+                window_data=window_data,
             )
+            window.initialize(self._resources.init_with())
             if window.ident != window_id:
                 raise RuntimeError('Mismatching window IDs')
         except Exception as e:
@@ -279,15 +277,15 @@ class UIContext:
             self.logger.log_from_exception(e, reraise=True, msg=msg)
         self._windows[window_id] = window
         if (window_layout := window.layout()) is not None:
-            if insert_at is not None:
-                self._windows_area.insert(insert_at, window_layout)
+            if window.properties.insert_at is not None:
+                self._windows_area.insert(window.properties.insert_at, window_layout)
             else:
                 self._windows_area.append(window_layout)
             self.logger.info(f'Added window {window.properties.title_md} - {window.ident}')
         else:
             self.logger.info(f'Added window {window.__class__.__name__} - '
                              f'{window.ident} but no layout provided')
-        if collapsed:
+        if window.properties.init_collapsed:
             window._collapse_cb(None)
         return window
 
@@ -295,7 +293,7 @@ class UIContext:
         window_id = self._unique_windows.get(label, None)
         window = self._windows.get(window_id, None)
         if e.new:
-            window = self._add(window_cls, insert_at=insert_at)
+            window = self._add(window_cls, window_props=dict(insert_at=insert_at))
             self._unique_windows[label] = window.ident
         else:
             self._remove(window)

@@ -2,7 +2,7 @@ from __future__ import annotations
 import uuid
 import asyncio
 from enum import Enum
-from typing import TYPE_CHECKING, TypeVar, NamedTuple, Any, Callable
+from typing import TYPE_CHECKING, TypeVar, NamedTuple, Any, Callable, TypedDict
 
 import panel as pn
 
@@ -52,22 +52,41 @@ class UIType(Enum):
     RESERVED = 'Reserved'
 
 
+T = TypeVar('T', bound='WindowProperties')
+
+
 class WindowProperties(NamedTuple):
     name: str
     title_md: str
 
+    insert_at: int | None = None
+    init_collapsed: bool = False
     header_activate: bool = True
     header_remove: bool = True
     header_run: bool = True
     self_run_only: bool = False
 
-    def with_other(self, **kwargs: dict[str, str | bool]):
-        return WindowProperties(
+    def with_other(self: T, **kwargs: dict[str, str | bool]) -> T:
+        return type(self)(
             **{
                 **self._asdict(),
                 **kwargs,
             }
         )
+
+# Exists to help type-hint property overrides
+# Ideally would use a NamedTuple but don't want
+# to have the default values when overriding
+class WindowPropertiesTDict(TypedDict):
+    name: str
+    title_md: str
+
+    insert_at: int | None
+    init_collapsed: bool
+    header_activate: bool
+    header_remove: bool
+    header_run: bool
+    self_run_only: bool
 
 
 class UIWindow:
@@ -106,12 +125,21 @@ class UIWindow:
     def default_properties() -> WindowProperties:
         raise NotImplementedError()
 
-    def __init__(self, ui_context: UIContext, ident: str | None = None):
+    def __init__(
+        self,
+        ui_context: UIContext,
+        ident: str | None = None,
+        prop_overrides: WindowPropertiesTDict | None = None,
+        window_data: Any | None = None,
+    ):
         self._ui_context = ui_context
         if ident is None:
             ident = str(uuid.uuid4())[:5]
         self._ident = ident
-        self._properties: WindowProperties = self.default_properties()
+        prop_overrides = {} if prop_overrides is None else prop_overrides
+        self._window_properties = self.default_properties().with_other(**prop_overrides)
+        self._window_data = window_data
+        self.validate_data()
         self._trackers: dict[str, ResultTracker] = {}
         # stores references to in-flight Futures launched
         # using asyncio, to avoid tasks being garbage collected
@@ -123,6 +151,9 @@ class UIWindow:
             self._header_layout,
             self._inner_layout,
         )
+
+    def validate_data(self):
+        pass
 
     @property
     def ident(self) -> str:
@@ -141,8 +172,8 @@ class UIWindow:
         return self._ui_context.logger
 
     @property
-    def properties(self):
-        return self._properties
+    def properties(self) -> WindowProperties:
+        return self._window_properties
 
     @staticmethod
     def inner_container_cls():
