@@ -8,7 +8,7 @@ from libertem.udf.raw import PickUDF
 from libertem.udf.sumsigudf import SumSigUDF
 
 from .live_plot import AperturePlot
-from .base import UIWindow, UIState, UDFWindowJob, JobResults
+from .base import UIWindow, UIState, UDFWindowJob, JobResults, WindowProperties
 from ..display.display_base import Cursor
 from ..display.utils import PointYX
 from ..utils import get_initial_pos
@@ -163,10 +163,14 @@ class PickUDFBaseWindow(UIWindow):
 
 
 class PickUDFWindow(PickUDFBaseWindow):
-    name = 'pick_frame'
-    title_md = 'PickUDF'
-    self_run_only = True
-    header_activate = False
+    @staticmethod
+    def default_properties():
+        return WindowProperties(
+            'pick_frame',
+            'PickUDF',
+            self_run_only=True,
+            header_activate=False,
+        )
 
     def initialize(self, dataset: DataSet, with_layout: bool = True):
         self._pick_base(dataset)

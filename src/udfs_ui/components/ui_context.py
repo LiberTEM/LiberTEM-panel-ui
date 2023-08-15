@@ -283,7 +283,7 @@ class UIContext:
                 self._windows_area.insert(insert_at, window_layout)
             else:
                 self._windows_area.append(window_layout)
-            self.logger.info(f'Added window {window.title_md} - {window.ident}')
+            self.logger.info(f'Added window {window.properties.title_md} - {window.ident}')
         else:
             self.logger.info(f'Added window {window.__class__.__name__} - '
                              f'{window.ident} but no layout provided')
@@ -324,7 +324,7 @@ class UIContext:
         for i in reversed(index):
             self._windows_area.pop(i)
         self._windows.pop(window.ident, None)
-        self.logger.info(f'Removed window {window.title_md} - {window.ident}')
+        self.logger.info(f'Removed window {window.properties.title_md} - {window.ident}')
 
     def _set_state(self, new_state: UIState, *e):
         self.logger.info(f'Set UI-state {new_state.value.upper()}')
@@ -560,7 +560,7 @@ class UIContext:
 
         if run_from is None:
             run_from = [w.get_job for w in self._windows.values()
-                        if len(self._windows) <= 1 or (not w.self_run_only)]
+                        if len(self._windows) <= 1 or (not w.properties.self_run_only)]
 
         try:
             to_run: list[UDFWindowJob] = [job for job_getter in run_from

@@ -132,7 +132,7 @@ class ResultsManager:
         self._windows.append(
             WindowRow(
                 window_id=window.ident,
-                window_name=window.title_md,
+                window_name=window.properties.title_md,
             )
         )
 

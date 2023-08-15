@@ -52,15 +52,25 @@ class UIType(Enum):
     RESERVED = 'Reserved'
 
 
+class WindowProperties(NamedTuple):
+    name: str
+    title_md: str
+
+    header_activate: bool = True
+    header_remove: bool = True
+    header_run: bool = True
+    self_run_only: bool = False
+
+    def with_other(self, **kwargs: dict[str, str | bool]):
+        return WindowProperties(
+            **{
+                **self._asdict(),
+                **kwargs,
+            }
+        )
+
+
 class UIWindow:
-    title_md = 'UI Window'
-    inner_container_cls = pn.Row
-
-    header_activate = True
-    header_remove = True
-    can_self_run = True
-    self_run_only = False
-
     _registry = {t: {} for t in UIType}
 
     def __init_subclass__(
@@ -74,11 +84,12 @@ class UIWindow:
         if ui_type is not None and not is_abstract:
             if ui_type not in cls._registry.keys():
                 cls._registry[ui_type] = {}
-            if not force and cls.name in cls._registry[ui_type]:
-                raise TypeError(f'Cannot register a second UI with name {cls.name}, '
+            props = cls.default_properties()
+            if not force and props.name in cls._registry[ui_type]:
+                raise TypeError(f'Cannot register a second UI with name {props.name}, '
                                 'use force=True in class definition to over-write '
                                 f'or use another name. <{cls}>')
-            cls._registry[ui_type][cls.name] = cls
+            cls._registry[ui_type][props.name] = cls
 
     @classmethod
     def get_implementations(cls, ui_type: UIType) -> dict[str, UIWindow]:
@@ -91,11 +102,20 @@ class UIWindow:
             implementations.update(_implementations)
         return implementations
 
+    @staticmethod
+    def default_properties() -> WindowProperties:
+        raise NotImplementedError()
+
     def __init__(self, ui_context: UIContext, ident: str | None = None):
         self._ui_context = ui_context
         if ident is None:
             ident = str(uuid.uuid4())[:5]
         self._ident = ident
+        self._properties: WindowProperties = self.default_properties()
+        self._trackers: dict[str, ResultTracker] = {}
+        # stores references to in-flight Futures launched
+        # using asyncio, to avoid tasks being garbage collected
+        self._futures: set[asyncio.Future] = set()
 
         self._header_layout = self.build_header_layout()
         self._inner_layout = self.build_inner_container()
@@ -103,10 +123,6 @@ class UIWindow:
             self._header_layout,
             self._inner_layout,
         )
-        self._trackers: dict[str, ResultTracker] = {}
-        # stores references to in-flight Futures launched
-        # using asyncio, to avoid tasks being garbage collected
-        self._futures: set[asyncio.Future] = set()
 
     @property
     def ident(self) -> str:
@@ -124,63 +140,76 @@ class UIWindow:
     def logger(self):
         return self._ui_context.logger
 
+    @property
+    def properties(self):
+        return self._properties
+
+    @staticmethod
+    def inner_container_cls():
+        return pn.Row
+
     def build_header_layout(self):
-        self._title_text = pn.pane.Markdown(
-            object=f'### {self.title_md}',
-            align='center',
-        )
-        self._id_text = pn.widgets.StaticText(
-            value=f'[<b>{self._ident}</b>]',
-            align='center',
-        )
-        self._remove_btn = pn.widgets.Button(
-            name='Remove',
-            button_type='danger',
-            width_policy='min',
-            align='center',
-            visible=self.header_remove,
-        )
-
-        def _remove_self(*e):
-            # Need to check if a window being removed while
-            # it is being run completes gracefully
-            self._ui_context._remove(self)
-
-        self._remove_btn.on_click(_remove_self)
-        self._active_cbox = pn.widgets.Checkbox(
-            name='Active',
-            value=True,
-            align='center',
-            min_width=50,
-            visible=self.header_activate,
-        )
-        self._run_btn = pn.widgets.Button(
-            name='Run this',
-            button_type='success',
-            width_policy='min',
-            align='center',
-            min_width=75,
-            visible=self.can_self_run,
-        )
-        self._run_btn.on_click(self.run_from_btn)
-
         self._collapse_button = pn.widgets.Button(
             name='▼',
-            button_type='default',
+            button_type='light',
             width=35,
             height=35,
             align='center',
             margin=(0, 0),
         )
         self._collapse_button.param.watch(self._collapse_cb, 'value')
-        return pn.Row(
+        self._title_text = pn.pane.Markdown(
+            object=f'### {self.properties.title_md}',
+            align='center',
+        )
+        self._id_text = pn.widgets.StaticText(
+            value=f'[<b>{self._ident}</b>]',
+            align='center',
+        )
+
+        lo = pn.Row(
             self._collapse_button,
             self._title_text,
             self._id_text,
-            self._active_cbox,
-            self._remove_btn,
-            self._run_btn,
         )
+
+        if self.properties.header_activate:
+            self._active_cbox = pn.widgets.Checkbox(
+                name='Active',
+                value=True,
+                align='center',
+                min_width=50,
+            )
+            lo.append(self._active_cbox)
+
+        if self.properties.header_remove:
+            self._remove_btn = pn.widgets.Button(
+                name='Remove',
+                button_type='danger',
+                width_policy='min',
+                align='center',
+            )
+
+            def _remove_self(*e):
+                # Need to check if a window being removed while
+                # it is being run completes gracefully
+                self._ui_context._remove(self)
+
+            self._remove_btn.on_click(_remove_self)
+            lo.append(self._remove_btn)
+
+        if self.properties.header_run:
+            self._run_btn = pn.widgets.Button(
+                name='Run this',
+                button_type='success',
+                width_policy='min',
+                align='center',
+                min_width=75,
+            )
+            self._run_btn.on_click(self.run_from_btn)
+            lo.append(self._run_btn)
+
+        return lo
 
     def build_outer_container(self, *objs) -> pn.layout.ListPanel:
         lo = pn.Column(pn.layout.Divider(), *objs, width_policy='max')
@@ -188,7 +217,7 @@ class UIWindow:
         return lo
 
     def build_inner_container(self, *objs) -> pn.layout.ListPanel:
-        return self.inner_container_cls(*objs)
+        return self.inner_container_cls()(*objs)
 
     @property
     def inner_layout(self) -> pn.layout.ListPanel:
@@ -233,10 +262,16 @@ class UIWindow:
 
     @property
     def is_active(self) -> bool:
-        return self._active_cbox.value
+        try:
+            return self._active_cbox.value
+        except AttributeError:
+            return True
 
     def set_active(self, val: bool):
-        self._active_cbox.value = val
+        try:
+            self._active_cbox.value = val
+        except AttributeError:
+            raise AttributeError('Cannot set_active on window without active/disable option.')
 
     async def run_this(self, *e, run_from: RunFromT | None = None):
         # The functionality here could allow running

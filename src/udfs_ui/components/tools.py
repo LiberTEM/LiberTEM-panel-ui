@@ -13,7 +13,7 @@ from libertem.udf.sumsigudf import SumSigUDF
 from libertem.common.math import prod
 
 from .live_plot import AperturePlot
-from .base import UIWindow, UIType, UIState, UDFWindowJob, JobResults
+from .base import UIWindow, UIType, UIState, UDFWindowJob, JobResults, WindowProperties
 from .simple import SimpleUDFUIWindow
 from .result_containers import RecordResultContainer
 
@@ -24,10 +24,14 @@ if TYPE_CHECKING:
 
 
 class ROIWindow(UIWindow, ui_type=UIType.RESERVED):
-    name = 'roi'
-    title_md = 'Global ROI'
-    can_self_run = False
-    header_remove = False
+    @staticmethod
+    def default_properties():
+        return WindowProperties(
+            'roi',
+            'Global ROI',
+            header_run=False,
+            header_remove=False,
+        )
 
     def get_roi(self, dataset: DataSet) -> np.ndarray | None:
         if self.is_active:
@@ -60,9 +64,15 @@ class ROIWindow(UIWindow, ui_type=UIType.RESERVED):
 
 
 class RecordWindow(UIWindow, ui_type=UIType.RESERVED):
-    name = 'record'
-    title_md = 'Record'
-    can_self_run = False
+    @staticmethod
+    def default_properties():
+        return WindowProperties(
+            'record',
+            'Record',
+            header_run=False,
+            header_remove=False,
+            header_activate=False,
+        )
 
     def layout(self):
         return None
@@ -125,8 +135,11 @@ class RecordWindow(UIWindow, ui_type=UIType.RESERVED):
 
 
 class SignalMonitorUDFWindow(SimpleUDFUIWindow, ui_type=UIType.RESERVED):
-    name = 'frame_monitor'
-    title_md = 'Monitor'
-    udf_class = SignalMonitorUDF
-    can_self_run = False
-    header_remove = False
+    @staticmethod
+    def default_properties():
+        return WindowProperties(
+            'frame_monitor',
+            'Monitor',
+            header_run=False,
+            header_remove=False,
+        )

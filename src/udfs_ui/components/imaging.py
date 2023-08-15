@@ -15,7 +15,7 @@ from libertem.udf.sumsigudf import SumSigUDF
 from libertem.udf.sum import SumUDF
 from libertem.udf.logsum import LogsumUDF
 
-from .base import UIType, UIState, UDFWindowJob, JobResults
+from .base import UIType, UIState, UDFWindowJob, JobResults, WindowProperties
 from .pick import PickUDFBaseWindow
 from ..display.display_base import DiskSet, RingSet, PointSet
 from .result_containers import Numpy2DResultContainer
@@ -29,8 +29,12 @@ if TYPE_CHECKING:
 
 
 class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
-    name = 'virtual_detector'
-    title_md = 'Virtual Detector'
+    @staticmethod
+    def default_properties():
+        return WindowProperties(
+            'virtual_detector',
+            'Virtual Detector',
+        )
 
     def initialize(self, dataset: DataSet) -> ImagingWindow:
         self._pick_base(dataset)
@@ -289,8 +293,12 @@ class PickNoROIUDF(UDF):
 
 
 class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
-    name = 'frame_imaging'
-    title_md = 'Frame Imaging'
+    @staticmethod
+    def default_properties():
+        return WindowProperties(
+            'frame_imaging',
+            'Frame Imaging',
+        )
 
     def initialize(self, dataset: DataSet) -> ImagingWindow:
         self._pick_base(dataset)
