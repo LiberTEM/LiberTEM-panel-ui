@@ -342,7 +342,7 @@ class UIContext:
         self._add_window_row.extend(base_controls_tools)
 
         self._tools.add_window_btn.on_click(self._add_handler)
-        self._tools.run_btn.on_click(self._run_handler)
+        self._tools.run_btn.on_click(self._run_handler_pn)
         self._tools.stop_btn.on_click(self._stop_handler)
         self._tools.roi_toggle_btn.param.watch(
             partial(self._toggle_unique_window, 'roi', ROIWindow),
@@ -350,7 +350,7 @@ class UIContext:
         )
         if self._state in (UIState.LIVE, UIState.REPLAY):
             self._tools.mode_btn.on_click(self._mode_handler)
-            self._tools.continuous_btn.on_click(self._continuous_handler)
+            self._tools.continuous_btn.on_click(self._continuous_handler_pn)
             self._tools.record_toggle_btn.param.watch(
                 partial(self._toggle_unique_window, 'record', RecordWindow),
                 'value'
@@ -360,11 +360,13 @@ class UIContext:
                 'value'
             )
 
+    async def _run_handler_pn(self, e):
+        await self._run_handler()
+
     async def _run_handler(
         self,
-        *e,
-        run_continuous: bool = False,
         run_from: list[RunFromT] | None = None,
+        run_continuous: bool = False,
     ):
         # This is problematic if we pick a frame
         # while running a long analysis, cursor will
@@ -375,13 +377,13 @@ class UIContext:
         self._continue_running = True
         async with self._run_lock:
             if run_continuous:
-                await self.run_continuous(*e, run_from=run_from)
+                await self.run_continuous(run_from=run_from)
             elif self._state == UIState.OFFLINE:
-                await self.run_offline(*e, run_from=run_from)
+                await self.run_offline(run_from=run_from)
             elif self._state == UIState.LIVE:
-                await self.run_live(*e, run_from=run_from)
+                await self.run_live(run_from=run_from)
             elif self._state == UIState.REPLAY:
-                await self.run_replay(*e, run_from=run_from)
+                await self.run_replay(run_from=run_from)
 
     async def _add_handler(self, e):
         mapper = UIWindow.get_all_implementations()
@@ -402,14 +404,17 @@ class UIContext:
         if self._continue_running:
             self._continue_running = False
 
-    async def _continuous_handler(self, *e):
+    async def _continuous_handler_pn(self, e):
+        await self._continuous_handler()
+
+    async def _continuous_handler(self, run_from: list[RunFromT] | None = None):
         if self._continuous_acquire:
             self._continuous_acquire = False
             # Should be on the lifecycle class, really!
             # Would need an additional method
             self._tools.continuous_btn.name = 'Stopping...'
             return
-        await self._run_handler(*e, run_continuous=True)
+        await self._run_handler(run_from=run_from, run_continuous=True)
 
     def _setup_tools(self):
         if self._state == UIState.OFFLINE:
@@ -473,7 +478,7 @@ class UIContext:
             roi = roi_window.get_roi(ds)
         return roi
 
-    async def run_live(self, *e, run_from: list[RunFromT] | None = None):
+    async def run_live(self, run_from: list[RunFromT] | None = None):
         lifecycle = LiveLifecycle(self)
         live_ctx = self._resources.live_ctx
         # If the record_window is available then it is implicitly active
@@ -488,7 +493,7 @@ class UIContext:
         finally:
             lifecycle.after()
 
-    async def run_continuous(self, *e, run_from: list[RunFromT] | None = None):
+    async def run_continuous(self, run_from: list[RunFromT] | None = None):
         lifecycle = ContinuousLifecycle(self)
         live_ctx = self._resources.live_ctx
         self._continuous_acquire = True
@@ -507,7 +512,7 @@ class UIContext:
             self._continuous_acquire = False
             lifecycle.after()
 
-    async def run_replay(self, *e, run_from: list[RunFromT] | None = None):
+    async def run_replay(self, run_from: list[RunFromT] | None = None):
         lifecycle = ReplayLifecycle(self)
         ctx = self._resources.replay_context
         try:
@@ -535,7 +540,7 @@ class UIContext:
         finally:
             lifecycle.after()
 
-    async def run_offline(self, *e, run_from: list[RunFromT] | None = None):
+    async def run_offline(self, run_from: list[RunFromT] | None = None):
         lifecycle = OfflineLifecycle(self)
         ctx = self._resources.ctx
         ds = self._resources.ds

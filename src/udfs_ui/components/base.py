@@ -177,6 +177,10 @@ class UIWindow:
     def properties(self) -> WindowProperties:
         return self._window_properties
 
+    @property
+    def submit_to(self):
+        return self._ui_context._run_handler
+
     @staticmethod
     def inner_container_cls():
         return pn.Row
@@ -309,21 +313,21 @@ class UIWindow:
         except AttributeError:
             raise AttributeError('Cannot set_active on window without active/disable option.')
 
-    async def run_this(self, *e, run_from: RunFromT | None = None):
+    async def run_this(self, run_from: RunFromT | None = None):
         # The functionality here could allow running
         # windows independently and concurrently, but would
         # need to refactor progress bar + UI state synchronisation
         if run_from is None:
             run_from = self.get_job
-        await self._ui_context._run_handler(*e, run_from=[run_from])
+        await self.submit_to(run_from=[run_from])
 
-    async def run_from_btn(self, *e):
+    async def run_from_btn(self, e):
         # Subclass can override this method if it does not
         # want the run_btn to be disabled when pressed
         # (i.e. if job.quiet == True)
         self._header_ns._run_btn.disabled = True
         try:
-            await self.run_this(*e, run_from=self.get_job)
+            await self.run_this(run_from=self.get_job)
         finally:
             self._header_ns._run_btn.disabled = False
 
