@@ -179,7 +179,7 @@ class UIWindow:
 
     @property
     def submit_to(self):
-        return self._ui_context._run_handler
+        return self._ui_context._run_job
 
     @staticmethod
     def inner_container_cls():

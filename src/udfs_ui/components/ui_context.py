@@ -363,6 +363,9 @@ class UIContext:
     async def _run_handler_pn(self, e):
         await self._run_handler()
 
+    async def _run_job(self, run_from: list[RunFromT]):
+        await self._run_handler(run_from=run_from)
+
     async def _run_handler(
         self,
         run_from: list[RunFromT] | None = None,
