@@ -561,8 +561,10 @@ class UIContext:
             return
 
         if run_from is None:
-            run_from = [w.get_job for w in self._windows.values()
-                        if len(self._windows) <= 1 or (not w.properties.self_run_only)]
+            run_from = [
+                w.get_job for w in self._windows.values()
+                if w.is_active and (len(self._windows) <= 1 or (not w.properties.self_run_only))
+            ]
 
         try:
             to_run: list[UDFWindowJob] = [job for job_getter in run_from
