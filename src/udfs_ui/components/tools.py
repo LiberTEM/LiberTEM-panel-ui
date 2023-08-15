@@ -135,6 +135,8 @@ class RecordWindow(UIWindow, ui_type=UIType.RESERVED):
 
 
 class SignalMonitorUDFWindow(SimpleUDFUIWindow, ui_type=UIType.RESERVED):
+    udf_class = SignalMonitorUDF
+
     @staticmethod
     def default_properties():
         return WindowProperties(

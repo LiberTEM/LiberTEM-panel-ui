@@ -22,7 +22,7 @@ class SimpleUDFUIWindow(UIWindow):
         self._plot = AperturePlot.new(
             dataset,
             self._udf,
-            title=self.title_md,
+            title=self.properties.title_md,
         )
         self.inner_layout.append(self._plot.layout)
         return self
