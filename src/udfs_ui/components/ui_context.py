@@ -225,7 +225,7 @@ class UIContext:
     def results_manager(self):
         return self._results_manager
 
-    def _find_window_implem(self, name) -> Type[UIWindow] | None:
+    def _find_window_implem(self, name: str) -> Type[UIWindow] | None:
         # This implies all implementations have unique names
         # probably a good idea to enforce this during registration
         return UIWindow.get_all_implementations().get(name, None)
@@ -263,7 +263,8 @@ class UIContext:
                     window_name = window_cls.__name__
                 except AttributeError:
                     raise RuntimeError(f'window_cls must be a UIWindow sub-class, got {window_cls}')
-            window: UIWindow = window_cls(
+            window_cls: type[UIWindow]
+            window = window_cls(
                 self,
                 window_id,
                 prop_overrides=window_props if window_props else {},
@@ -275,6 +276,7 @@ class UIContext:
         except Exception as e:
             msg = f'Error while adding {window_name}'
             self.logger.log_from_exception(e, reraise=True, msg=msg)
+            return
         self._windows[window_id] = window
         if (window_layout := window.layout()) is not None:
             if window.properties.insert_at is not None:
@@ -287,6 +289,8 @@ class UIContext:
                              f'{window.ident} but no layout provided')
         if window.properties.init_collapsed:
             window._collapse_cb(None)
+        for btn in window._get_remove_buttons():
+            btn.on_click(lambda e: self._remove(window))
         return window
 
     def _toggle_unique_window(self, label, window_cls, e, insert_at: int | None = 0):
