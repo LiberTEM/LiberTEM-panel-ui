@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from .results import ResultRow
     from libertem.udf.base import UDFResultDict
 
-def adapt_figure(fig, shape, maxdim: int | None = 450, mindim: int | None = None):
+def adapt_figure(fig: figure, shape, maxdim: int | None = 450, mindim: int | None = None):
     if mindim is None:
         # Don't change aspect ratio in this case
         mindim = -1
@@ -48,6 +48,12 @@ def adapt_figure(fig, shape, maxdim: int | None = 450, mindim: int | None = None
 
     fig.x_range.range_padding = 0.
     fig.y_range.range_padding = 0.
+    fig.toolbar.active_drag = None
+    zoom_tools = tuple(t for t in fig.tools if isinstance(t, WheelZoomTool))
+    try:
+        fig.toolbar.active_scroll = zoom_tools[0]
+    except IndexError:
+        pass
 
 
 class AperturePlotBase(Live2DPlot):
@@ -249,7 +255,7 @@ class AperturePlot(AperturePlotBase):
         self,
         rectangles: bool = True,
         polygons: bool = True,
-        activate: bool = True,
+        activate: bool = False,
         clear_btn: bool = True,
     ):
         if polygons:
