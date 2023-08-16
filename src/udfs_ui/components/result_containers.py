@@ -1,13 +1,17 @@
 from __future__ import annotations
 from typing import Any
+import io
 import pathlib
+import tempfile
 
 import panel as pn
 import numpy as np
 from bokeh.plotting import figure
 
 from ..display.image_db import BokehImage
+from ..utils.export import image_save_functions
 from .live_plot import adapt_figure
+from .terminal_logger import logger
 
 
 class ResultContainer:
@@ -103,7 +107,50 @@ class Numpy2DResultContainer(NumpyResultContainer):
         im.on(fig)
         adapt_figure(fig, self.data.shape, mindim=100)
         fig.title.text = self.title
-        return pn.Column(pn.pane.Bokeh(fig))
+        return pn.Column(
+            pn.pane.Bokeh(fig),
+            self.get_save_widgets(),
+        )
+
+    def get_save_widgets(self):
+        format_dropdown = pn.widgets.Select(
+            name='Format',
+            options=[*image_save_functions.keys()],
+            value='.tif',
+            width=60,
+        )
+
+        def _name_getter():
+            return f'{self.name}{format_dropdown.value}'
+
+        def _set_filename(e):
+            file_downloader.filename = _name_getter()
+
+        format_dropdown.param.watch(_set_filename, 'value')
+
+        def _generate_output():
+            format = format_dropdown.value
+            getter = image_save_functions[format]
+            with tempfile.TemporaryDirectory() as tdir:
+                root = pathlib.Path(tdir)
+                path = root / f'tempfile{format}'
+                try:
+                    getter(path, self.data)
+                except Exception as err:
+                    logger.log_from_exception(err, reraise=True)
+                with path.open('rb') as fp:
+                    file_bytes = fp.read()
+            return io.BytesIO(file_bytes)
+
+        file_downloader = pn.widgets.FileDownload(
+            callback=_generate_output,
+            filename=_name_getter(),
+            button_type='success',
+            align='end',
+            height=40,
+            icon='device-floppy',
+        )
+        return pn.Row(file_downloader, format_dropdown)
 
 
 class RecordResultContainer(ResultContainer):
