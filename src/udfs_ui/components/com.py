@@ -4,7 +4,7 @@ from typing_extensions import Self, Literal
 
 import numpy as np
 import panel as pn
-from libertem.udf.com import CoMUDF, CoMParams
+from libertem.udf.com import CoMUDF, CoMParams, RegressionOptions
 
 from .imaging import ImagingWindow
 from .base import UIType, WindowProperties
@@ -39,10 +39,16 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         }
         self.nav_plot.get_channel_select()        
 
+        self._regression_mapping = {
+            'NO_REGRESSION': RegressionOptions.NO_REGRESSION,
+            'SUBTRACT_MEAN': RegressionOptions.SUBTRACT_MEAN,
+            'SUBTRACT_LINEAR': RegressionOptions.SUBTRACT_LINEAR,
+        }
         self._regression_select = pn.widgets.Select(
             name='Regression',
-            options=[-1, 0, 1],
-            value=-1,
+            options=list(self._regression_mapping.keys()),
+            value='NO_REGRESSION',
+            width=200,
         )
         self._mode_mapping.pop('Point')        
         self._mode_selector.options = list(self._mode_mapping.keys())
@@ -58,7 +64,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         )
 
     def _get_udf(self, dataset: DataSet) -> tuple[UDF, dict[str, float]]:
-        regression = int(self._regression_select.value)
+        regression = self._regression_mapping[self._regression_select.value]
         mode = self._mode_selector.value
         glyph = self._ring_db.rings
         cx = self._ring_db.cds.data[glyph.x][0]
