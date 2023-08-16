@@ -151,6 +151,7 @@ class PickUDFBaseWindow(UIWindow):
         self,
         job: UDFWindowJob,
         job_results: JobResults,
+        with_push: bool = True,
     ) -> tuple[ResultRow, ...]:
         if not job.udfs:
             return tuple()
@@ -158,7 +159,8 @@ class PickUDFBaseWindow(UIWindow):
         cy, cx = job.params['cy'], job.params['cx']
         self._last_pick = PointYX(cy, cx)
         self.reset_title()
-        pn.io.push_notebook(self.sig_plot.pane)
+        if with_push:
+            pn.io.push_notebook(self.sig_plot.pane)
         return tuple()
 
 
