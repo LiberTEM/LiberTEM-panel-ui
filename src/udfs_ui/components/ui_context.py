@@ -89,7 +89,7 @@ class UITools:
         )
 
         window_keys = [
-            *tuple(UIWindow.get_implementations(UIType.ANALYSIS).keys()),
+            *tuple(UIWindow.get_implementations(UIType.STANDALONE).keys()),
         ]
         self.add_window_btn = pn.widgets.MenuButton(
             name='Add window',
@@ -225,11 +225,6 @@ class UIContext:
     def results_manager(self):
         return self._results_manager
 
-    def _find_window_implem(self, name: str) -> Type[UIWindow] | None:
-        # This implies all implementations have unique names
-        # probably a good idea to enforce this during registration
-        return UIWindow.get_all_implementations().get(name, None)
-
     def add(
         self,
         window_cls: Type[UIWindow] | str,
@@ -255,7 +250,7 @@ class UIContext:
         try:
             if isinstance(window_cls, str):
                 window_name = window_cls
-                window_cls = self._find_window_implem(window_cls)
+                window_cls = UIWindow.get_all_implementations().get(window_name, None)
                 if window_cls is None:
                     raise RuntimeError(f'Unable to find implementation for {window_name}')
             else:

@@ -48,8 +48,7 @@ class UIState(Enum):
 
 
 class UIType(Enum):
-    ANALYSIS = 'Analysis'
-    TOOL = 'Tool'
+    STANDALONE = 'Standalone'
     RESERVED = 'Reserved'
 
 
@@ -91,32 +90,36 @@ class WindowPropertiesTDict(TypedDict):
 
 
 class UIWindow:
-    _registry = {t: {} for t in UIType}
+    _registry: dict[UIType, dict[str, type[UIWindow]]] = {t: {} for t in UIType}
 
     def __init_subclass__(
         cls,
         ui_type: UIType | None = None,
-        is_abstract: bool = False,
         force: bool = False,
         **kwargs,
     ):
         super().__init_subclass__(**kwargs)
-        if ui_type is not None and not is_abstract:
+        if ui_type is not None:
             if ui_type not in cls._registry.keys():
                 cls._registry[ui_type] = {}
+            all_names = tuple(n for implems in cls._registry.values() for n in implems.keys())
+            # Need to enforce or refactor the name-uniqueness of the implementations
+            # across different ui_types, this is currently relied on by UIContext
             props = cls.default_properties()
-            if not force and props.name in cls._registry[ui_type]:
+            if props.name in all_names and (not force):
                 raise TypeError(f'Cannot register a second UI with name {props.name}, '
-                                'use force=True in class definition to over-write '
-                                f'or use another name. <{cls}>')
+                                'use force=True in class definition to over-write, '
+                                f'or use another name. {cls}')
+            elif force:
+                _ = tuple(implems.pop(props.name, None) for implems in cls._registry.values())
             cls._registry[ui_type][props.name] = cls
 
     @classmethod
-    def get_implementations(cls, ui_type: UIType) -> dict[str, UIWindow]:
+    def get_implementations(cls, ui_type: UIType) -> dict[str, type[UIWindow]]:
         return cls._registry.get(ui_type, {})
 
     @classmethod
-    def get_all_implementations(cls) -> dict[str, UIWindow]:
+    def get_all_implementations(cls) -> dict[str, type[UIWindow]]:
         implementations = {}
         for _implementations in cls._registry.values():
             implementations.update(_implementations)

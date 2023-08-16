@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from .results import ResultRow
 
 
-class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
+class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.STANDALONE):
     @staticmethod
     def default_properties():
         return WindowProperties(
@@ -292,7 +292,7 @@ class PickNoROIUDF(UDF):
         dest.intensity += src.intensity
 
 
-class FrameImaging(PickUDFBaseWindow, ui_type=UIType.ANALYSIS):
+class FrameImaging(PickUDFBaseWindow, ui_type=UIType.STANDALONE):
     @staticmethod
     def default_properties():
         return WindowProperties(
