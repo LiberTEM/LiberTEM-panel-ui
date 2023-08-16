@@ -9,7 +9,7 @@ import panel as pn
 pn.extension('floatpanel')
 from bokeh.plotting import figure
 from bokeh.models import CustomJS
-from bokeh.models.tools import CustomAction
+from bokeh.models.tools import CustomAction, WheelZoomTool
 from bokeh.models.annotations import Title
 from bokeh.models.widgets import Button
 from bokeh.events import MouseMove, MouseLeave
@@ -419,6 +419,7 @@ action.callback.execute(action)
         channel_names = list(self._channel_map.keys())
         if selected is None:
             selected = channel_names[0]
+        self.change_channel(selected, push_update=False)
         display_text = pn.widgets.StaticText(
             value=label,
             align='center',
