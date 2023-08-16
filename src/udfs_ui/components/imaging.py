@@ -1,11 +1,12 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+from typing_extensions import Self
 
 import panel as pn
 import numpy as np
 
-from bokeh.models import Tooltip
-from bokeh.models.dom import HTML
+# from bokeh.models import Tooltip
+# from bokeh.models.dom import HTML
 
 from libertem.udf.base import UDF, DataTile
 from libertem.analysis.point import PointMaskAnalysis
@@ -36,7 +37,7 @@ class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.STANDALONE):
             'Virtual Detector',
         )
 
-    def initialize(self, dataset: DataSet) -> ImagingWindow:
+    def initialize(self, dataset: DataSet, with_layout: bool = True) -> Self:
         self._pick_base(dataset)
 
         (cy, cx), (ri, ro), max_dim = get_initial_pos(dataset.shape.sig)
@@ -130,32 +131,34 @@ cds.change.emit();
         )
         self._mode_selector.param.watch(self._toggle_visible, 'value')
 
-        help_button = pn.widgets.TooltipIcon(
-            # value='Help text',
-            value=Tooltip(
-                content=HTML("""
-This tooltip provides help text.<br />
-It can use <b>HTML tags</b> like <a href="https://bokeh.org">links</a>!<br />
-Right now it isn't very helpful...
-"""),
-                position="right"
-            ),
-        )
+#         help_button = pn.widgets.TooltipIcon(
+#             # value='Help text',
+#             value=Tooltip(
+#                 content=HTML("""
+# This tooltip provides help text.<br />
+# It can use <b>HTML tags</b> like <a href="https://bokeh.org">links</a>!<br />
+# Right now it isn't very helpful...
+# """),
+#                 position="right"
+#             ),
+#         )
 
         self.nav_plot.add_mask_tools(activate=False)
 
         self.toolbox.extend((
             self._mode_selector,
-            help_button,
+            # help_button,
         ))
-        self._standard_layout(
-            right_after=(
-                self._radius_slider,
-                self._radii_slider,
-            ),
-        )
 
         self.link_image_plot('Sig', self.sig_plot, ('sig',))
+
+        if with_layout:
+            self._standard_layout(
+                right_after=(
+                    self._radius_slider,
+                    self._radii_slider,
+                ),
+            )
         return self
 
     async def _toggle_visible(self, e):
@@ -208,18 +211,19 @@ Right now it isn't very helpful...
                 'result_name': 'frame_sum',
             }
             return SumSigUDF(), params
+        glyph = self._ring_db.rings
         params = {
-            'cx': self._ring_db.cds.data['cx'][0],
-            'cy': self._ring_db.cds.data['cy'][0],
+            'cx': self._ring_db.cds.data[glyph.x][0],
+            'cy': self._ring_db.cds.data[glyph.y][0],
         }
         if mode == 'Disk':
-            params['r'] = self._ring_db.cds.data['r1'][0]
+            params['r'] = self._ring_db.cds.data[glyph.outer_radius][0]
             result_title = 'Disk Sum'
             result_name = 'disk_sum'
             analysis = DiskMaskAnalysis
         elif mode == 'Annulus':
-            params['ri'] = self._ring_db.cds.data['r0'][0]
-            params['ro'] = self._ring_db.cds.data['r1'][0]
+            params['ri'] = self._ring_db.cds.data[glyph.inner_radius][0]
+            params['ro'] = self._ring_db.cds.data[glyph.outer_radius][0]
             result_title = 'Annular Sum'
             result_name = 'annular_sum'
             analysis = RingMaskAnalysis
@@ -300,7 +304,7 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.STANDALONE):
             'Frame Imaging',
         )
 
-    def initialize(self, dataset: DataSet) -> ImagingWindow:
+    def initialize(self, dataset: DataSet) -> Self:
         self._pick_base(dataset)
 
         widget_width = 350
