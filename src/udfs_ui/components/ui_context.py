@@ -659,6 +659,7 @@ class UIContext:
                 run_record.run_id,
                 job,
                 window_res,
+                ds.shape,
                 damage=damage,
             )
             if job.result_handler is not None:

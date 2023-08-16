@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import UDF, BufferWrapper, UDFResultDict
     from libertem.viz.base import Live2DPlot
+    from libertem.common.shape import Shape
     from .ui_context import UIContext
     from .results import ResultRow
     from .result_tracker import ResultTracker
@@ -477,4 +478,5 @@ class JobResults(NamedTuple):
     run_id: str
     job: UDFWindowJob
     udf_results: tuple[UDFResultDict]
+    ds_shape: Shape
     damage: BufferWrapper | None = None
