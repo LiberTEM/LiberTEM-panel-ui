@@ -403,6 +403,7 @@ action.callback.execute(action)
         selected: str | None = None,
         label: str = 'Display channel',
         update_title: bool = True,
+        embed: bool = True,
     ) -> pn.widgets.Select:
         if self._channel_select is not None:
             return self._channel_select
@@ -412,15 +413,26 @@ action.callback.execute(action)
         channel_names = list(self._channel_map.keys())
         if selected is None:
             selected = channel_names[0]
+        display_text = pn.widgets.StaticText(
+            value=label,
+            align='center',
+            margin=(5, 5),
+        )
         self._channel_select = pn.widgets.Select(
-            name=label,
             options=channel_names,
             value=selected,
+            width=200,
+            margin=(5, 5),
         )
         self._channel_select.param.watch(
             partial(self._switch_channel_cb, update_title=update_title),
             'value',
         )
+        if embed:
+            self._toolbar.insert(0, self._channel_select)
+            self._toolbar.insert(0, display_text)
+        else:
+            self._channel_select.name = label
         return self._channel_select
 
     def _switch_channel_cb(self, e, update_title=True):
