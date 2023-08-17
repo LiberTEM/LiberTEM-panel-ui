@@ -144,15 +144,12 @@ cds.change.emit();
 #         )
 
         self.nav_plot.add_mask_tools(activate=False)
-
-        self.toolbox.extend((
-            self._mode_selector,
-            # help_button,
-        ))
-
         self.link_image_plot('Sig', self.sig_plot, ('sig',))
 
         if with_layout:
+            self.toolbox.append(
+                self._mode_selector,
+            )
             self._standard_layout(
                 right_after=(
                     self._radius_slider,

@@ -54,11 +54,28 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         self._mode_mapping['Whole Frame'] = self._mode_mapping.pop('Point')
         self._mode_selector.options = list(self._mode_mapping.keys())
 
-        self._standard_layout(
-            left_after=(
-                self._regression_select,
+        self._rotation_slider = pn.widgets.FloatSlider(
+            name='Scan rotation',
+            value=0.,
+            start=-180.,
+            end=180.,
+        )
+        self._show_vectors_cbox = pn.widgets.Checkbox(
+            name='Show rotation',
+            value=False,
+            align='end',
+        )
+        self.toolbox.extend((
+            self._regression_select,
+            pn.Row(
+                self._rotation_slider,
+                self._show_vectors_cbox,
             ),
+        ))
+
+        self._standard_layout(
             right_after=(
+                self._mode_selector,
                 self._radius_slider,
                 self._radii_slider,
             ),
