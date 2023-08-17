@@ -8,6 +8,7 @@ from libertem.udf.com import CoMUDF, CoMParams, RegressionOptions
 
 from .imaging import ImagingWindow
 from .base import UIType, WindowProperties
+from ..display.vectors import VectorsOverlay
 # from .result_containers import Numpy2DResultContainer
 
 if TYPE_CHECKING:
@@ -25,7 +26,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             'com',
             'Centre of Mass',
         )
-    
+
     def initialize(self, dataset: DataSet) -> Self:
         super().initialize(dataset, with_layout=False)
         self.nav_plot._channel_map = {
@@ -37,7 +38,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             'regression_x': self._plot_regression_x,
             'regression_y': self._plot_regression_y,
         }
-        self.nav_plot.get_channel_select()        
+        self.nav_plot.get_channel_select()
 
         self._regression_mapping = {
             'NO_REGRESSION': RegressionOptions.NO_REGRESSION,
@@ -65,6 +66,12 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             value=False,
             align='end',
         )
+
+        self._vectors = VectorsOverlay.new().from_params(
+            256., 256., 100.
+        )
+        self._vectors.on(self.sig_plot.fig)
+
         self.toolbox.extend((
             self._regression_select,
             pn.Row(
@@ -93,7 +100,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         if mode == 'Whole Frame':
             com_params = CoMParams(
                 cy=cy,
-                cx=cx,                
+                cx=cx,
                 regression=regression,
             )
             params['mode'] = 'whole_frame'
@@ -153,7 +160,6 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         # result = self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
         # self.nav_plot.displayed = result
         # return (result,)
-
 
     def _plot_regression_x(self, udf_results: UDFResultDict, damage):
         regression = self._plot_regression(udf_results, 'x')
