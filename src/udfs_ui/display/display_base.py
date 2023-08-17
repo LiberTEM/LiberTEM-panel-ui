@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import itertools
 import pandas as pd
-from typing import TYPE_CHECKING, Sequence, NamedTuple, Callable, TypeVar, Type
+from typing import TYPE_CHECKING, Sequence, NamedTuple, Callable, TypeVar
 from typing_extensions import Self
 import colorcet as cc
 from skimage.draw import polygon as draw_polygon
@@ -123,7 +123,7 @@ class DisplayBase(abc.ABC):
         except KeyError:
             self._children[name] = [child]
 
-    def on(self, *figs: BkFigure):
+    def on(self, *figs: BkFigure) -> Self:
         """
         Add the DisplayBase to one-or-more figures
 
@@ -145,13 +145,14 @@ class DisplayBase(abc.ABC):
                 child.on(*figs)
         return self
 
-    def remove(self):
+    def remove(self) -> Self:
         """
         Remove DisplayBase from all registered figures
         """
         self.remove_from()
+        return self
 
-    def remove_from(self, *figs: BkFigure):
+    def remove_from(self, *figs: BkFigure) -> Self:
         """
         Remove DisplayBase from specific figures, or
         all figures if *figs is empy
@@ -176,8 +177,9 @@ class DisplayBase(abc.ABC):
         for children in self._children.values():
             for child in children:
                 child.remove_from(*figs)
+        return self
 
-    def set_visible(self, visible: bool, children: bool = True):
+    def set_visible(self, visible: bool, children: bool = True) -> Self:
         for wrappers in self._glyphs.values():
             wrappers: list[GlyphOnWrapper]
             for wrapper in wrappers:
@@ -202,7 +204,7 @@ class DisplayBase(abc.ABC):
     def _update_filter_none(**data: np.ndarray | list | None):
         return {k: v for k, v in data.items() if v is not None}
 
-    def raw_update(self, **data: np.ndarray | list):
+    def raw_update(self, **data: np.ndarray | list) -> Self:
         """
         Update some-or-all columns in the CDS
 
@@ -235,11 +237,12 @@ class DisplayBase(abc.ABC):
         if not matching:
             raise ValueError('Mismatching column lengths')
         self.cds.data.update(data)
+        return self
 
     def update(self, **data: np.ndarray | list):
         return self.raw_update(**data)
 
-    def clear(self):
+    def clear(self) -> Self:
         """
         Can bypass custom .update method as we keep the same keys
 
@@ -247,6 +250,7 @@ class DisplayBase(abc.ABC):
         """
         empty = {k: [] for k in self.cds.data.keys()}
         DisplayBase.update(self, **empty)
+        return self
 
     def is_on(self) -> tuple[BkFigure, ...]:
         figs = []
@@ -270,7 +274,7 @@ class DisplayBase(abc.ABC):
     def glyph_names(self):
         return tuple(self._glyphs.keys())
 
-    def editable(self, *figs: BkFigure) -> DisplayBase:
+    def editable(self, *figs: BkFigure) -> Self:
         raise NotImplementedError
 
     def _add_to_tool(
@@ -316,7 +320,7 @@ class ConsBase(abc.ABC):
     default_keys = tuple()
 
     @classmethod
-    def empty(cls, constructs: Type[T]) -> T:
+    def empty(cls, constructs: type[T]) -> T:
         """
         Need to figure out how to give the return Type dynamically
 
