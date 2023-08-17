@@ -64,7 +64,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             ),
         )
 
-    def _get_udf(self, dataset: DataSet) -> tuple[UDF, dict[str, float]]:
+    def _get_udf(self, dataset: DataSet) -> tuple[UDF, dict[str, float | str]]:
         regression = self._regression_mapping[self._regression_select.value]
         mode = self._mode_selector.value
         glyph = self._ring_db.rings

@@ -203,7 +203,7 @@ cds.change.emit();
         r0, r1 = e.new
         self._ring_db.update(inner_radius=r0, outer_radius=r1)
 
-    def _get_udf(self, dataset: DataSet) -> tuple[UDF, dict[str, float]]:
+    def _get_udf(self, dataset: DataSet) -> tuple[UDF, dict[str, float | str]]:
         mode = self._mode_selector.value
         if mode == 'Whole Frame':
             params = {
