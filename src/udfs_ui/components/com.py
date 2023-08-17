@@ -23,13 +23,13 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
     def default_properties():
         return WindowProperties(
             'com',
-            'CoM',
+            'Centre of Mass',
         )
     
     def initialize(self, dataset: DataSet) -> Self:
         super().initialize(dataset, with_layout=False)
         self.nav_plot._channel_map = {
-            'magnitude': 'magnitude',
+            'shift_magnitude': 'magnitude',
             'x-shift': ('raw_shifts', lambda buffer: buffer[..., 1]),
             'y-shift': ('raw_shifts', lambda buffer: buffer[..., 0]),
             'divergence': 'divergence',
@@ -50,7 +50,8 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             value='NO_REGRESSION',
             width=200,
         )
-        self._mode_mapping.pop('Point')        
+        self._mode_mapping.pop('Whole Frame')
+        self._mode_mapping['Whole Frame'] = self._mode_mapping.pop('Point')
         self._mode_selector.options = list(self._mode_mapping.keys())
 
         self._standard_layout(
@@ -73,6 +74,8 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         ro = self._ring_db.cds.data[glyph.outer_radius][0]        
         if mode == 'Whole Frame':
             com_params = CoMParams(
+                cy=cy,
+                cx=cx,                
                 regression=regression,
             )
             result_title = 'Whole Frame CoM'
