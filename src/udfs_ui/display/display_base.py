@@ -436,7 +436,7 @@ class PointSetCons(ConsBase):
     def from_array(
         array: np.ndarray,
     ):
-        ...
+        raise NotImplementedError
 
     @classmethod
     def empty(cls):
