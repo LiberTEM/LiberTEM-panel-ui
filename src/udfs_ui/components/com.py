@@ -71,13 +71,15 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         cx = self._ring_db.cds.data[glyph.x][0]
         cy = self._ring_db.cds.data[glyph.y][0]
         ri = self._ring_db.cds.data[glyph.inner_radius][0]
-        ro = self._ring_db.cds.data[glyph.outer_radius][0]        
+        ro = self._ring_db.cds.data[glyph.outer_radius][0]
+        params = {'cy': cy, 'cx': cx, 'regression': regression}
         if mode == 'Whole Frame':
             com_params = CoMParams(
                 cy=cy,
                 cx=cx,                
                 regression=regression,
             )
+            params['mode'] = 'whole_frame'
             result_title = 'Whole Frame CoM'
             result_name = 'frame_com'
         elif mode == 'Disk':
@@ -87,6 +89,8 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
                 r=ro,
                 regression=regression,
             )
+            params['r'] = ro
+            params['mode'] = 'disk'
             result_title = 'Disk CoM'
             result_name = 'disk_com'
         elif mode == 'Annulus':
@@ -97,12 +101,15 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
                 ri=ri,
                 regression=regression,
             )
+            params['ro'] = ro
+            params['ri'] = ri
+            params['mode'] = 'annulus'
             result_title = 'Annular CoM'
             result_name = 'annular_com'
         else:
             raise ValueError(f'Unsupported mode {mode}')
         udf = CoMUDF(com_params)
-        return udf, {'result_title': result_title, 'result_name': result_name}
+        return udf, {**params, 'result_title': result_title, 'result_name': result_name}
 
     def complete_job(self, job: UDFWindowJob, job_results: JobResults) -> tuple[ResultRow, ...]:
         result_title: str = job.params.pop('result_title')
