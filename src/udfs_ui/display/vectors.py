@@ -126,10 +126,18 @@ class VectorsOverlayCons(ConsBase):
     @staticmethod
     def _vectors_init(cx, cy, angle_deg, length, mult=1.):
         angle = np.deg2rad(angle_deg)
-        dx0, dy0 = np.cos(angle) * length * mult, np.sin(angle) * length * mult
-        dx1, dy1 = np.cos(angle + np.pi/2) * length * mult, np.sin(angle + np.pi/2) * length * mult
-        return {'xs': [[cx, cx + dx0], [cx, cx + dx1]],
-                'ys': [[cy, cy + dy0], [cy, cy + dy1]]}
+        dx0, dy0 = (
+            np.cos(angle) * length * mult,
+            np.sin(angle) * length * mult,
+        )
+        dx1, dy1 = (
+            np.cos(angle + np.pi / 2) * length * mult,
+            np.sin(angle + np.pi / 2) * length * mult,
+        )
+        return {
+            'xs': [[cx, cx + dx0], [cx, cx + dx1]],
+            'ys': [[cy, cy + dy0], [cy, cy + dy1]],
+        }
 
 #     @property
 #     def rotation_slider(self) -> Slider:
