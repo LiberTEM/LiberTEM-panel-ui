@@ -77,7 +77,7 @@ class DatashadeHelper:
     @property
     def active(self):
         return self._active
-    
+
     def enable(self):
         # This could push an downsampled update
         self._active = True
@@ -236,7 +236,7 @@ class DatashadeHelper:
         if VERBOSE:
             print(f'Event data {x0, y0, x1, y1}, width {x1 - x0}, height {y1 - y0}')
         viewport_width = x1 - x0
-        viewport_height = y1 - y0           
+        viewport_height = y1 - y0
         # The full array is bounded in continuous coordinates
         # by the following geometry (includes self.px_offset)
         l, b, r, t = self.continuous_bounds()
@@ -244,8 +244,10 @@ class DatashadeHelper:
         # Used for an early return if we don't have anything to show
         # print(f'LR: {(l, r)}, {(x0, x1)}')
         # print(f'BT: {(b, t)}, {(y0, y1)}')
-        is_visible = (self.axis_overlaps((l, r), (x0, x1))
-                      and self.axis_overlaps((b, t), (y0, y1)))
+        is_visible = (
+            self.axis_overlaps((l, r), (x0, x1))
+            and self.axis_overlaps((b, t), (y0, y1))
+        )
         # Next we expand the coordinates outwards
         # This gives us a new 'viewport' guaranteed to contain the current
         # continuous coordinate viewport even when very zoomed in
@@ -369,8 +371,12 @@ class DatashadeHelper:
             if VERBOSE:
                 print('Matching bounds, skip update')
             return
-        
-        if not force and self.data_matches_scale(self.current_cds_dims(), new_cds_coords, viewport_wh):
+
+        if not force and self.data_matches_scale(
+            self.current_cds_dims(),
+            new_cds_coords,
+            viewport_wh
+        ):
             # Cover the case when the data already in the CDS
             # fills the new viewport correctly, either if we are
             # zoomed out or we are panning around beyond the image
@@ -612,7 +618,7 @@ class DatashadeHelper:
                 **BokehImageCons._get_array(array),
             }
         return self.redraw(array, do_update=False)
-        
+
         # current_cds_dims = self.current_cds_dims()
         # if self.is_oversampled(current_cds_dims):
         #     xrange, yrange = self.ranges_from_cds_dict(current_cds_dims, as_int=True)
