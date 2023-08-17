@@ -1,12 +1,14 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, NewType
+from typing_extensions import Self
 import numpy as np
 
+import panel as pn
 # from bokeh.models import CustomJS, Slider, Select
 from bokeh.models.glyphs import MultiLine as BkMultiLine
 from bokeh.models.sources import ColumnDataSource
 
-from .display_base import DisplayBase, ConsBase
+from .display_base import DisplayBase, ConsBase, Text
 
 
 if TYPE_CHECKING:
@@ -77,17 +79,140 @@ class VectorsOverlay(DisplayBase):
     to interactively set the vector angle using a slider.
     """
     glyph_map = {
-        'vectors': MultiLine
+        'vectors': MultiLine,
+        'labels': Text,
     }
 
     def __init__(self, cds: ColumnDataSource):
         super().__init__(cds)
         lines = MultiLine(cds)
+        lines.lines.line_color = 'line_color'
         self._register_child('vectors', lines)
 
     @classmethod
     def new(cls):
         return VectorsOverlayCons()
+
+    def with_labels(
+        self,
+        labels: tuple[str, str],
+        length_mult: float = 1.15,
+    ) -> Self:
+        cx = self.cds.data['xs'][0][0]
+        cy = self.cds.data['ys'][0][0]
+        angle = self.cds.data['angle'][0]
+        length = self.cds.data['length'][0]
+        initial_pos_text = VectorsOverlayCons._vectors_init(
+            cx,
+            cy,
+            angle,
+            length,
+            mult=length_mult
+        )
+        self.cds.data.update({
+            'text_x': [initial_pos_text['xs'][0][1], initial_pos_text['xs'][1][1]],
+            'text_y': [initial_pos_text['ys'][0][1], initial_pos_text['ys'][1][1]],
+            'length_mult': [length_mult] * 2,
+            'labels': labels,
+        })
+        labels = Text(
+            self.cds,
+            x='text_x',
+            y='text_y',
+            text='labels',
+        )
+        labels.glyph.text_color = 'line_color'
+        labels.glyph.text_baseline = 'middle'
+        labels.glyph.text_align = 'center'
+        self._register_child('labels', labels)
+        return self
+
+    def with_rotation(self, label='Rotation'):
+        self._rotation_slider = pn.widgets.FloatSlider(
+            name=label,
+            # FIXME make this wrap to the correct range
+            value=self.cds.data['angle'][0],
+            start=-180.,
+            end=180.,
+        )
+
+        args = {
+            'vector_source': self.cds
+        }
+
+        args['angle_slider'] = self._rotation_slider
+        has_text = 'labels' in self.cds.data.keys()
+        rotation_code = (
+            self._vectors_cb_rotation_js()
+            + self._vectors_cb_base_js(with_emit=(not has_text))
+        )
+        if has_text:
+            rotation_code = rotation_code + self._text_cb_js()
+        self._rotation_slider.jscallback(
+            args,
+            value=rotation_code,
+        )
+        return self._rotation_slider
+
+    @staticmethod
+    def _vectors_cb_rotation_js():
+        return """
+const centre_x = vector_source.data.xs[0][0]
+const centre_y = vector_source.data.ys[0][0]
+
+"""
+
+    @staticmethod
+    def _vectors_cb_base_js(with_emit: bool = True):
+        code = """
+var angle;
+if (typeof angle_slider !== 'undefined') {
+  angle = angle_slider.value;
+} else {
+  angle = vector_source.data.angle[0];
+}
+
+angle = angle * Math.PI/180
+
+const length = vector_source.data.length
+
+const cos_dir = Math.cos(angle)
+const sin_dir = Math.sin(angle)
+const cos_dir_pi2 = Math.cos(angle + Math.PI/2)
+const sin_dir_pi2 = Math.sin(angle + Math.PI/2)
+
+vector_source.data.xs = []
+vector_source.data.ys = []
+vector_source.data.angle = [angle, angle]
+vector_source.data.xs.push([centre_x, centre_x + length[0] * cos_dir])
+vector_source.data.ys.push([centre_y, centre_y + length[0] * sin_dir])
+vector_source.data.xs.push([centre_x, centre_x + length[1] * cos_dir_pi2])
+vector_source.data.ys.push([centre_y, centre_y + length[1] * sin_dir_pi2])
+
+"""
+        if not with_emit:
+            return code
+        else:
+            return code + """
+vector_source.change.emit()
+
+"""
+
+    @staticmethod
+    def _text_cb_js():
+        return '''
+vector_source.data.text_x = []
+vector_source.data.text_y = []
+vector_source.data.text_x.push(centre_x + length[0] * \
+    vector_source.data.length_mult[0] * cos_dir)
+vector_source.data.text_x.push(centre_x + length[1] * \
+    vector_source.data.length_mult[1] * cos_dir_pi2)
+vector_source.data.text_y.push(centre_y + length[0] * \
+    vector_source.data.length_mult[0] * sin_dir)
+vector_source.data.text_y.push(centre_y + length[1] * \
+    vector_source.data.length_mult[1] * sin_dir_pi2)
+vector_source.change.emit()
+'''
 
 
 Degrees = NewType('Degrees', float)
@@ -101,7 +226,8 @@ class VectorsOverlayCons(ConsBase):
         cy: float,
         length: float,
         initial_angle: Degrees = 0.,
-        colors: tuple[str, str] | str = ('#FF0000', '#0000FF'),
+        colors: tuple[str, str] | str = ('#FF8C00', '#00BFFF'),
+        labels: tuple[str, str] | None = None,
     ) -> VectorsOverlay:
         if isinstance(colors, str):
             colors = [colors] * 2
@@ -112,7 +238,10 @@ class VectorsOverlayCons(ConsBase):
             'angle': [initial_angle] * 2,
         }
         cds = ColumnDataSource(data)
-        return VectorsOverlay(cds)
+        dbase = VectorsOverlay(cds)
+        if labels is not None:
+            return dbase.with_labels(labels)
+        return dbase
 
     @classmethod
     def empty(cls) -> VectorsOverlay:

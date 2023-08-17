@@ -55,12 +55,6 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         self._mode_mapping['Whole Frame'] = self._mode_mapping.pop('Point')
         self._mode_selector.options = list(self._mode_mapping.keys())
 
-        self._rotation_slider = pn.widgets.FloatSlider(
-            name='Scan rotation',
-            value=0.,
-            start=-180.,
-            end=180.,
-        )
         self._show_vectors_cbox = pn.widgets.Checkbox(
             name='Show rotation',
             value=False,
@@ -68,9 +62,10 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         )
 
         self._vectors = VectorsOverlay.new().from_params(
-            256., 256., 100.
+            16., 16., 5., labels=('x', 'y'),
         )
         self._vectors.on(self.sig_plot.fig)
+        self._rotation_slider = self._vectors.with_rotation(label='Scan rotation')
 
         self.toolbox.extend((
             self._regression_select,
