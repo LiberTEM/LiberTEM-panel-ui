@@ -85,28 +85,25 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
 
     def _get_udf(self, dataset: DataSet) -> tuple[UDF, dict[str, float | str]]:
         regression = self._regression_mapping[self._regression_select.value]
+        rotation = self._rotation_slider.value
         mode = self._mode_selector.value
         glyph = self._ring_db.rings
         cx = self._ring_db.cds.data[glyph.x][0]
         cy = self._ring_db.cds.data[glyph.y][0]
         ri = self._ring_db.cds.data[glyph.inner_radius][0]
         ro = self._ring_db.cds.data[glyph.outer_radius][0]
-        params = {'cy': cy, 'cx': cx, 'regression': regression}
+        params = {'cy': cy, 'cx': cx, 'regression': regression, 'scan_rotation': rotation}
         if mode == 'Whole Frame':
             com_params = CoMParams(
-                cy=cy,
-                cx=cx,
-                regression=regression,
+                **params,
             )
             params['mode'] = 'whole_frame'
             result_title = 'Whole Frame CoM'
             result_name = 'frame_com'
         elif mode == 'Disk':
             com_params = CoMParams(
-                cy=cy,
-                cx=cx,
+                **params,
                 r=ro,
-                regression=regression,
             )
             params['r'] = ro
             params['mode'] = 'disk'
@@ -114,11 +111,9 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             result_name = 'disk_com'
         elif mode == 'Annulus':
             com_params = CoMParams(
-                cy=cy,
-                cx=cx,
+                **params,
                 r=ro,
                 ri=ri,
-                regression=regression,
             )
             params['ro'] = ro
             params['ri'] = ri
