@@ -89,6 +89,9 @@ class AperturePlotBase(Live2DPlot):
     def layout(self):
         return self.pane
 
+    def push(self, *others: AperturePlotBase):
+        pn.io.notebook.push_notebook(self.pane, *(o.pane for o in others))
+
     def _setup(self):
         # Do any custom setup after fig/im are created and set
         pass
@@ -276,6 +279,8 @@ class AperturePlot(AperturePlotBase):
                 .on(self.fig)
                 .editable()
             )
+        # Could use custom icons to show which tools are ROI tools
+        # Could add clear ROI button as a callback on the toolbar
         if activate and len(self.fig.tools):
             self.fig.toolbar.active_drag = self.fig.tools[-1]
         if clear_btn:
