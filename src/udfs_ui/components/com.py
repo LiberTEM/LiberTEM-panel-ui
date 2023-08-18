@@ -13,8 +13,9 @@ from ..display.vectors import VectorsOverlay
 
 if TYPE_CHECKING:
     from libertem.io.dataset.base import DataSet
+    from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import UDF
-    from .base import UDFWindowJob, JobResults
+    from .base import UDFWindowJob, JobResults, UIState
     from .results import ResultRow
     from libertem.udf.base import UDFResultDict
 
@@ -131,7 +132,17 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         udf = CoMUDF(com_params)
         return udf, {**params, 'result_title': result_title, 'result_name': result_name}
 
+    def get_job(
+        self,
+        state: UIState,
+        dataset: DataSet | AcquisitionProtocol,
+        roi: np.ndarray | None,
+    ):
+        self._rotation_slider.disabled = True
+        return super().get_job(state, dataset, roi)
+
     def complete_job(self, job: UDFWindowJob, job_results: JobResults) -> tuple[ResultRow, ...]:
+        self._rotation_slider.disabled = False
         result_title: str = job.params.pop('result_title')
         self.nav_plot.fig.title.text = result_title
         return tuple()
