@@ -452,12 +452,7 @@ action.callback.execute(action)
     def _switch_channel_cb(self, e, update_title=True):
         return self.change_channel(e.new, update_title=update_title)
 
-    def change_channel(
-        self,
-        channel_name: str,
-        push_update: bool = True,
-        update_title: bool = True,
-    ):
+    def _change_channel_attrs(self, channel_name: str):
         try:
             channel = self._channel_map[channel_name]
         except (TypeError, KeyError):
@@ -476,6 +471,14 @@ action.callback.execute(action)
 
         self._extract = extract
         self.channel = channel
+
+    def change_channel(
+        self,
+        channel_name: str,
+        push_update: bool = True,
+        update_title: bool = True,
+    ):
+        self._change_channel_attrs(channel_name)
         if update_title:
             self.fig.title.text = channel_name
         # Will cause a double update if called during UDF run
