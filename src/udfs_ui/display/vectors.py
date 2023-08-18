@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING, NewType
-from typing_extensions import Self
+from typing_extensions import Self, Literal
 import numpy as np
 
 import panel as pn
@@ -198,7 +198,7 @@ if (vector_source.data.hasOwnProperty('labels')) {
 vector_source.change.emit()
 """
 
-    def with_rotation(self, label='Rotation'):
+    def with_rotation(self, label='Rotation', direction: Literal[1, -1] = 1):
         self._rotation_slider = pn.widgets.FloatSlider(
             name=label,
             # FIXME make this wrap to the correct range
@@ -206,9 +206,12 @@ vector_source.change.emit()
             start=-180.,
             end=180.,
         )
+        if direction not in (-1, 1):
+            raise ValueError('Rotation direction must be one of -1, 1')
 
         args = {
-            'vector_source': self.cds
+            'vector_source': self.cds,
+            'direction': direction,
         }
 
         args['angle_slider'] = self._rotation_slider
@@ -246,7 +249,7 @@ const centre_y = vector_source.data.ys[0][0]
     @staticmethod
     def _vectors_cb_base_js(with_emit: bool = True):
         code = """
-const angle_deg = angle_slider.value
+const angle_deg = angle_slider.value * direction
 const angle_rad0 = angle_deg * Math.PI/180;
 const length = vector_source.data.length
 
