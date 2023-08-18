@@ -6,7 +6,6 @@ import uuid
 
 import numpy as np
 import panel as pn
-pn.extension('floatpanel')
 from bokeh.plotting import figure
 from bokeh.models import CustomJS
 from bokeh.models.tools import CustomAction, WheelZoomTool
@@ -19,9 +18,12 @@ from ..display.image_db import BokehImage
 from ..display.display_base import Rectangles, DisplayBase, Polygons
 from ..display.icons import options_icon, options_icon_blue
 
+pn.extension('floatpanel')
+
 if TYPE_CHECKING:
     from .results import ResultRow
     from libertem.udf.base import UDFResultDict
+
 
 def adapt_figure(fig: figure, shape, maxdim: int | None = 450, mindim: int | None = None):
     if mindim is None:
@@ -94,7 +96,7 @@ class AperturePlotBase(Live2DPlot):
     def set_plot(
         self,
         *,
-        plot: 'AperturePlot' | None = None,
+        plot: AperturePlot | None = None,
         fig: figure | None = None,
         im: BokehImage | None = None
     ):
@@ -231,7 +233,7 @@ class AperturePlot(AperturePlotBase):
     def set_plot(
         self,
         *,
-        plot: 'AperturePlot' | None = None,
+        plot: AperturePlot | None = None,
         fig: figure | None = None,
         im: BokehImage | None = None
     ):
