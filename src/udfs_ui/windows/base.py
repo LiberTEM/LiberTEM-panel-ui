@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from .ui_context import UIContext
     from ..results.results import ResultRow
     from ..results.result_tracker import ResultTracker
-    from .live_plot import AperturePlot
+    from ..live_plot import AperturePlot
 
     TWindow = TypeVar("TWindow", bound="UIWindow")
 

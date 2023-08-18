@@ -7,7 +7,7 @@ import panel as pn
 from libertem.udf.raw import PickUDF
 from libertem.udf.sumsigudf import SumSigUDF
 
-from .live_plot import AperturePlot
+from ..live_plot import AperturePlot
 from .base import UIWindow, UIState, UDFWindowJob, JobResults, WindowProperties
 from ..display.display_base import Cursor
 from ..utils import get_initial_pos, PointYX

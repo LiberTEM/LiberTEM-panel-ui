@@ -14,14 +14,14 @@ from bokeh.models.widgets import Button
 from bokeh.events import MouseMove, MouseLeave
 from libertem.viz.base import Live2DPlot
 
-from ..display.image_db import BokehImage
-from ..display.display_base import Rectangles, DisplayBase, Polygons
-from ..display.icons import options_icon, options_icon_blue
+from .display.image_db import BokehImage
+from .display.display_base import Rectangles, DisplayBase, Polygons
+from .display.icons import options_icon, options_icon_blue
 
 pn.extension('floatpanel')
 
 if TYPE_CHECKING:
-    from ..results.results import ResultRow
+    from .results.results import ResultRow
     from libertem.udf.base import UDFResultDict
 
 

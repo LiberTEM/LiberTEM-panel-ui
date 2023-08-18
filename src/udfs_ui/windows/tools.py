@@ -11,7 +11,7 @@ from libertem_live.udf.monitor import SignalMonitorUDF
 from libertem.udf.sumsigudf import SumSigUDF
 from libertem.common.math import prod
 
-from .live_plot import AperturePlot
+from ..live_plot import AperturePlot
 from .base import UIWindow, UIType, UIState, UDFWindowJob, JobResults, WindowProperties
 from .simple import SimpleUDFUIWindow
 from ..results.result_containers import RecordResultContainer

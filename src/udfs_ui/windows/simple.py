@@ -2,7 +2,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from .base import UIWindow, UIState, UDFWindowJob, JobResults
-from .live_plot import AperturePlot
+from ..live_plot import AperturePlot
 from ..results.result_containers import Numpy2DResultContainer
 
 if TYPE_CHECKING:
