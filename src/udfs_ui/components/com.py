@@ -66,6 +66,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         )
         self._vectors.on(self.sig_plot.fig)
         self._rotation_slider = self._vectors.with_rotation(label='Scan rotation')
+        self._vectors.follow_point(self._disk_db.cds)
 
         self.toolbox.extend((
             self._regression_select,

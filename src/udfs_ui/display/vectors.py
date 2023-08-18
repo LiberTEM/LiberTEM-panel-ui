@@ -4,7 +4,7 @@ from typing_extensions import Self
 import numpy as np
 
 import panel as pn
-# from bokeh.models import CustomJS, Slider, Select
+from bokeh.models import CustomJS
 from bokeh.models.glyphs import MultiLine as BkMultiLine
 from bokeh.models.sources import ColumnDataSource
 
@@ -127,6 +127,74 @@ class VectorsOverlay(DisplayBase):
         self._register_child('labels', labels)
         return self
 
+    def move_centre(self, cy: float, cx: float):
+        new_data = self._new_coords_for_centre(cy, cx)
+        self.update(**new_data)
+
+    def _new_coords_for_centre(self, cy: float, cx: float):
+        angle = self.cds.data['angle'][0]
+        length = self.cds.data['length'][0]
+        new_data = VectorsOverlayCons._vectors_init(
+            cx,
+            cy,
+            angle,
+            length,
+        )
+        if 'labels' in self.cds.data.keys():
+            length_mult = self.cds.data['length_mult'][0]
+            pos_text = VectorsOverlayCons._vectors_init(
+                cx,
+                cy,
+                angle,
+                length,
+                mult=length_mult,
+            )
+            new_data['text_x'] = [pos_text['xs'][0][1], pos_text['xs'][1][1]]
+            new_data['text_y'] = [pos_text['ys'][0][1], pos_text['ys'][1][1]]
+        return new_data
+
+    def follow_point(
+        self,
+        source_cds: ColumnDataSource,
+        index: int = 0,
+        xkey: str = 'cx',
+        ykey: str = 'cy',
+    ):
+        callback = CustomJS(
+            args={
+                'xkey': xkey,
+                'ykey': ykey,
+                'index': index,
+                'vector_source': self.cds,
+            },
+            code=self._move_centre_js(),
+        )
+        source_cds.js_on_change(
+            'data',
+            callback,
+        )
+
+    @staticmethod
+    def _move_centre_js():
+        return """
+const new_centre_x = cb_obj.data[xkey][index]
+const new_centre_y = cb_obj.data[ykey][index]
+const old_centre_x = vector_source.data.xs[0][0]
+const old_centre_y = vector_source.data.ys[0][0]
+
+const dx = new_centre_x - old_centre_x
+const dy = new_centre_y - old_centre_y
+
+vector_source.data.xs = vector_source.data.xs.map(xs => xs.map(x => x + dx));
+vector_source.data.ys = vector_source.data.ys.map(ys => ys.map(y => y + dy));
+
+if (vector_source.data.hasOwnProperty('labels')) {
+    vector_source.data.text_x = vector_source.data.text_x.map(x => x + dx);
+    vector_source.data.text_y = vector_source.data.text_y.map(y => y + dy);
+}
+vector_source.change.emit()
+"""
+
     def with_rotation(self, label='Rotation'):
         self._rotation_slider = pn.widgets.FloatSlider(
             name=label,
@@ -152,7 +220,17 @@ class VectorsOverlay(DisplayBase):
             args,
             value=rotation_code,
         )
+        self._rotation_slider.param.watch(
+            self._sync_angle,
+            'value_throttled',
+        )
         return self._rotation_slider
+
+    def _sync_angle(self, e):
+        angle0 = e.new
+        old_angle0, old_angle1 = self.cds.data['angle']
+        dtheta = old_angle1 - old_angle0
+        self.update(angle=[angle0, angle0 + dtheta])
 
     @staticmethod
     def _vectors_cb_rotation_js():
@@ -165,25 +243,18 @@ const centre_y = vector_source.data.ys[0][0]
     @staticmethod
     def _vectors_cb_base_js(with_emit: bool = True):
         code = """
-var angle;
-if (typeof angle_slider !== 'undefined') {
-  angle = angle_slider.value;
-} else {
-  angle = vector_source.data.angle[0];
-}
-
-angle = angle * Math.PI/180
-
+const angle_deg = angle_slider.value
+const angle_rad = angle_deg * Math.PI/180;
 const length = vector_source.data.length
 
-const cos_dir = Math.cos(angle)
-const sin_dir = Math.sin(angle)
-const cos_dir_pi2 = Math.cos(angle + Math.PI/2)
-const sin_dir_pi2 = Math.sin(angle + Math.PI/2)
+const cos_dir = Math.cos(angle_rad)
+const sin_dir = Math.sin(angle_rad)
+const cos_dir_pi2 = Math.cos(angle_rad + Math.PI/2)
+const sin_dir_pi2 = Math.sin(angle_rad + Math.PI/2)
 
 vector_source.data.xs = []
 vector_source.data.ys = []
-vector_source.data.angle = [angle, angle]
+vector_source.data.angle = [angle_deg, angle_deg + 90.]
 vector_source.data.xs.push([centre_x, centre_x + length[0] * cos_dir])
 vector_source.data.ys.push([centre_y, centre_y + length[0] * sin_dir])
 vector_source.data.xs.push([centre_x, centre_x + length[1] * cos_dir_pi2])
