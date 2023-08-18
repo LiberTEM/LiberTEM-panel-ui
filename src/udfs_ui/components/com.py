@@ -4,7 +4,9 @@ from typing_extensions import Self, Literal, TypedDict
 
 import numpy as np
 import panel as pn
-from libertem.udf.com import CoMUDF, CoMParams, RegressionOptions
+from libertem.udf.com import (
+    CoMUDF, CoMParams, RegressionOptions, apply_correction, magnitude, divergence, curl_2d
+)
 
 from .imaging import ImagingWindow
 from .base import UIType, WindowProperties
@@ -40,8 +42,8 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         self._current_params = CoMParamsUI()
         self.nav_plot._channel_map = {
             'shift_magnitude': 'magnitude',
-            'x-shift': ('raw_shifts', lambda buffer: buffer[..., 1]),
-            'y-shift': ('raw_shifts', lambda buffer: buffer[..., 0]),
+            'x_shift': ('raw_shifts', lambda buffer: buffer[..., 1]),
+            'y_shift': ('raw_shifts', lambda buffer: buffer[..., 0]),
             'divergence': 'divergence',
             'curl': 'curl',
             'regression_x': self._plot_regression_x,
@@ -95,6 +97,9 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         self._vectors.follow_point(self._disk_db.cds)
         self._vectors.set_visible(self._show_vectors_cbox.value)
         self._show_vectors_cbox.param.watch(lambda e: self._vectors.set_visible(e.new), 'value')
+
+        self._rotation_slider.param.watch(self._apply_corrections, 'value_throttled')
+        self._flip_y_cbox.param.watch(self._apply_corrections, 'value')
 
         self.toolbox.extend((
             pn.Row(
@@ -175,10 +180,14 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         roi: np.ndarray | None,
     ):
         self._rotation_slider.disabled = True
+        self._flip_y_cbox.disabled = True
+        self._guess_corrections_btn.disabled = True
         return super().get_job(state, dataset, roi)
 
     def complete_job(self, job: UDFWindowJob, job_results: JobResults) -> tuple[ResultRow, ...]:
         self._rotation_slider.disabled = False
+        self._flip_y_cbox.disabled = False
+        self._guess_corrections_btn.disabled = False
         self._current_params = CoMParamsUI(**job.params)
         self._update_nav_title()
         return tuple()
@@ -223,3 +232,45 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         regression = udf_results['regression'].data
         c, dy, dx = regression[:, column]
         return c + (dy * xdims) * (dx * ydims)
+
+    def _apply_corrections(self, *e):
+        selected_channel = self._channel_select.value
+        if selected_channel in (
+            'regression_x'
+            'regression_y'
+        ):
+            return
+        try:
+            udf_results, _ = self.nav_plot._last_res
+        except (AttributeError, TypeError):
+            return
+        result_params = self._current_params.get('params', None)
+        if result_params is None:
+            return
+        displayed_rotation = self._rotation_slider.value
+        displayed_flip = self._flip_y_cbox.value
+        result_rotation = result_params.scan_rotation
+        result_flip = result_params.flip_y
+        raw_shifts = udf_results['raw_shifts'].data
+        corrected_y, corrected_x = apply_correction(
+            y_centers=raw_shifts[..., 0],
+            x_centers=raw_shifts[..., 1],
+            scan_rotation=displayed_rotation - result_rotation,
+            flip_y=displayed_flip == result_flip,
+        )
+        if selected_channel == 'x_shift':
+            im = corrected_x
+        elif selected_channel == 'y_shift':
+            im = corrected_y
+        elif selected_channel == 'shift_magnitude':
+            im = magnitude(
+                y_centers=corrected_y, x_centers=corrected_x
+            )
+        elif selected_channel == 'divergence':
+            im = divergence(y_centers=corrected_y, x_centers=corrected_x)
+        elif selected_channel == 'curl':
+            im = curl_2d(y_centers=corrected_y, x_centers=corrected_x)
+        else:
+            raise ValueError('Unexpected channel name')
+        self.nav_plot.im.update(im)
+        self.nav_plot.push()
