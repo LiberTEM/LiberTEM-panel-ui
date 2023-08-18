@@ -163,7 +163,15 @@ class UIWindow:
     def using(cls: type[W], ctx: Context, dataset: DataSet) -> W:
         from .standalone import StandaloneContext
         ui_context = StandaloneContext(ctx, dataset)
-        window = cls(ui_context)
+        window = cls(
+            ui_context,
+            prop_overrides={
+                'header_activate': False,
+                'header_remove': False,
+                # 'header_collapse': False,
+                # 'header_divider': False,
+            }
+        )
         window.initialize(dataset)
         return window
 
