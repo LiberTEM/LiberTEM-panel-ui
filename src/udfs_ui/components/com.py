@@ -68,10 +68,12 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         self._channel_select = self.nav_plot.get_channel_select(update_title=False)
         self._channel_select.param.watch(self._update_nav_title, 'value')
 
-        # # We only allow channel changing while not processing
-        # self._channel_select.param.unwatch(
-        #     self.nav_plot._channel_select_watcher
-        # )
+        # We are overriding the default CB
+        # Must take full responsibility for keeping
+        # the live plot in sync with the widget
+        self._channel_select.param.unwatch(
+            self.nav_plot._channel_select_watcher
+        )
 
         self._regression_mapping = {
             'NO_REGRESSION': RegressionOptions.NO_REGRESSION,
@@ -111,7 +113,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         cy = self._disk_db.cds.data['cy'][0]
         sig_dim = max(1, min(dataset.shape.sig) * 0.25)
         self._vectors = VectorsOverlay.new().from_params(
-            cx, cy, sig_dim, labels=('x', 'y'),
+            cx, cy, sig_dim, labels=('sx', 'sy'),
         )
         self._vectors.on(self.sig_plot.fig)
         self._rotation_slider = self._vectors.with_rotation(label='Scan rotation')
@@ -271,7 +273,6 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             x_centers=raw_shifts[..., 1],
             scan_rotation=self.nav_plot.udf.params.com_params.scan_rotation,
             flip_y=self.nav_plot.udf.params.com_params.flip_y,
-            forward=False,
         )
         return shifts[idx]
 
@@ -287,6 +288,9 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             # Defer to standard channel change callback
             self.nav_plot.change_channel(selected_channel, update_title=False)
             return
+        else:
+            # Keep the nav plot in sync with the selected for the next run
+            self.nav_plot._change_channel_attrs(selected_channel)
         try:
             udf_results, _ = self.nav_plot._last_res
         except (AttributeError, TypeError):
@@ -296,19 +300,10 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             return
         displayed_rotation = self._rotation_slider.value
         displayed_flip = self._flip_y_cbox.value
-        result_rotation = result_params.scan_rotation
-        result_flip = result_params.flip_y
-        raw_shifts = udf_results['raw_shifts'].data
-        _y, _x = apply_correction(
+        raw_shifts = udf_results['raw_shifts'].data.copy()
+        corrected_y, corrected_x = apply_correction(
             y_centers=raw_shifts[..., 0],
             x_centers=raw_shifts[..., 1],
-            scan_rotation=result_rotation,
-            flip_y=result_flip,
-            forward=False,
-        )
-        corrected_y, corrected_x = apply_correction(
-            y_centers=_y,
-            x_centers=_x,
             scan_rotation=displayed_rotation,
             flip_y=displayed_flip,
         )
