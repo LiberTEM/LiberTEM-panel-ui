@@ -98,6 +98,15 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         self._vectors.set_visible(self._show_vectors_cbox.value)
         self._show_vectors_cbox.param.watch(lambda e: self._vectors.set_visible(e.new), 'value')
 
+        self._rot_reset_btn = pn.widgets.Button(
+            icon='refresh',
+            button_type='light',
+            width=35,
+            align='end',
+            margin=(3, 3),
+        )
+        self._rot_reset_btn.on_click(lambda e: self._rotation_slider.param.update(value=0.))
+
         self._rotation_slider.param.watch(self._apply_corrections, 'value_throttled')
         self._flip_y_cbox.param.watch(self._apply_corrections, 'value')
 
@@ -108,6 +117,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
                 self._guess_corrections_btn,
             ),
             pn.Row(
+                self._rot_reset_btn,
                 self._rotation_slider,
                 self._show_vectors_cbox,
             ),
