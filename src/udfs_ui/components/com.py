@@ -110,13 +110,20 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
     def _get_udf(self, dataset: DataSet) -> tuple[UDF, dict[str, float | str]]:
         regression = self._regression_mapping[self._regression_select.value]
         rotation = self._rotation_slider.value
+        flip_y = self._flip_y_cbox.value
         mode = self._mode_selector.value
         glyph = self._ring_db.rings
         cx = self._ring_db.cds.data[glyph.x][0]
         cy = self._ring_db.cds.data[glyph.y][0]
         ri = self._ring_db.cds.data[glyph.inner_radius][0]
         ro = self._ring_db.cds.data[glyph.outer_radius][0]
-        params = {'cy': cy, 'cx': cx, 'regression': regression, 'scan_rotation': rotation}
+        params = {
+            'cy': cy,
+            'cx': cx,
+            'regression': regression,
+            'scan_rotation': rotation,
+            'flip_y': flip_y,
+        }
         if mode == 'Whole Frame':
             com_params = CoMParams(
                 **params,
