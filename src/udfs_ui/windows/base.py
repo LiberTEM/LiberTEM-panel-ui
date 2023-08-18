@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from libertem.viz.base import Live2DPlot
     from libertem.common.shape import Shape
     from .ui_context import UIContext
-    from .results import ResultRow
+    from ..results.results import ResultRow
     from ..results.result_tracker import ResultTracker
     from .live_plot import AperturePlot
 

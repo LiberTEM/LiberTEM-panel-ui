@@ -14,12 +14,12 @@ from libertem.common.math import prod
 from .live_plot import AperturePlot
 from .base import UIWindow, UIType, UIState, UDFWindowJob, JobResults, WindowProperties
 from .simple import SimpleUDFUIWindow
-from .result_containers import RecordResultContainer
+from ..results.result_containers import RecordResultContainer
 
 if TYPE_CHECKING:
     from libertem.api import DataSet
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
-    from .results import ResultRow
+    from ..results.results import ResultRow
 
 
 class ROIWindow(UIWindow, ui_type=UIType.RESERVED):

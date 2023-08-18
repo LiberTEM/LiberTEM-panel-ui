@@ -14,7 +14,7 @@ from ..utils.notebook_tools import get_ipyw_reload_button
 pn.extension('tabulator', 'jsoneditor')
 
 if TYPE_CHECKING:
-    from .base import UIWindow
+    from ..windows.base import UIWindow
     from .result_containers import ResultContainer
 
 

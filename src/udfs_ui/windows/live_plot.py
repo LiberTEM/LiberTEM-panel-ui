@@ -21,7 +21,7 @@ from ..display.icons import options_icon, options_icon_blue
 pn.extension('floatpanel')
 
 if TYPE_CHECKING:
-    from .results import ResultRow
+    from ..results.results import ResultRow
     from libertem.udf.base import UDFResultDict
 
 

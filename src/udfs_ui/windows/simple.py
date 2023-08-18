@@ -3,14 +3,14 @@ from typing import TYPE_CHECKING
 
 from .base import UIWindow, UIState, UDFWindowJob, JobResults
 from .live_plot import AperturePlot
-from .result_containers import Numpy2DResultContainer
+from ..results.result_containers import Numpy2DResultContainer
 
 if TYPE_CHECKING:
     import numpy as np
     from libertem.api import DataSet
     from libertem.udf.base import UDF
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
-    from .results import ResultRow
+    from ..results.results import ResultRow
 
 
 class SimpleUDFUIWindow(UIWindow):

@@ -13,14 +13,14 @@ from libertem.udf.com import (
 from .imaging import ImagingWindow
 from .base import UIType, WindowProperties
 from ..display.vectors import VectorsOverlay
-from .result_containers import Numpy2DResultContainer
+from ..results.result_containers import Numpy2DResultContainer
 
 if TYPE_CHECKING:
     from libertem.io.dataset.base import DataSet
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import UDF
     from .base import UDFWindowJob, JobResults, UIState
-    from .results import ResultRow
+    from ..results.results import ResultRow
     from libertem.udf.base import UDFResultDict
 
 

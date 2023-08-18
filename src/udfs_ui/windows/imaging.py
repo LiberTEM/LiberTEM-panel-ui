@@ -19,14 +19,14 @@ from libertem.udf.logsum import LogsumUDF
 from .base import UIType, UIState, UDFWindowJob, JobResults, WindowProperties
 from .pick import PickUDFBaseWindow
 from ..display.display_base import DiskSet, RingSet, PointSet
-from .result_containers import Numpy2DResultContainer
+from ..results.result_containers import Numpy2DResultContainer
 from ..utils import get_initial_pos
 
 
 if TYPE_CHECKING:
     from libertem.api import DataSet
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
-    from .results import ResultRow
+    from ..results.results import ResultRow
 
 
 class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.STANDALONE):

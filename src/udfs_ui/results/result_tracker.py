@@ -7,7 +7,7 @@ import panel as pn
 
 if TYPE_CHECKING:
     from ..windows.live_plot import AperturePlot
-    from ..windows.results import ResultRow, ResultsManager, WindowRow
+    from .results import ResultRow, ResultsManager, WindowRow
     from ..windows.base import UIWindow
 
 

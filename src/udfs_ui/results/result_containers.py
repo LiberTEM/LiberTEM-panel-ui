@@ -10,7 +10,7 @@ from bokeh.plotting import figure
 
 from ..display.image_db import BokehImage
 from ..utils.export import image_save_functions
-from .live_plot import adapt_figure
+from ..windows.live_plot import adapt_figure
 from ..applications.terminal_logger import logger
 
 
