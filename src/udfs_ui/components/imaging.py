@@ -190,7 +190,7 @@ cds.change.emit();
             renderer = db.renderers_for_fig(glyph_name, sig_fig)[0]
             self._edit_tool.renderers.append(renderer)
 
-        pn.io.notebook.push_notebook(self.sig_plot.pane)
+        self.sig_plot.push()
 
     def _update_radius(self, e):
         r = e.new
@@ -327,7 +327,7 @@ class FrameImaging(PickUDFBaseWindow, ui_type=UIType.STANDALONE):
         if e.new == e.old:
             return
         self._nav_cursor.set_visible(e.new == 'Pick')
-        pn.io.notebook.push_notebook(self.nav_plot.pane)
+        self.nav_plot.push()
 
     def _get_udf(self, dataset: DataSet, roi: np.ndarray | None):
         mode = self._mode_selector.value

@@ -148,7 +148,7 @@ class AperturePlotBase(Live2DPlot):
         self.im.update(self.data)
         self.last_update = time.time()
         if push_nb:
-            pn.io.push_notebook(self.pane)
+            self.push()
 
     def display(self):
         if self.fig is None:
@@ -304,7 +304,7 @@ class AperturePlot(AperturePlotBase):
     def clear_mask(self, *e):
         for element in self._mask_elements:
             element.clear()
-        pn.io.push_notebook(self.pane)
+        self.push()
 
     def get_clear_mask_btn(self):
         if self._clear_btn is None:

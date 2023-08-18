@@ -160,7 +160,7 @@ class PickUDFBaseWindow(UIWindow):
         self._last_pick = PointYX(cy, cx)
         self.reset_title()
         if with_push:
-            pn.io.push_notebook(self.sig_plot.pane)
+            self.sig_plot.push()
         return tuple()
 
 
