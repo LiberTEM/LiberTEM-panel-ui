@@ -29,6 +29,7 @@ setup(
         "bidict",
         "xarray",
         "datashader",
+        "StrEnum",  # in stdlib from 3.11
     ],
     extra_requires={
         "lt": [

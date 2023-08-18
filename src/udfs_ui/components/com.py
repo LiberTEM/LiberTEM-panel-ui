@@ -1,11 +1,13 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
+from strenum import StrEnum
 from typing_extensions import Self, Literal, TypedDict
+from functools import partial
 
 import numpy as np
 import panel as pn
 from libertem.udf.com import (
-    CoMUDF, CoMParams, RegressionOptions, apply_correction, magnitude, divergence, curl_2d
+    CoMUDF, CoMParams, RegressionOptions, apply_correction, divergence, curl_2d
 )
 
 from .imaging import ImagingWindow
@@ -28,6 +30,18 @@ class CoMParamsUI(TypedDict):
     result_name: str
 
 
+class CoMChanN(StrEnum):
+    SHIFT_MAGNITUDE = 'shift_magnitude'
+    RAW_X_SHIFT = 'raw_x_shift'
+    RAW_Y_SHIFT = 'raw_y_shift'
+    CORRECTED_X_SHIFT = 'corrected_x_shift'
+    CORRECTED_Y_SHIFT = 'corrected_y_shift'
+    DIVERGENCE = 'divergence'
+    CURL = 'curl'
+    REGRESSION_X = 'regression_x'
+    REGRESSION_Y = 'regression_y'
+
+
 class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
     @staticmethod
     def default_properties():
@@ -41,16 +55,23 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
 
         self._current_params = CoMParamsUI()
         self.nav_plot._channel_map = {
-            'shift_magnitude': 'magnitude',
-            'x_shift': ('raw_shifts', lambda buffer: buffer[..., 1]),
-            'y_shift': ('raw_shifts', lambda buffer: buffer[..., 0]),
-            'divergence': 'divergence',
-            'curl': 'curl',
-            'regression_x': self._plot_regression_x,
-            'regression_y': self._plot_regression_y,
+            CoMChanN.SHIFT_MAGNITUDE: 'magnitude',
+            CoMChanN.RAW_X_SHIFT: ('raw_shifts', lambda buffer: buffer[..., 1]),
+            CoMChanN.RAW_Y_SHIFT: ('raw_shifts', lambda buffer: buffer[..., 0]),
+            CoMChanN.CORRECTED_X_SHIFT: ('raw_shifts', partial(self._get_corrected_live, 1)),
+            CoMChanN.CORRECTED_Y_SHIFT: ('raw_shifts', partial(self._get_corrected_live, 0)),
+            CoMChanN.DIVERGENCE: 'divergence',
+            CoMChanN.CURL: 'curl',
+            CoMChanN.REGRESSION_X: self._plot_regression_x,
+            CoMChanN.REGRESSION_Y: self._plot_regression_y,
         }
         self._channel_select = self.nav_plot.get_channel_select(update_title=False)
         self._channel_select.param.watch(self._update_nav_title, 'value')
+
+        # # We only allow channel changing while not processing
+        # self._channel_select.param.unwatch(
+        #     self.nav_plot._channel_select_watcher
+        # )
 
         self._regression_mapping = {
             'NO_REGRESSION': RegressionOptions.NO_REGRESSION,
@@ -110,6 +131,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         self._rotation_slider.param.watch(self._apply_corrections, 'value_throttled')
         self._flip_y_cbox.param.watch(self._apply_corrections, 'value')
         self._channel_select.param.watch(self._apply_corrections, 'value')
+        self._rot_reset_btn.on_click(self._apply_corrections)
 
         self.toolbox.extend((
             pn.Row(
@@ -172,7 +194,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             result_name = 'annular_com'
         else:
             raise ValueError(f'Unsupported mode {mode}')
-        udf = CoMUDF(com_params)
+        udf = CoMUDF(com_params=com_params)
         return udf, CoMParamsUI(
             params=com_params,
             result_title=result_title,
@@ -243,12 +265,27 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         c, dy, dx = regression[:, column]
         return c + (dy * xdims) * (dx * ydims)
 
+    def _get_corrected_live(self, idx: int, raw_shifts):
+        shifts = apply_correction(
+            y_centers=raw_shifts[..., 0],
+            x_centers=raw_shifts[..., 1],
+            scan_rotation=self.nav_plot.udf.params.com_params.scan_rotation,
+            flip_y=self.nav_plot.udf.params.com_params.flip_y,
+            forward=False,
+        )
+        return shifts[idx]
+
     def _apply_corrections(self, *e):
         selected_channel = self._channel_select.value
         if selected_channel in (
-            'regression_x'
-            'regression_y'
+            CoMChanN.REGRESSION_X,
+            CoMChanN.REGRESSION_Y,
+            CoMChanN.RAW_X_SHIFT,
+            CoMChanN.RAW_Y_SHIFT,
+            CoMChanN.SHIFT_MAGNITUDE,
         ):
+            # Defer to standard channel change callback
+            self.nav_plot.change_channel(selected_channel, update_title=False)
             return
         try:
             udf_results, _ = self.nav_plot._last_res
@@ -262,23 +299,26 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         result_rotation = result_params.scan_rotation
         result_flip = result_params.flip_y
         raw_shifts = udf_results['raw_shifts'].data
-        corrected_y, corrected_x = apply_correction(
+        _y, _x = apply_correction(
             y_centers=raw_shifts[..., 0],
             x_centers=raw_shifts[..., 1],
-            scan_rotation=displayed_rotation - result_rotation,
-            flip_y=displayed_flip != result_flip,
+            scan_rotation=result_rotation,
+            flip_y=result_flip,
+            forward=False,
         )
-        if selected_channel == 'x_shift':
+        corrected_y, corrected_x = apply_correction(
+            y_centers=_y,
+            x_centers=_x,
+            scan_rotation=displayed_rotation,
+            flip_y=displayed_flip,
+        )
+        if selected_channel == CoMChanN.CORRECTED_X_SHIFT:
             im = corrected_x
-        elif selected_channel == 'y_shift':
+        elif selected_channel == CoMChanN.CORRECTED_Y_SHIFT:
             im = corrected_y
-        elif selected_channel == 'shift_magnitude':
-            im = magnitude(
-                y_centers=corrected_y, x_centers=corrected_x
-            )
-        elif selected_channel == 'divergence':
+        elif selected_channel == CoMChanN.DIVERGENCE:
             im = divergence(y_centers=corrected_y, x_centers=corrected_x)
-        elif selected_channel == 'curl':
+        elif selected_channel == CoMChanN.CURL:
             im = curl_2d(y_centers=corrected_y, x_centers=corrected_x)
         else:
             raise ValueError('Unexpected channel name')
