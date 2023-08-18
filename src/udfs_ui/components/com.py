@@ -7,7 +7,7 @@ from functools import partial
 import numpy as np
 import panel as pn
 from libertem.udf.com import (
-    CoMUDF, CoMParams, RegressionOptions, apply_correction, divergence, curl_2d
+    CoMUDF, CoMParams, RegressionOptions, apply_correction, divergence, curl_2d, guess_corrections
 )
 
 from .imaging import ImagingWindow
@@ -91,6 +91,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             align='end',
             width=120,
         )
+        self._guess_corrections_btn.on_click(self._guess_corrections)
 
         self._flip_y_cbox = pn.widgets.Checkbox(
             name='Flip-y',
@@ -298,7 +299,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             return
         displayed_rotation = self._rotation_slider.value
         displayed_flip = self._flip_y_cbox.value
-        raw_shifts = udf_results['raw_shifts'].data.copy()
+        raw_shifts = udf_results['raw_shifts'].data
         corrected_y, corrected_x = apply_correction(
             y_centers=raw_shifts[..., 0],
             x_centers=raw_shifts[..., 1],
@@ -317,3 +318,17 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             raise ValueError('Unexpected channel name')
         self.nav_plot.im.update(im)
         self.nav_plot.push()
+
+    def _guess_corrections(self, *e):
+        try:
+            udf_results, _ = self.nav_plot._last_res
+        except (AttributeError, TypeError):
+            return
+        y_centers = udf_results['raw_com'].data[..., 1]
+        x_centers = udf_results['raw_com'].data[..., 0]
+        roi = self.nav_plot.get_mask(y_centers.shape)
+        guess_result = guess_corrections(y_centers, x_centers, roi=roi)
+        self._vectors.move_centre(guess_result.cx, guess_result.cy)
+        self._flip_y_cbox.value = guess_result.flip_y
+        self._rotation_slider.value = guess_result.scan_rotation
+        self.sig_plot.push()
