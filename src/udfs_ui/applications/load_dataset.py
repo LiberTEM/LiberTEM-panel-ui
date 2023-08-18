@@ -9,7 +9,6 @@ from libertem.io.dataset.base.exceptions import DataSetException
 
 from ..utils.param_converters import _converters
 from .file_browser import FileBrowser
-from ..utils.notebook_tools import get_ipyw_reload_button
 
 
 class LoadDatasetWindow:
@@ -43,6 +42,7 @@ class LoadDatasetWindow:
 
     def layout(self, with_reload: bool = True):
         if with_reload:
+            from ..utils.notebook_tools import get_ipyw_reload_button
             get_ipyw_reload_button()
         self._layout = pn.Column()
         self._refresh_layout()
