@@ -25,7 +25,6 @@ from .windows.tools import ROIWindow, RecordWindow, SignalMonitorUDFWindow
 from .results.results_manager import ResultsManager, ResultRow
 from .results.containers import RecordResultContainer
 from .applications.terminal_logger import UILog
-from .utils.notebook_tools import get_ipyw_reload_button
 from .utils.panel_components import labelled_switch
 
 if TYPE_CHECKING:
@@ -160,6 +159,7 @@ class UIContext:
 
     def log_window(self, with_reload: bool = True):
         if with_reload:
+            from .utils.notebook_tools import get_ipyw_reload_button
             get_ipyw_reload_button()
         return self._logger.widget
 
@@ -213,6 +213,7 @@ class UIContext:
 
     def layout(self, with_reload: bool = False):
         if with_reload:
+            from .utils.notebook_tools import get_ipyw_reload_button
             get_ipyw_reload_button()
         if self._state is None:
             raise ValueError('Must initialize UI before displaying')
