@@ -61,8 +61,11 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             align='end',
         )
 
+        cx = self._disk_db.cds.data['cx'][0]
+        cy = self._disk_db.cds.data['cy'][0]
+        sig_dim = max(1, min(dataset.shape.sig) * 0.25)
         self._vectors = VectorsOverlay.new().from_params(
-            16., 16., 5., labels=('x', 'y'),
+            cx, cy, sig_dim, labels=('x', 'y'),
         )
         self._vectors.on(self.sig_plot.fig)
         self._rotation_slider = self._vectors.with_rotation(label='Scan rotation')

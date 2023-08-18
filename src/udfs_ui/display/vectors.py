@@ -100,14 +100,14 @@ class VectorsOverlay(DisplayBase):
     ) -> Self:
         cx = self.cds.data['xs'][0][0]
         cy = self.cds.data['ys'][0][0]
-        angle = self.cds.data['angle'][0]
-        length = self.cds.data['length'][0]
+        angles = self.cds.data['angle']
+        lengths = self.cds.data['length']
         initial_pos_text = VectorsOverlayCons._vectors_init(
             cx,
             cy,
-            angle,
-            length,
-            mult=length_mult
+            angles,
+            lengths,
+            mult=length_mult,
         )
         self.cds.data.update({
             'text_x': [initial_pos_text['xs'][0][1], initial_pos_text['xs'][1][1]],
@@ -127,26 +127,26 @@ class VectorsOverlay(DisplayBase):
         self._register_child('labels', labels)
         return self
 
-    def move_centre(self, cy: float, cx: float):
-        new_data = self._new_coords_for_centre(cy, cx)
+    def move_centre(self, cx: float, cy: float):
+        new_data = self._new_coords_for_centre(cx, cy)
         self.update(**new_data)
 
-    def _new_coords_for_centre(self, cy: float, cx: float):
-        angle = self.cds.data['angle'][0]
-        length = self.cds.data['length'][0]
+    def _new_coords_for_centre(self, cx: float, cy: float):
+        angles = self.cds.data['angle']
+        lengths = self.cds.data['length']
         new_data = VectorsOverlayCons._vectors_init(
             cx,
             cy,
-            angle,
-            length,
+            angles,
+            lengths,
         )
         if 'labels' in self.cds.data.keys():
             length_mult = self.cds.data['length_mult'][0]
             pos_text = VectorsOverlayCons._vectors_init(
                 cx,
                 cy,
-                angle,
-                length,
+                angles,
+                lengths,
                 mult=length_mult,
             )
             new_data['text_x'] = [pos_text['xs'][0][1], pos_text['xs'][1][1]]
@@ -160,6 +160,9 @@ class VectorsOverlay(DisplayBase):
         xkey: str = 'cx',
         ykey: str = 'cy',
     ):
+        cx = source_cds.data[xkey][index]
+        cy = source_cds.data[ykey][index]
+        self.move_centre(cx, cy)
         callback = CustomJS(
             args={
                 'xkey': xkey,
@@ -244,21 +247,24 @@ const centre_y = vector_source.data.ys[0][0]
     def _vectors_cb_base_js(with_emit: bool = True):
         code = """
 const angle_deg = angle_slider.value
-const angle_rad = angle_deg * Math.PI/180;
+const angle_rad0 = angle_deg * Math.PI/180;
 const length = vector_source.data.length
 
-const cos_dir = Math.cos(angle_rad)
-const sin_dir = Math.sin(angle_rad)
-const cos_dir_pi2 = Math.cos(angle_rad + Math.PI/2)
-const sin_dir_pi2 = Math.sin(angle_rad + Math.PI/2)
+const delta_theta_deg = vector_source.data.angle[1] - vector_source.data.angle[0]
+const delta_theta_rad = delta_theta_deg  * Math.PI/180
+
+const cos_dir0 = Math.cos(angle_rad0)
+const sin_dir0 = Math.sin(angle_rad0)
+const cos_dir1 = Math.cos(angle_rad0 + delta_theta_rad)
+const sin_dir1 = Math.sin(angle_rad0 + delta_theta_rad)
 
 vector_source.data.xs = []
 vector_source.data.ys = []
-vector_source.data.angle = [angle_deg, angle_deg + 90.]
-vector_source.data.xs.push([centre_x, centre_x + length[0] * cos_dir])
-vector_source.data.ys.push([centre_y, centre_y + length[0] * sin_dir])
-vector_source.data.xs.push([centre_x, centre_x + length[1] * cos_dir_pi2])
-vector_source.data.ys.push([centre_y, centre_y + length[1] * sin_dir_pi2])
+vector_source.data.angle = [angle_deg, angle_deg + delta_theta_deg]
+vector_source.data.xs.push([centre_x, centre_x + length[0] * cos_dir0])
+vector_source.data.ys.push([centre_y, centre_y + length[0] * sin_dir0])
+vector_source.data.xs.push([centre_x, centre_x + length[1] * cos_dir1])
+vector_source.data.ys.push([centre_y, centre_y + length[1] * sin_dir1])
 
 """
         if not with_emit:
@@ -275,13 +281,13 @@ vector_source.change.emit()
 vector_source.data.text_x = []
 vector_source.data.text_y = []
 vector_source.data.text_x.push(centre_x + length[0] * \
-    vector_source.data.length_mult[0] * cos_dir)
+    vector_source.data.length_mult[0] * cos_dir0)
 vector_source.data.text_x.push(centre_x + length[1] * \
-    vector_source.data.length_mult[1] * cos_dir_pi2)
+    vector_source.data.length_mult[1] * cos_dir1)
 vector_source.data.text_y.push(centre_y + length[0] * \
-    vector_source.data.length_mult[0] * sin_dir)
+    vector_source.data.length_mult[0] * sin_dir0)
 vector_source.data.text_y.push(centre_y + length[1] * \
-    vector_source.data.length_mult[1] * sin_dir_pi2)
+    vector_source.data.length_mult[1] * sin_dir1)
 vector_source.change.emit()
 '''
 
@@ -295,18 +301,28 @@ class VectorsOverlayCons(ConsBase):
         cls,
         cx: float,
         cy: float,
-        length: float,
-        initial_angle: Degrees = 0.,
+        length: tuple[float, float] | float,
+        angle: tuple[Degrees, Degrees] | Degrees = 0.,
         colors: tuple[str, str] | str = ('#FF8C00', '#00BFFF'),
         labels: tuple[str, str] | None = None,
     ) -> VectorsOverlay:
+        try:
+            a0, a1 = angle
+        except TypeError:
+            a0, a1 = angle, angle + 90.
+        try:
+            l0, l1 = length
+        except TypeError:
+            l0, l1 = length, length
         if isinstance(colors, str):
             colors = [colors] * 2
+        lengths = [l0, l1]
+        angles = [a0, a1]
         data = {
-            **cls._vectors_init(cx, cy, initial_angle, length),
+            **cls._vectors_init(cx, cy, angles, lengths),
             'line_color': colors,
-            'length': [length] * 2,
-            'angle': [initial_angle] * 2,
+            'length': lengths,
+            'angle': angles,
         }
         cds = ColumnDataSource(data)
         dbase = VectorsOverlay(cds)
@@ -324,15 +340,16 @@ class VectorsOverlayCons(ConsBase):
         raise NotImplementedError('VectorsOverlay cannot be instantiated empty')
 
     @staticmethod
-    def _vectors_init(cx, cy, angle_deg, length, mult=1.):
-        angle = np.deg2rad(angle_deg)
+    def _vectors_init(cx, cy, angles_deg, lengths, mult=1.):
+        angle0, angle1 = np.deg2rad(angles_deg)
+        length0, length1 = lengths
         dx0, dy0 = (
-            np.cos(angle) * length * mult,
-            np.sin(angle) * length * mult,
+            np.cos(angle0) * length0 * mult,
+            np.sin(angle0) * length0 * mult,
         )
         dx1, dy1 = (
-            np.cos(angle + np.pi / 2) * length * mult,
-            np.sin(angle + np.pi / 2) * length * mult,
+            np.cos(angle1) * length1 * mult,
+            np.sin(angle1) * length1 * mult,
         )
         return {
             'xs': [[cx, cx + dx0], [cx, cx + dx1]],
