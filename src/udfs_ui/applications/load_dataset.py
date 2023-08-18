@@ -7,7 +7,7 @@ from libertem.io.dataset import filetypes, get_dataset_cls, get_search_order
 from libertem.io.dataset.base.backend import IOBackend
 from libertem.io.dataset.base.exceptions import DataSetException
 
-from .param_converters import _converters
+from ..utils.param_converters import _converters
 from .file_browser import FileBrowser
 from ..utils.notebook_tools import get_ipyw_reload_button
 
