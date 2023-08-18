@@ -699,8 +699,8 @@ class Cursor(DisplayBase):
         except (KeyError, IndexError):
             return None
         if to_int:
-            x = int(x)
-            y = int(y)
+            x = int(np.round(x))
+            y = int(np.round(y))
         if clip_to is not None:
             h, w = clip_to
             if not ((0 <= x < w) and (0 <= y < h)):
