@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import UDF
     from .base import UDFWindowJob, JobResults, UIState
-    from ..results.results import ResultRow
+    from ..results.results_manager import ResultRow
     from libertem.udf.base import UDFResultDict
 
 

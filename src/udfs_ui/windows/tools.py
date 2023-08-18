@@ -19,7 +19,7 @@ from ..results.result_containers import RecordResultContainer
 if TYPE_CHECKING:
     from libertem.api import DataSet
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
-    from ..results.results import ResultRow
+    from ..results.results_manager import ResultRow
 
 
 class ROIWindow(UIWindow, ui_type=UIType.RESERVED):
