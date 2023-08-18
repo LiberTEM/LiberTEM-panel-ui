@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 _file_location = pathlib.Path(__file__).absolute().parent
 png_header = 'data:image/png;base64,'
 
+
 def imread(*args, **kwargs) -> np.ndarray:
     from skimage.io import imread
     return imread(*args, **kwargs)
@@ -75,6 +76,7 @@ def options_icon(as_b64: bool = False):
     if as_b64:
         return load_as_b64(path)
     return imread(path)
+
 
 @functools.lru_cache(2)
 def options_icon_blue(as_b64: bool = False):
