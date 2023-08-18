@@ -50,11 +50,24 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             name='Regression',
             options=list(self._regression_mapping.keys()),
             value='NO_REGRESSION',
-            width=200,
+            width=175,
         )
         self._mode_mapping.pop('Whole Frame')
         self._mode_mapping['Whole Frame'] = self._mode_mapping.pop('Point')
         self._mode_selector.options = list(self._mode_mapping.keys())
+
+        self._guess_corrections_btn = pn.widgets.Button(
+            name='Guess corrections',
+            button_type='success',
+            align='end',
+            width=120,
+        )
+
+        self._flip_y_cbox = pn.widgets.Checkbox(
+            name='Flip-y',
+            value=False,
+            align='end',
+        )
 
         self._show_vectors_cbox = pn.widgets.Checkbox(
             name='Show rotation',
@@ -75,7 +88,11 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         self._show_vectors_cbox.param.watch(lambda e: self._vectors.set_visible(e.new), 'value')
 
         self.toolbox.extend((
-            self._regression_select,
+            pn.Row(
+                self._regression_select,
+                self._flip_y_cbox,
+                self._guess_corrections_btn,
+            ),
             pn.Row(
                 self._rotation_slider,
                 self._show_vectors_cbox,
