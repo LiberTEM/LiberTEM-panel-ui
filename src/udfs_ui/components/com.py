@@ -256,7 +256,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             y_centers=raw_shifts[..., 0],
             x_centers=raw_shifts[..., 1],
             scan_rotation=displayed_rotation - result_rotation,
-            flip_y=displayed_flip == result_flip,
+            flip_y=displayed_flip != result_flip,
         )
         if selected_channel == 'x_shift':
             im = corrected_x
