@@ -24,7 +24,7 @@ from .resources import LiveResources, OfflineResources
 from .tools import ROIWindow, RecordWindow, SignalMonitorUDFWindow
 from .results import ResultsManager, ResultRow
 from .result_containers import RecordResultContainer
-from .terminal_logger import UILog
+from ..applications.terminal_logger import UILog
 from ..utils.notebook_tools import get_ipyw_reload_button
 from ..utils.panel_components import labelled_switch
 
