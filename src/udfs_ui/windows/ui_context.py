@@ -11,7 +11,7 @@ import panel as pn
 from typing import Callable, TYPE_CHECKING, TypedDict, overload, Any
 from typing_extensions import Literal
 
-from .progress import PanelProgressReporter
+from ..utils.progress import PanelProgressReporter
 from .base import UIWindow, UIType, UIState, UDFWindowJob, JobResults
 from .lifecycles import (
     UILifecycle,
