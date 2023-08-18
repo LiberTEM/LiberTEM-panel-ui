@@ -13,7 +13,7 @@ from libertem.udf.com import (
 from .imaging import ImagingWindow
 from .base import UIType, WindowProperties
 from ..display.vectors import VectorsOverlay
-from ..results.result_containers import Numpy2DResultContainer
+from ..results.containers import Numpy2DResultContainer
 
 if TYPE_CHECKING:
     from libertem.io.dataset.base import DataSet

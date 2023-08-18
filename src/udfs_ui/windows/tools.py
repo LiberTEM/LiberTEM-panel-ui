@@ -14,7 +14,7 @@ from libertem.common.math import prod
 from ..live_plot import AperturePlot
 from .base import UIWindow, UIType, UIState, UDFWindowJob, JobResults, WindowProperties
 from .simple import SimpleUDFUIWindow
-from ..results.result_containers import RecordResultContainer
+from ..results.containers import RecordResultContainer
 
 if TYPE_CHECKING:
     from libertem.api import DataSet

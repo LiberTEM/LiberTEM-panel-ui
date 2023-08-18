@@ -15,7 +15,7 @@ pn.extension('tabulator', 'jsoneditor')
 
 if TYPE_CHECKING:
     from ..windows.base import UIWindow
-    from .result_containers import ResultContainer
+    from .containers import ResultContainer
 
 
 class ResultWatcher(Protocol):

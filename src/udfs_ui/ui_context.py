@@ -23,7 +23,7 @@ from .lifecycles import (
 from .resources import LiveResources, OfflineResources
 from .windows.tools import ROIWindow, RecordWindow, SignalMonitorUDFWindow
 from .results.results_manager import ResultsManager, ResultRow
-from .results.result_containers import RecordResultContainer
+from .results.containers import RecordResultContainer
 from .applications.terminal_logger import UILog
 from .utils.notebook_tools import get_ipyw_reload_button
 from .utils.panel_components import labelled_switch

@@ -19,7 +19,7 @@ from libertem.udf.logsum import LogsumUDF
 from .base import UIType, UIState, UDFWindowJob, JobResults, WindowProperties
 from .pick import PickUDFBaseWindow
 from ..display.display_base import DiskSet, RingSet, PointSet
-from ..results.result_containers import Numpy2DResultContainer
+from ..results.containers import Numpy2DResultContainer
 from ..utils import get_initial_pos
 
 
