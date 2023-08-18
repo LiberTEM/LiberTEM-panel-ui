@@ -438,7 +438,7 @@ action.callback.execute(action)
             width=200,
             margin=(5, 5),
         )
-        self._channel_select.param.watch(
+        self._channel_select_watcher = self._channel_select.param.watch(
             partial(self._switch_channel_cb, update_title=update_title),
             'value',
         )
