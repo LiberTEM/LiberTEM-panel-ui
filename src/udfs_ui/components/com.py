@@ -65,15 +65,10 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             CoMChanN.REGRESSION_X: self._plot_regression_x,
             CoMChanN.REGRESSION_Y: self._plot_regression_y,
         }
-        self._channel_select = self.nav_plot.get_channel_select(update_title=False)
+        # We are overriding the default CB for channel select (link=False)
+        # Must take full responsibility for keeping the live plot in sync with the widget
+        self._channel_select = self.nav_plot.get_channel_select(update_title=False, link=False)
         self._channel_select.param.watch(self._update_nav_title, 'value')
-
-        # We are overriding the default CB
-        # Must take full responsibility for keeping
-        # the live plot in sync with the widget
-        self._channel_select.param.unwatch(
-            self.nav_plot._channel_select_watcher
-        )
 
         self._regression_mapping = {
             'NO_REGRESSION': RegressionOptions.NO_REGRESSION,

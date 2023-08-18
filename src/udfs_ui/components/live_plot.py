@@ -417,6 +417,7 @@ action.callback.execute(action)
         label: str = 'Display channel',
         update_title: bool = True,
         embed: bool = True,
+        link: bool = True,
     ) -> pn.widgets.Select:
         if self._channel_select is not None:
             return self._channel_select
@@ -438,10 +439,11 @@ action.callback.execute(action)
             width=200,
             margin=(5, 5),
         )
-        self._channel_select_watcher = self._channel_select.param.watch(
-            partial(self._switch_channel_cb, update_title=update_title),
-            'value',
-        )
+        if link:
+            self._channel_select.param.watch(
+                partial(self._switch_channel_cb, update_title=update_title),
+                'value',
+            )
         if embed:
             self._toolbar.insert(0, self._channel_select)
             self._toolbar.insert(0, display_text)
