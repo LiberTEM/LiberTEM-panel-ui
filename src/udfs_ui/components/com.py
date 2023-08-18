@@ -116,7 +116,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             cx, cy, sig_dim, labels=('sx', 'sy'),
         )
         self._vectors.on(self.sig_plot.fig)
-        self._rotation_slider = self._vectors.with_rotation(label='Scan rotation')
+        self._rotation_slider = self._vectors.with_rotation(label='Scan rotation', direction=-1)
         self._vectors.follow_point(self._disk_db.cds)
         self._vectors.set_visible(self._show_vectors_cbox.value)
         self._show_vectors_cbox.param.watch(lambda e: self._vectors.set_visible(e.new), 'value')
