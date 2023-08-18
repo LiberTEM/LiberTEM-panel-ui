@@ -11,7 +11,7 @@ from libertem.udf.com import (
 from .imaging import ImagingWindow
 from .base import UIType, WindowProperties
 from ..display.vectors import VectorsOverlay
-# from .result_containers import Numpy2DResultContainer
+from .result_containers import Numpy2DResultContainer
 
 if TYPE_CHECKING:
     from libertem.io.dataset.base import DataSet
@@ -204,28 +204,24 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         self._set_hold(False)
         self._current_params = CoMParamsUI(**job.params)
         self._update_nav_title()
-        return tuple()
-        # result_name: str = job.params.pop('result_name')
-        # window_row = self.results_manager.new_window_run(
-        #     self,
-        #     job_results.run_id,
-        #     params=job.params,
-        # )
-        # channel: str = self.nav_plot.channel
-        # buffer = job_results.udf_results[0][channel]
-        # image: np.ndarray = buffer.data.squeeze()
-        # rc = Numpy2DResultContainer(
-        #     result_name,
-        #     image,
-        #     meta={
-        #         'channel': channel,
-        #     },
-        #     title=result_title,
-        # )
-        # rc.tag_as(buffer.kind)
-        # result = self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
-        # self.nav_plot.displayed = result
-        # return (result,)
+
+        result_name: str = job.params.pop('result_name')
+        window_row = self.results_manager.new_window_run(
+            self,
+            job_results.run_id,
+            params=job.params,
+        )
+        raw_shifts = job_results.udf_results[0]['raw_shifts'].data
+        results = []
+        for idx, key in {0: 'y', 1: 'x'}.items():
+            rc = Numpy2DResultContainer(
+                f'{result_name}_shift{key}',
+                raw_shifts[..., idx],
+            )
+            results.append(
+                self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
+            )
+        return tuple(results)
 
     def _plot_regression_x(self, udf_results: UDFResultDict, damage):
         regression = self._plot_regression(udf_results, 'x')
