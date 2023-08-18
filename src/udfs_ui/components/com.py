@@ -109,6 +109,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
 
         self._rotation_slider.param.watch(self._apply_corrections, 'value_throttled')
         self._flip_y_cbox.param.watch(self._apply_corrections, 'value')
+        self._channel_select.param.watch(self._apply_corrections, 'value')
 
         self.toolbox.extend((
             pn.Row(
