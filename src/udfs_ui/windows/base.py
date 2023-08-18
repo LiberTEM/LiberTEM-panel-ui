@@ -12,7 +12,7 @@ from ..utils.panel_components import button_divider
 
 if TYPE_CHECKING:
     import numpy as np
-    from libertem.api import DataSet
+    from libertem.api import DataSet, Context
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import UDF, BufferWrapper, UDFResultDict
     from libertem.viz.base import Live2DPlot
@@ -41,6 +41,9 @@ if TYPE_CHECKING:
         tuple[ResultRow, ...]
     ]
 
+    T = TypeVar('T', bound='WindowProperties')
+    W = TypeVar('W', bound='UIWindow')
+
 
 class UIState(StrEnum):
     OFFLINE = 'Offline'
@@ -51,9 +54,6 @@ class UIState(StrEnum):
 class UIType(StrEnum):
     STANDALONE = 'Standalone'
     RESERVED = 'Reserved'
-
-
-T = TypeVar('T', bound='WindowProperties')
 
 
 class WindowProperties(NamedTuple):
@@ -158,6 +158,14 @@ class UIWindow:
             self._header_layout,
             self._inner_layout,
         )
+
+    @classmethod
+    def using(cls: type[W], ctx: Context, dataset: DataSet) -> W:
+        from .standalone import StandaloneContext
+        ui_context = StandaloneContext(ctx, dataset)
+        window = cls(ui_context)
+        window.initialize(dataset)
+        return window
 
     def validate_data(self):
         pass
