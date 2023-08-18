@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from libertem.udf.base import UDF, BufferWrapper, UDFResultDict
     from libertem.viz.base import Live2DPlot
     from libertem.common.shape import Shape
-    from .ui_context import UIContext
+    from ..ui_context import UIContext
     from ..results.results import ResultRow
     from ..results.result_tracker import ResultTracker
     from ..live_plot import AperturePlot

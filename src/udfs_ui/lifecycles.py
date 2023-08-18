@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from .windows.base import UIState
 
 if TYPE_CHECKING:
-    from .windows.ui_context import UIContext
+    from .ui_context import UIContext
 
 
 class UILifecycle:

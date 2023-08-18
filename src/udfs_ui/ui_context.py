@@ -11,22 +11,22 @@ import panel as pn
 from typing import Callable, TYPE_CHECKING, TypedDict, overload, Any
 from typing_extensions import Literal
 
-from ..utils.progress import PanelProgressReporter
-from .base import UIWindow, UIType, UIState, UDFWindowJob, JobResults
-from ..lifecycles import (
+from .utils.progress import PanelProgressReporter
+from .windows.base import UIWindow, UIType, UIState, UDFWindowJob, JobResults
+from .lifecycles import (
     UILifecycle,
     OfflineLifecycle,
     LiveLifecycle,
     ReplayLifecycle,
     ContinuousLifecycle,
 )
-from ..resources import LiveResources, OfflineResources
-from .tools import ROIWindow, RecordWindow, SignalMonitorUDFWindow
-from ..results.results import ResultsManager, ResultRow
-from ..results.result_containers import RecordResultContainer
-from ..applications.terminal_logger import UILog
-from ..utils.notebook_tools import get_ipyw_reload_button
-from ..utils.panel_components import labelled_switch
+from .resources import LiveResources, OfflineResources
+from .windows.tools import ROIWindow, RecordWindow, SignalMonitorUDFWindow
+from .results.results import ResultsManager, ResultRow
+from .results.result_containers import RecordResultContainer
+from .applications.terminal_logger import UILog
+from .utils.notebook_tools import get_ipyw_reload_button
+from .utils.panel_components import labelled_switch
 
 if TYPE_CHECKING:
     import pathlib
@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from libertem.udf.base import UDFResults
     from libertem_live.api import LiveContext
     from libertem.api import DataSet, Context
-    from .base import RunFromT, WindowPropertiesTDict
+    from .windows.base import RunFromT, WindowPropertiesTDict
 
 
 class UITools:
