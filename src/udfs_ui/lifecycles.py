@@ -1,10 +1,10 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from .base import UIState
+from .windows.base import UIState
 
 if TYPE_CHECKING:
-    from .ui_context import UIContext
+    from .windows.ui_context import UIContext
 
 
 class UILifecycle:

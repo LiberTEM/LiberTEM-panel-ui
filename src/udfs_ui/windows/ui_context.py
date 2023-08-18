@@ -13,14 +13,14 @@ from typing_extensions import Literal
 
 from ..utils.progress import PanelProgressReporter
 from .base import UIWindow, UIType, UIState, UDFWindowJob, JobResults
-from .lifecycles import (
+from ..lifecycles import (
     UILifecycle,
     OfflineLifecycle,
     LiveLifecycle,
     ReplayLifecycle,
     ContinuousLifecycle,
 )
-from .resources import LiveResources, OfflineResources
+from ..resources import LiveResources, OfflineResources
 from .tools import ROIWindow, RecordWindow, SignalMonitorUDFWindow
 from ..results.results import ResultsManager, ResultRow
 from ..results.result_containers import RecordResultContainer
