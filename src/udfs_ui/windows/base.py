@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, TypeVar, NamedTuple, Any, Callable, TypedDict
 
 import panel as pn
 
-from ..results.result_tracker import ImageResultTracker
+from ..results.tracker import ImageResultTracker
 from ..utils.panel_components import button_divider
 
 if TYPE_CHECKING:
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from libertem.common.shape import Shape
     from ..ui_context import UIContext
     from ..results.results_manager import ResultRow
-    from ..results.result_tracker import ResultTracker
+    from ..results.tracker import ResultTracker
     from ..live_plot import AperturePlot
 
     TWindow = TypeVar("TWindow", bound="UIWindow")
