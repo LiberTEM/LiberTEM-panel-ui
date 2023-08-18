@@ -183,21 +183,24 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         result_title = self._current_params.get('result_title', 'CoM')
         self.nav_plot.fig.title.text = f'{result_title} - {selected}'
 
+    def _set_hold(self, val: bool):
+        self._rotation_slider.disabled = val
+        self._channel_select.disabled = val
+        self._flip_y_cbox.disabled = val
+        self._guess_corrections_btn.disabled = val
+        self._rot_reset_btn.disabled = val
+
     def get_job(
         self,
         state: UIState,
         dataset: DataSet | AcquisitionProtocol,
         roi: np.ndarray | None,
     ):
-        self._rotation_slider.disabled = True
-        self._flip_y_cbox.disabled = True
-        self._guess_corrections_btn.disabled = True
+        self._set_hold(True)
         return super().get_job(state, dataset, roi)
 
     def complete_job(self, job: UDFWindowJob, job_results: JobResults) -> tuple[ResultRow, ...]:
-        self._rotation_slider.disabled = False
-        self._flip_y_cbox.disabled = False
-        self._guess_corrections_btn.disabled = False
+        self._set_hold(False)
         self._current_params = CoMParamsUI(**job.params)
         self._update_nav_title()
         return tuple()
