@@ -8,7 +8,7 @@ from datetime import timedelta
 from humanize import naturalsize, precisedelta
 import numpy as np
 import panel as pn
-from typing import Callable, TYPE_CHECKING, Type, TypedDict, overload, Any
+from typing import Callable, TYPE_CHECKING, TypedDict, overload, Any
 from typing_extensions import Literal
 
 from .progress import PanelProgressReporter
@@ -227,7 +227,7 @@ class UIContext:
 
     def add(
         self,
-        window_cls: Type[UIWindow] | str,
+        window_cls: type[UIWindow] | str,
         window_props: WindowPropertiesTDict | None = None,
         window_data: Any | None = None,
     ) -> UIContext:
@@ -242,7 +242,7 @@ class UIContext:
 
     def _add(
         self,
-        window_cls: Type[UIWindow] | str,
+        window_cls: type[UIWindow] | str,
         window_props: WindowPropertiesTDict | None = None,
         window_data: Any | None = None,
     ) -> UIWindow:
