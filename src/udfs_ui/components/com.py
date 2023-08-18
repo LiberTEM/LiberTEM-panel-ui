@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
-from typing_extensions import Self, Literal
+from typing_extensions import Self, Literal, TypedDict
 
 import numpy as np
 import panel as pn
@@ -20,6 +20,12 @@ if TYPE_CHECKING:
     from libertem.udf.base import UDFResultDict
 
 
+class CoMParamsUI(TypedDict):
+    params: CoMParams
+    result_title: str
+    result_name: str
+
+
 class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
     @staticmethod
     def default_properties():
@@ -30,6 +36,8 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
 
     def initialize(self, dataset: DataSet) -> Self:
         super().initialize(dataset, with_layout=False)
+
+        self._current_params = CoMParamsUI()
         self.nav_plot._channel_map = {
             'shift_magnitude': 'magnitude',
             'x-shift': ('raw_shifts', lambda buffer: buffer[..., 1]),
@@ -39,7 +47,8 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             'regression_x': self._plot_regression_x,
             'regression_y': self._plot_regression_y,
         }
-        self.nav_plot.get_channel_select()
+        self._channel_select = self.nav_plot.get_channel_select(update_title=False)
+        self._channel_select.param.watch(self._update_nav_title, 'value')
 
         self._regression_mapping = {
             'NO_REGRESSION': RegressionOptions.NO_REGRESSION,
@@ -117,7 +126,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         cy = self._ring_db.cds.data[glyph.y][0]
         ri = self._ring_db.cds.data[glyph.inner_radius][0]
         ro = self._ring_db.cds.data[glyph.outer_radius][0]
-        params = {
+        shared_params = {
             'cy': cy,
             'cx': cx,
             'regression': regression,
@@ -126,35 +135,38 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
         }
         if mode == 'Whole Frame':
             com_params = CoMParams(
-                **params,
+                **shared_params,
             )
-            params['mode'] = 'whole_frame'
             result_title = 'Whole Frame CoM'
             result_name = 'frame_com'
         elif mode == 'Disk':
             com_params = CoMParams(
-                **params,
+                **shared_params,
                 r=ro,
             )
-            params['r'] = ro
-            params['mode'] = 'disk'
             result_title = 'Disk CoM'
             result_name = 'disk_com'
         elif mode == 'Annulus':
             com_params = CoMParams(
-                **params,
+                **shared_params,
                 r=ro,
                 ri=ri,
             )
-            params['ro'] = ro
-            params['ri'] = ri
-            params['mode'] = 'annulus'
             result_title = 'Annular CoM'
             result_name = 'annular_com'
         else:
             raise ValueError(f'Unsupported mode {mode}')
         udf = CoMUDF(com_params)
-        return udf, {**params, 'result_title': result_title, 'result_name': result_name}
+        return udf, CoMParamsUI(
+            params=com_params,
+            result_title=result_title,
+            result_name=result_name
+        )
+
+    def _update_nav_title(self, *e):
+        selected = self._channel_select.value
+        result_title = self._current_params.get('result_title', 'CoM')
+        self.nav_plot.fig.title.text = f'{result_title} - {selected}'
 
     def get_job(
         self,
@@ -167,8 +179,8 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
 
     def complete_job(self, job: UDFWindowJob, job_results: JobResults) -> tuple[ResultRow, ...]:
         self._rotation_slider.disabled = False
-        result_title: str = job.params.pop('result_title')
-        self.nav_plot.fig.title.text = result_title
+        self._current_params = CoMParamsUI(**job.params)
+        self._update_nav_title()
         return tuple()
         # result_name: str = job.params.pop('result_name')
         # window_row = self.results_manager.new_window_run(
