@@ -1,5 +1,4 @@
 from __future__ import annotations
-import uuid
 import pathlib
 import datetime
 from typing import TYPE_CHECKING

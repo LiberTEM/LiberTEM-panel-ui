@@ -32,9 +32,7 @@ def _default_colormaps():
         image_colormaps['Greys'] = cc.gray
         image_colormaps['Viridis'] = bp.Viridis256
         image_colormaps['Cividis'] = bp.Cividis256
-        image_colormaps['Blues'] = cc.blues  # bp.Blues[256]
-        # This mapping could be vectorized if used a lot
-        # To map 256 colors takes about 5 ms but is only done once at startup
+        image_colormaps['Blues'] = cc.blues
         blue_to_red = functools.partial(hue_shift, degrees=150)
         image_colormaps['Reds'] = [*map(blue_to_red, cc.blues)]
         image_colormaps['Greens'] = bp.Greens[256]

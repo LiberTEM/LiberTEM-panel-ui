@@ -65,7 +65,7 @@ class LiveLifecycle(UILifecycle):
         self.ui._tools.set_subtitle(UIState.LIVE.value)
         self.ui._tools.mode_btn.name = f'Go to {UIState.REPLAY.value}'
         self.ui._tools.continuous_btn.visible = True
-        # Toggles    
+        # Toggles
         self.ui._tools.roi_toggle_btn.value = False
         self.ui._tools.roi_toggle_btn.disabled = True
         self.ui._tools.roi_toggle_btn.visible = False
@@ -125,7 +125,7 @@ class ReplayLifecycle(OfflineLifecycle):
         self.ui._tools.mode_btn.name = f'Go to {UIState.LIVE.value}'
         self.ui._tools.mode_btn.disabled = False
         self.ui._tools.continuous_btn.visible = False
-        # Toggles    
+        # Toggles
         self.ui._tools.roi_toggle_btn.disabled = False
         self.ui._tools.roi_toggle_btn.visible = True
         self.ui._tools.roi_toggle_txt.visible = True

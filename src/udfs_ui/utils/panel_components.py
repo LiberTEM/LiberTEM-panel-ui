@@ -27,11 +27,11 @@ card_css = '''.cardtree {
 
 
 def minimal_card(
-      title: str,
-      *objects: pn.viewable.Layoutable,
-      collapsed: bool = False,
-      **card_kwargs
-    ) -> pn.layout.Card:
+    title: str,
+    *objects: pn.viewable.Layoutable,
+    collapsed: bool = False,
+    **card_kwargs
+) -> pn.layout.Card:
     card_header = pn.widgets.StaticText(
         value=title,
         margin=(5, 5),

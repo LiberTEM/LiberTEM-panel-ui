@@ -11,8 +11,7 @@ from bokeh.models.annotations import ColorBar
 
 from .display_base import DisplayBase, PointSet
 from .gamma_mapper import GammaColorMapper
-from .utils import slider_step_size
-from .utils import colormaps as cmaps
+from ..utils import colormaps as cmaps
 from bokeh.models.widgets import RangeSlider, CheckboxGroup, Button, Slider
 from bokeh.models import CustomJS
 from bokeh.events import RangesUpdate
@@ -20,6 +19,10 @@ from bokeh.events import RangesUpdate
 if TYPE_CHECKING:
     from bokeh.models.mappers import ColorMapper
     from .image_datashader import DatashadeHelper
+
+
+def slider_step_size(start, end, n=300):
+    return abs(end - start) / n
 
 
 class BokehImageCons:

@@ -75,6 +75,7 @@ class WindowProperties(NamedTuple):
             }
         )
 
+
 # Exists to help type-hint property overrides
 # Ideally would use a NamedTuple but don't want
 # to have the default values when overriding

@@ -1,41 +1,16 @@
 from __future__ import annotations
-from typing_extensions import Literal
-
-
-def python_info() -> Literal['unknown', 'python', 'ipython', 'notebook']:
-    """
-    Try to infer information about the current Python interpreter environment
-
-    By default return 'python' when we are not in an ipython context
-    """
-    try:
-        shell = get_ipython().__class__.__name__  # noqa
-        if shell == 'ZMQInteractiveShell':
-            return 'notebook'   # Jupyter notebook or qtconsole
-        elif shell == 'TerminalInteractiveShell':
-            return 'ipython'  # Terminal running IPython
-        else:
-            return 'unknown'  # Other type (?)
-    except NameError:
-        return 'python'
-
-
-def is_notebook() -> bool:
-    """Convenience method to check if we are in a notebook"""
-    return python_info() == 'notebook'
 
 
 def notebook_fullwidth():
     from IPython.display import display, HTML
     """Set notebook display to 95% fullwidth for more available space"""
-    if is_notebook():
-        display(HTML(data="""
-        <style>
-            div#notebook-container    { width: 95%; }
-            div#menubar-container     { width: 65%; }
-            div#maintoolbar-container { width: 99%; }
-        </style>
-        """))
+    display(HTML(data="""
+    <style>
+        div#notebook-container    { width: 95%; }
+        div#menubar-container     { width: 65%; }
+        div#maintoolbar-container { width: 99%; }
+    </style>
+    """))
 
 
 def run_next_cells(ncells: int, ev):
@@ -137,7 +112,6 @@ def stop_nb(with_continue: bool = True, continue_name: str = 'Continue'):
     StopExecution
         _description_
     """
-    assert is_notebook(), 'Only possible in a notebook context'
     if with_continue:
         get_ipyw_continue_button(name=continue_name)
     raise StopExecution
