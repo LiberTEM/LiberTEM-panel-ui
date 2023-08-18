@@ -102,6 +102,9 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
             value=False,
             align='end',
         )
+        self._flip_y_cbox.param.watch(lambda e: self._vectors.flip_dir('y'), 'value')
+        if self._flip_y_cbox.value:
+            self._vectors.flip_dir('y')
 
         self._show_vectors_cbox = pn.widgets.Checkbox(
             name='Show rotation',
