@@ -8,7 +8,7 @@ from libertem.io.dataset.base.backend import IOBackend
 from libertem.io.dataset.base.exceptions import DataSetException
 
 from .param_converters import _converters
-from .file_browser import FileBrowser
+from ..applications.file_browser import FileBrowser
 from ..utils.notebook_tools import get_ipyw_reload_button
 
 
