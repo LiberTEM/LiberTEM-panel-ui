@@ -127,6 +127,12 @@ class VectorsOverlay(DisplayBase):
         self._register_child('labels', labels)
         return self
 
+    def refresh(self):
+        # FIXME sync issues!!!
+        cx = self.cds.data['xs'][0][0]
+        cy = self.cds.data['ys'][0][0]
+        self.move_centre(cx, cy)
+
     def move_centre(self, cx: float, cy: float):
         new_data = self._new_coords_for_centre(cx, cy)
         self.update(**new_data)
@@ -152,6 +158,25 @@ class VectorsOverlay(DisplayBase):
             new_data['text_x'] = [pos_text['xs'][0][1], pos_text['xs'][1][1]]
             new_data['text_y'] = [pos_text['ys'][0][1], pos_text['ys'][1][1]]
         return new_data
+
+    def flip_dir(self, dir: Literal['x', 'y']):
+        if dir not in ('x', 'y'):
+            raise ValueError("Direction either 'x' or 'y'")
+        idx = 0 if dir == 'x' else 1
+        current_length = self.cds.data['length'][idx]
+        self.cds.patch({
+            'length': [(idx, -1 * current_length)],
+        })
+        try:
+            # HACK !!!
+            # Cannot trigger the JSCallback directly
+            current_dir = np.sign(current_length)
+            self._rotation_slider.param.update(
+                value=self._rotation_slider.value + (current_dir * 1e-3)
+            )
+        except AttributeError:
+            # FIXME Will still bug-out due to JSCallback of .follow_point
+            self.refresh()
 
     def follow_point(
         self,
