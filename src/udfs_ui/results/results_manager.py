@@ -9,7 +9,6 @@ import pathlib
 import panel as pn
 import humanize
 import pandas as pd
-from ..utils.notebook_tools import get_ipyw_reload_button
 
 pn.extension('tabulator', 'jsoneditor')
 
@@ -464,6 +463,7 @@ class ResultsManager:
 
     def layout(self, with_reload: bool = True):
         if with_reload:
+            from ..utils.notebook_tools import get_ipyw_reload_button
             get_ipyw_reload_button()
         if len(self._layout) == 0:
             self._make_layout()
