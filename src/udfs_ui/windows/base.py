@@ -2,7 +2,7 @@ from __future__ import annotations
 import uuid
 import asyncio
 from types import SimpleNamespace
-from enum import Enum
+from strenum import StrEnum
 from typing import TYPE_CHECKING, TypeVar, NamedTuple, Any, Callable, TypedDict
 
 import panel as pn
@@ -42,13 +42,13 @@ if TYPE_CHECKING:
     ]
 
 
-class UIState(Enum):
+class UIState(StrEnum):
     OFFLINE = 'Offline'
     LIVE = 'Live'
     REPLAY = 'Replay'
 
 
-class UIType(Enum):
+class UIType(StrEnum):
     STANDALONE = 'Standalone'
     RESERVED = 'Reserved'
 

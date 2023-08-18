@@ -610,7 +610,7 @@ class UIContext:
                 n_frames = roi.sum()
 
             roi_message = f" with ROI of {n_frames} frames" if roi is not None else ", no ROI"
-            self.logger.info(f'Start run, state {self._state.value.upper()} '
+            self.logger.info(f'Start run, state {self._state.upper()} '
                              f'on {len(to_run)} jobs{roi_message}')
             # Special optimisation for progress bar when using single-frame ROI
             progress = False if (n_frames <= 1 and roi is not None) else self._p_reporter
@@ -641,7 +641,7 @@ class UIContext:
 
         run_record = self.results_manager.new_run(
             has_roi=roi is not None,
-            state=self._state.value,
+            state=self._state,
             shape={
                 'nav': tuple(ds.shape.nav),
                 'sig': tuple(ds.shape.sig),
