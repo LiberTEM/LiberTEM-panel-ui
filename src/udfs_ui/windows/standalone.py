@@ -6,7 +6,6 @@ import panel as pn
 
 from ..results.results_manager import ResultsManager
 from ..utils.logging import logger
-from .base import JobResults
 from ..base import UIContextBase, UIState
 from ..utils.progress import PanelProgressReporter
 
@@ -84,30 +83,10 @@ class StandaloneContext(UIContextBase):
             self.logger.log_from_exception(err, reraise=True, msg=msg)
 
         run_record = self.results_manager.new_run(
+            ds_shape=self.dataset.shape,
             has_roi=roi is not None,
             state=UIState.OFFLINE,
-            shape={
-                'nav': tuple(self.dataset.shape.nav),
-                'sig': tuple(self.dataset.shape.sig),
-            }
         )
 
-        # Unpack results back to their window objects
-        damage = udfs_res.damage
-        buffers = udfs_res.buffers
-        res_iter = iter(buffers)
-        for job in to_run:
-            window_res = tuple(next(res_iter) for _ in job.udfs)
-            job_results = JobResults(
-                run_record.run_id,
-                job,
-                window_res,
-                self.dataset.shape,
-                damage=damage,
-            )
-            if job.result_handler is not None:
-                try:
-                    job.result_handler(job, job_results)
-                except Exception as err:
-                    msg = 'Error while unpacking result'
-                    self.logger.log_from_exception(err, msg=msg)
+        all_results = self.unpack_results(udfs_res, to_run, run_record)
+        self.notify_new_results(*all_results)

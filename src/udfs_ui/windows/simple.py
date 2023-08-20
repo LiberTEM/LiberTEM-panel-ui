@@ -1,8 +1,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from ..base import UIState
-from .base import UIWindow, UDFWindowJob, JobResults
+from ..base import UIState, JobResults
+from .base import UIWindow, UDFWindowJob
 from ..live_plot import AperturePlot
 from ..results.containers import Numpy2DResultContainer
 
@@ -45,12 +45,14 @@ class SimpleUDFUIWindow(UIWindow):
     ) -> tuple[ResultRow, ...]:
         window_row = self.results_manager.new_window_run(
             self,
-            job_results.run_id,
+            job_results.run_row.run_id,
             params=job.params,
         )
         channel = self._plot.channel
         buffer = job_results.udf_results[0][channel]
         image: np.ndarray = buffer.data
         rc = Numpy2DResultContainer(channel, image, {'tags': (buffer.kind,)})
-        result = self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
+        result = self.results_manager.new_result(
+            rc, job_results.run_row.run_id, window_row.window_id
+        )
         return (result,)

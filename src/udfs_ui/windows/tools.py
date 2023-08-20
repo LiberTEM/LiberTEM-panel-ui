@@ -12,8 +12,8 @@ from libertem.udf.sumsigudf import SumSigUDF
 from libertem.common.math import prod
 
 from ..live_plot import AperturePlot
-from ..base import UIState
-from .base import UIWindow, WindowType, UDFWindowJob, JobResults, WindowProperties
+from ..base import UIState, JobResults
+from .base import UIWindow, WindowType, UDFWindowJob, WindowProperties
 from .simple import SimpleUDFUIWindow
 from ..results.containers import RecordResultContainer
 
@@ -128,9 +128,9 @@ class RecordWindow(UIWindow, ui_type=WindowType.RESERVED):
             # In case the the UDFMeta is not correctly set
             self.logger.info(f'Data recorded at {filepath}')
 
-        window_row = self.results_manager.new_window_run(self, results.run_id)
+        window_row = self.results_manager.new_window_run(self, results.run_row.run_id)
         rc = RecordResultContainer('recording', filepath, meta={})
-        result = self.results_manager.new_result(rc, results.run_id, window_row)
+        result = self.results_manager.new_result(rc, results.run_row.run_id, window_row)
         return (result,)
 
 

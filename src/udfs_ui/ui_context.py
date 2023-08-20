@@ -11,7 +11,7 @@ from typing import Callable, TYPE_CHECKING, TypedDict, overload, Any
 from typing_extensions import Literal
 
 from .base import UIContextBase, UIState
-from .windows.base import UIWindow, WindowType, UDFWindowJob, JobResults
+from .windows.base import UIWindow, WindowType, UDFWindowJob
 from .lifecycles import (
     UILifecycle,
     OfflineLifecycle,
@@ -21,7 +21,7 @@ from .lifecycles import (
 )
 from .resources import LiveResources, OfflineResources
 from .windows.tools import ROIWindow, RecordWindow, SignalMonitorUDFWindow
-from .results.results_manager import ResultsManager, ResultRow
+from .results.results_manager import ResultsManager
 from .results.containers import RecordResultContainer
 from .applications.terminal_logger import UILog
 from .utils.panel_components import labelled_switch
@@ -30,7 +30,6 @@ from .utils.progress import PanelProgressReporter
 if TYPE_CHECKING:
     import pathlib
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
-    from libertem.udf.base import UDFResults
     from libertem_live.api import LiveContext
     from libertem.api import DataSet, Context
     from .windows.base import RunFromT, WindowPropertiesTDict
@@ -654,29 +653,7 @@ class UIContext(UIContextBase):
             }
         )
 
-        # Unpack results back to their window objects
-        udfs_res: UDFResults
-        damage = udfs_res.damage
-        buffers = udfs_res.buffers
-        res_iter = iter(buffers)
-        all_results: list[ResultRow] = []
-        for job in to_run:
-            window_res = tuple(next(res_iter) for _ in job.udfs)
-            job_results = JobResults(
-                run_record.run_id,
-                job,
-                window_res,
-                ds.shape,
-                damage=damage,
-            )
-            if job.result_handler is not None:
-                try:
-                    result_entries = job.result_handler(job, job_results)
-                except Exception as err:
-                    msg = 'Error while unpacking result'
-                    self.logger.log_from_exception(err, msg=msg)
-                all_results.extend(result_entries)
-
+        all_results = self.unpack_results(udfs_res, to_run, run_record)
         t_complete_jobs = time.monotonic()
         self.notify_new_results(*all_results)
         t_notify = time.monotonic()

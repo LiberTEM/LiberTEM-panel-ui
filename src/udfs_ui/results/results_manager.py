@@ -9,6 +9,7 @@ import pathlib
 import panel as pn
 import humanize
 import pandas as pd
+from libertem.common.shape import Shape
 
 pn.extension('tabulator', 'jsoneditor')
 
@@ -68,6 +69,19 @@ class RunRow(NamedTuple):
     run_id: int  # primarykey
     params: dict[str, Any]
     timestamp: datetime.datetime
+
+    @property
+    def ds_shape(self) -> Shape | None:
+        shape_dict = self.params.get('shape', None)
+        if shape_dict is None:
+            return
+        nav = tuple(shape_dict['nav'])
+        sig = tuple(shape_dict['sig'])
+        return Shape(nav + sig, sig_dims=len(sig))
+
+    @property
+    def has_roi(self) -> bool | None:
+        return self.params.get('has_roi', None)
 
 
 class ResultsManager:

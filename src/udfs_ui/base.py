@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Protocol, NewType, TYPE_CHECKING, Callable
+from typing import Protocol, NewType, TYPE_CHECKING, Callable, NamedTuple
 
 from strenum import StrEnum
 
@@ -10,9 +10,10 @@ if TYPE_CHECKING:
 
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.io.dataset.base import DataSet
+    from libertem.udf.base import UDFResults, UDFResultDict, BufferWrapper
 
-    from .windows.base import UIWindow, UDFWindowJob, JobResults
-    from .results.results_manager import ResultsManager, ResultRow
+    from .windows.base import UIWindow, UDFWindowJob
+    from .results.results_manager import ResultsManager, ResultRow, RunRow
     from .utils.logging import UILogger
 
     WindowIdent = NewType('WindowIdent', str)
@@ -39,6 +40,13 @@ class UIState(StrEnum):
     OFFLINE = 'Offline'
     LIVE = 'Live'
     REPLAY = 'Replay'
+
+
+class JobResults(NamedTuple):
+    run_row: RunRow
+    job: UDFWindowJob
+    udf_results: tuple[UDFResultDict]
+    damage: BufferWrapper | None = None
 
 
 class UIContextBase(Protocol):
@@ -96,3 +104,31 @@ class UIContextBase(Protocol):
 
     async def _run_job(self, run_from: list[RunFromT]):
         ...
+
+    def unpack_results(
+        self,
+        udfs_res: UDFResults,
+        jobs: list[RunFromT],
+        run_record: RunRow,
+    ):
+        # Unpack results back to their window objects
+        damage = udfs_res.damage
+        buffers = udfs_res.buffers
+        res_iter = iter(buffers)
+        all_results: list[ResultRow] = []
+        for job in jobs:
+            window_res = tuple(next(res_iter) for _ in job.udfs)
+            job_results = JobResults(
+                run_record,
+                job,
+                window_res,
+                damage=damage,
+            )
+            if job.result_handler is not None:
+                try:
+                    result_entries = job.result_handler(job, job_results)
+                except Exception as err:
+                    msg = 'Error while unpacking result'
+                    self.logger.log_from_exception(err, msg=msg)
+                all_results.extend(result_entries)
+        return all_results

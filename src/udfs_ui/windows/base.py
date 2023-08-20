@@ -16,10 +16,9 @@ if TYPE_CHECKING:
     import numpy as np
     from libertem.api import DataSet, Context
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
-    from libertem.udf.base import UDF, BufferWrapper, UDFResultDict
+    from libertem.udf.base import UDF
     from libertem.viz.base import Live2DPlot
-    from libertem.common.shape import Shape
-    from ..base import UIContextBase, RunFromT, ResultHandlerT, UIState
+    from ..base import UIContextBase, RunFromT, ResultHandlerT, UIState, JobResults
     from .standalone import StandaloneContext
     from ..results.results_manager import ResultRow
     from ..results.tracker import ResultTracker
@@ -534,11 +533,3 @@ class UDFWindowJob(NamedTuple):
     params: dict[str, Any] | None = None
     roi: np.ndarray | None = None
     quiet: bool = False
-
-
-class JobResults(NamedTuple):
-    run_id: str
-    job: UDFWindowJob
-    udf_results: tuple[UDFResultDict]
-    ds_shape: Shape
-    damage: BufferWrapper | None = None

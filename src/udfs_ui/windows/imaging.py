@@ -16,8 +16,8 @@ from libertem.udf.sumsigudf import SumSigUDF
 from libertem.udf.sum import SumUDF
 from libertem.udf.logsum import LogsumUDF
 
-from ..base import UIState
-from .base import WindowType, UDFWindowJob, JobResults, WindowProperties
+from ..base import UIState, JobResults
+from .base import WindowType, UDFWindowJob, WindowProperties
 from .pick import PickUDFBaseWindow
 from ..display.display_base import DiskSet, RingSet, PointSet
 from ..results.containers import Numpy2DResultContainer
@@ -256,7 +256,7 @@ cds.change.emit();
         self.nav_plot.fig.title.text = result_title
         window_row = self.results_manager.new_window_run(
             self,
-            job_results.run_id,
+            job_results.run_row.run_id,
             params=job.params,
         )
         channel: str = self.nav_plot.channel
@@ -271,7 +271,9 @@ cds.change.emit();
             title=result_title,
         )
         rc.tag_as(buffer.kind)
-        result = self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
+        result = self.results_manager.new_result(
+            rc, job_results.run_row.run_id, window_row.window_id
+        )
         self.nav_plot.displayed = result
         return (result,)
 
@@ -407,7 +409,7 @@ class FrameImaging(PickUDFBaseWindow, ui_type=WindowType.STANDALONE):
         self.sig_plot.fig.title.text = result_title
         window_row = self.results_manager.new_window_run(
             self,
-            job_results.run_id,
+            job_results.run_row.run_id,
             params=job.params,
         )
         channel: str = self.sig_plot.channel
@@ -422,6 +424,8 @@ class FrameImaging(PickUDFBaseWindow, ui_type=WindowType.STANDALONE):
             title=result_title,
         )
         rc.tag_as(buffer.kind)
-        result = self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
+        result = self.results_manager.new_result(
+            rc, job_results.run_row.run_id, window_row.window_id
+        )
         self.sig_plot.displayed = result
         return (result,)

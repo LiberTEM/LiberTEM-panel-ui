@@ -19,8 +19,8 @@ if TYPE_CHECKING:
     from libertem.io.dataset.base import DataSet
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import UDF
-    from ..base import UIState
-    from .base import UDFWindowJob, JobResults
+    from ..base import UIState, JobResults
+    from .base import UDFWindowJob
     from ..results.results_manager import ResultRow
     from libertem.udf.base import UDFResultDict
 
@@ -232,7 +232,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=WindowType.STANDALONE):
         result_name: str = job.params.pop('result_name')
         window_row = self.results_manager.new_window_run(
             self,
-            job_results.run_id,
+            job_results.run_row.run_id,
             params=job.params,
         )
         raw_shifts = job_results.udf_results[0]['raw_shifts'].data
@@ -243,7 +243,9 @@ class CoMImagingWindow(ImagingWindow, ui_type=WindowType.STANDALONE):
                 raw_shifts[..., idx],
             )
             results.append(
-                self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
+                self.results_manager.new_result(
+                    rc, job_results.run_row.run_id, window_row.window_id
+                )
             )
             rc.tag_as('nav')
         return tuple(results)
