@@ -65,6 +65,8 @@ class WindowProperties(NamedTuple):
     header_activate: bool = True
     header_remove: bool = True
     header_run: bool = True
+    header_divider: bool = True
+    header_collapse: bool = True
     self_run_only: bool = False
 
     def with_other(self: T, **kwargs: dict[str, str | bool]) -> T:
@@ -88,6 +90,8 @@ class WindowPropertiesTDict(TypedDict):
     header_activate: bool
     header_remove: bool
     header_run: bool
+    header_divider: bool
+    header_collapse: bool
     self_run_only: bool
 
 
@@ -168,8 +172,8 @@ class UIWindow:
             prop_overrides={
                 'header_activate': False,
                 'header_remove': False,
-                # 'header_collapse': False,
-                # 'header_divider': False,
+                'header_collapse': False,
+                'header_divider': False,
             }
         )
         window.initialize(dataset)
@@ -207,15 +211,20 @@ class UIWindow:
         return pn.Row
 
     def build_header_layout(self):
-        self._header_ns._collapse_button = pn.widgets.Button(
-            name='▼',
-            button_type='light',
-            width=35,
-            height=35,
-            align='center',
-            margin=(0, 0),
-        )
-        self._header_ns._collapse_button.param.watch(self._collapse_cb, 'value')
+        lo = pn.Row()
+
+        if self.properties.header_collapse:
+            self._header_ns._collapse_button = pn.widgets.Button(
+                name='▼',
+                button_type='light',
+                width=35,
+                height=35,
+                align='center',
+                margin=(0, 0),
+            )
+            self._header_ns._collapse_button.param.watch(self._collapse_cb, 'value')
+            lo.append(self._header_ns._collapse_button)
+
         self._header_ns._title_text = pn.pane.Markdown(
             object=f'### {self.properties.title_md}',
             align='center',
@@ -225,11 +234,10 @@ class UIWindow:
             align='center',
         )
 
-        lo = pn.Row(
-            self._header_ns._collapse_button,
+        lo.extend((
             self._header_ns._title_text,
             self._header_ns._id_text,
-        )
+        ))
 
         if self.properties.header_activate:
             self._header_ns._active_cbox = pn.widgets.Checkbox(
@@ -273,7 +281,10 @@ class UIWindow:
             return tuple()
 
     def build_outer_container(self, *objs) -> pn.layout.ListPanel:
-        lo = pn.Column(pn.layout.Divider(), *objs, width_policy='max')
+        lo = pn.Column(width_policy='max')
+        if self.properties.header_divider:
+            lo.append(pn.layout.Divider())
+        lo.extend(objs)
         lo.ident = self._ident
         return lo
 
@@ -303,6 +314,10 @@ class UIWindow:
             self._layout.visible = True
 
     def _collapse_cb(self, e):
+        try:
+            self._header_ns._collapse_button
+        except AttributeError:
+            raise AttributeError('Cannot collapse window without header_collapse option.')
         if self._inner_layout.visible:
             self._inner_layout.visible = False
             self._header_ns._collapse_button.name = '▶'
