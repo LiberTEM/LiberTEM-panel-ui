@@ -178,45 +178,51 @@ class UIContext:
     def datset(self):
         return self._resources.init_with()
 
+    @classmethod
     def for_live(
-        self,
+        cls,
         live_ctx: LiveContext,
         aq_plan: AcquisitionProtocol | DataSet,
         get_aq: Callable[[LiveContext], AcquisitionProtocol | None],
         offline_ctx: Context | None = None,
-    ):
+    ) -> UIContext:
         if not hasattr(live_ctx, 'make_acquisition'):
             raise TypeError('Cannot instantiate live UIContext '
                             f'with Context of type {type(live_ctx)}')
-        self._resources = LiveResources(
+        ui_context = cls()
+        # Temporary until refactoring
+        ui_context._resources = LiveResources(
             live_ctx=live_ctx,
             aq_plan=aq_plan,
             get_aq=get_aq,
             offline_ctx=offline_ctx,
         )
-        self._state = UIState.LIVE
-        self._inital_setup()
-        self._set_state(UIState.LIVE)
-        return self
+        ui_context._state = UIState.LIVE
+        ui_context._inital_setup()
+        ui_context._set_state(UIState.LIVE)
+        return ui_context
 
+    @classmethod
     def for_offline(
-        self,
+        cls,
         ctx: Context,
         ds: DataSet,
-    ):
+    ) -> UIContext:
         import libertem.api as lt  # noqa
         if not isinstance(ctx, lt.Context):
             raise TypeError(f'Cannot instantiate UIContext with Context of type {type(ctx)}')
         if not isinstance(ds, lt.DataSet):
             raise TypeError(f'Cannot instantiate UIContext on dataset of type {type(ds)}')
-        self._resources = OfflineResources(
+        ui_context = cls()
+        # Temporary until refactoring
+        ui_context._resources = OfflineResources(
             ctx=ctx,
             ds=ds,
         )
-        self._state = UIState.OFFLINE
-        self._inital_setup()
-        self._set_state(UIState.OFFLINE)
-        return self
+        ui_context._state = UIState.OFFLINE
+        ui_context._inital_setup()
+        ui_context._set_state(UIState.OFFLINE)
+        return ui_context
 
     def layout(self, with_reload: bool = False):
         if with_reload:
