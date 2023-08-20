@@ -311,10 +311,6 @@ class UIWindow:
 
         return lo
 
-    @property
-    def stop_btn(self) -> pn.widgets.Button | None:
-        return getattr(self._header_ns, '_stop_btn', None)
-
     def build_outer_container(self, *objs) -> pn.layout.ListPanel:
         lo = pn.Column(width_policy='max')
         if self.properties.header_divider:
@@ -383,6 +379,9 @@ class UIWindow:
             self._header_ns._active_cbox.value = val
         except AttributeError:
             raise AttributeError('Cannot set_active on window without active/disable option.')
+
+    def should_stop(self) -> bool:
+        return self.properties.header_stop and self._header_ns._stop_btn.clicks > 0
 
     async def run_this(self, run_from: RunFromT | None = None):
         # The functionality here could allow running

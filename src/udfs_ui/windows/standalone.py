@@ -83,8 +83,6 @@ class StandaloneContext:
             job = to_run[0]
         roi = job.roi
         progress = False if job.quiet else self._progress.get(job.window.ident, False)
-        stop_btn = job.window.stop_btn
-        has_stop_btn = stop_btn is not None
         try:
             async for udfs_res in self.ctx.run_udf_iter(
                 dataset=self.dataset,
@@ -94,8 +92,8 @@ class StandaloneContext:
                 sync=False,
                 roi=roi,
             ):
-                if has_stop_btn and stop_btn.clicks > 0:
-                    self.logger.info('Early stop from button')
+                if job.window.should_stop():
+                    self.logger.info('Job asked for early stop')
                     break
                 import asyncio
                 await asyncio.sleep(1.)
