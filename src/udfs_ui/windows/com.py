@@ -10,7 +10,7 @@ from libertem.udf.com import (
     CoMUDF, CoMParams, RegressionOptions, apply_correction, divergence, curl_2d, guess_corrections
 )
 
-from .imaging import ImagingWindow
+from .imaging import VirtualDetectorWindow
 from .base import WindowType, WindowProperties
 from ..display.vectors import VectorsOverlay
 from ..results.containers import Numpy2DResultContainer
@@ -43,7 +43,7 @@ class CoMChanN(StrEnum):
     REGRESSION_Y = 'regression_y'
 
 
-class CoMImagingWindow(ImagingWindow, ui_type=WindowType.STANDALONE):
+class CoMImagingWindow(VirtualDetectorWindow, ui_type=WindowType.STANDALONE):
     @staticmethod
     def default_properties():
         return WindowProperties(
