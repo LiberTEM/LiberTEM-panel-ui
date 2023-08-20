@@ -181,6 +181,7 @@ class UIWindow:
             }
         )
         window.initialize(ui_context.dataset)
+        ui_context._register_window(window)
         return window
 
     @classmethod

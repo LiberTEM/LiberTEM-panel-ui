@@ -280,7 +280,7 @@ class UIContext:
             msg = f'Error while adding {window_name}'
             self.logger.log_from_exception(e, reraise=True, msg=msg)
             return
-        self._windows[window_id] = window
+        self._register_window(window)
         if (window_layout := window.layout()) is not None:
             if window.properties.insert_at is not None:
                 self._windows_area.insert(window.properties.insert_at, window_layout)
@@ -295,6 +295,9 @@ class UIContext:
         for btn in window._get_remove_buttons():
             btn.on_click(lambda e: self._remove(window))
         return window
+
+    def _register_window(self, window: UIWindow):
+        self._windows[window.ident] = window
 
     def _toggle_unique_window(self, label, window_cls, e, insert_at: int | None = 0):
         window_id = self._unique_windows.get(label, None)

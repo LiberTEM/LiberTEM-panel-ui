@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+from weakref import WeakValueDictionary
 from typing import TYPE_CHECKING
 
 from ..results.results_manager import ResultsManager
@@ -7,6 +8,7 @@ from ..utils.logging import logger
 from .base import JobResults, UIState
 
 if TYPE_CHECKING:
+    from .base import UIWindow
     from ..ui_context import RunFromT
     from libertem.api import DataSet, Context
 
@@ -16,6 +18,14 @@ class StandaloneContext:
         self._results_manager = ResultsManager(save_root=save_root)
         self._ctx = ctx
         self._dataset = dataset
+        # As the standalone context does not control any
+        # windows which are connected to it only keep a weakref to them
+        self._windows: WeakValueDictionary[str, UIWindow] = WeakValueDictionary()
+
+    def _register_window(self, ui_window: UIWindow):
+        # To be sure we don't keep a ref to ui_window!
+        ident = '_' + ui_window.ident
+        self._windows[ident[1:]] = ui_window
 
     @property
     def ctx(self):
