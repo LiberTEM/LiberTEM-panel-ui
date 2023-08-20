@@ -87,7 +87,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
 
         self._guess_corrections_btn = pn.widgets.Button(
             name='Guess corrections',
-            button_type='success',
+            button_type='primary',
             align='end',
             width=120,
         )
