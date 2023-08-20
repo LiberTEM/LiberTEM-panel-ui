@@ -169,7 +169,8 @@ class UIWindow:
         ui_context = StandaloneContext(ctx, dataset)
         return cls._using(ui_context)
 
-    def _using(cls: type[W], ui_context) -> W:
+    @classmethod
+    def _using(cls: type[W], ui_context: UIContext) -> W:
         window = cls(
             ui_context,
             prop_overrides={
