@@ -174,6 +174,10 @@ class UIContext:
     def change_save_root(self, save_root: os.PathLike):
         self.results_manager.change_save_root(save_root)
 
+    @property
+    def datset(self):
+        return self._resources.init_with()
+
     def for_live(
         self,
         live_ctx: LiveContext,

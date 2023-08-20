@@ -33,6 +33,10 @@ class StandaloneContext:
     def results_manager(self):
         return self._results_manager
 
+    @property
+    def datset(self):
+        return self._dataset
+
     async def _run_job(self, run_from: list[RunFromT]):
         to_run = [
             job for job_getter in run_from

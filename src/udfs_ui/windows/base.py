@@ -167,6 +167,9 @@ class UIWindow:
     def using(cls: type[W], ctx: Context, dataset: DataSet) -> W:
         from .standalone import StandaloneContext
         ui_context = StandaloneContext(ctx, dataset)
+        return cls._using(ui_context)
+
+    def _using(cls: type[W], ui_context) -> W:
         window = cls(
             ui_context,
             prop_overrides={
@@ -176,8 +179,13 @@ class UIWindow:
                 'header_divider': False,
             }
         )
-        window.initialize(dataset)
+        window.initialize(ui_context.dataset)
         return window
+
+    @classmethod
+    def linked_to(cls: type[W], other: UIWindow) -> W:
+        ui_context = other._ui_context
+        return cls._using(ui_context)
 
     def validate_data(self):
         pass
