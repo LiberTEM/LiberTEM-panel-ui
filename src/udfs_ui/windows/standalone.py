@@ -83,7 +83,10 @@ class StandaloneContext(UIContextBase):
             self.logger.log_from_exception(err, reraise=True, msg=msg)
 
         run_record = self.results_manager.new_run(
-            ds_shape=self.dataset.shape,
+            shape={
+                'nav': tuple(self.dataset.shape.nav),
+                'sig': tuple(self.dataset.shape.sig),
+            },
             has_roi=roi is not None,
             state=UIState.OFFLINE,
         )
