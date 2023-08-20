@@ -183,6 +183,7 @@ class UIWindow:
                 'header_collapse': False,
                 'header_divider': False,
                 'header_stop': True,
+                'init_collapsed': False,
             }
         )
         window.initialize(ui_context.dataset)
