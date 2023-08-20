@@ -223,6 +223,9 @@ class UIWindow:
     def submit_to(self):
         return self._ui_context._run_job
 
+    def remove_self(self, *e):
+        self._ui_context._remove(self)
+
     @staticmethod
     def inner_container_cls():
         return pn.Row
@@ -285,6 +288,7 @@ class UIWindow:
                 align='center',
             )
 
+            self._header_ns._remove_btn.on_click(self.remove_self)
             lo.append(self._header_ns._remove_btn)
 
         if self.properties.header_run:
@@ -310,15 +314,6 @@ class UIWindow:
             lo.append(self._header_ns._stop_btn)
 
         return lo
-
-    def _get_remove_buttons(self) -> tuple[pn.widgets.Button, ...]:
-        try:
-            btn = self._header_ns._remove_btn
-            if btn is None:
-                raise AttributeError
-            return (btn,)
-        except AttributeError:
-            return tuple()
 
     def build_outer_container(self, *objs) -> pn.layout.ListPanel:
         lo = pn.Column(width_policy='max')

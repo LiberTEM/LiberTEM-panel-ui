@@ -301,8 +301,6 @@ class UIContext:
                 window._collapse_cb(None)
             except RuntimeError:
                 pass
-        for btn in window._get_remove_buttons():
-            btn.on_click(lambda e: self._remove(window))
         return window
 
     def _register_window(self, window: UIWindow):
