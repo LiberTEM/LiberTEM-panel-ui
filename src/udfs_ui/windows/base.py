@@ -226,10 +226,6 @@ class UIWindow:
     def remove_self(self, *e):
         self._ui_context._remove(self)
 
-    @staticmethod
-    def inner_container_cls():
-        return pn.Row
-
     def build_header_layout(self):
         lo = pn.Row()
 
@@ -322,6 +318,10 @@ class UIWindow:
         lo.extend(objs)
         lo.ident = self._ident
         return lo
+
+    @staticmethod
+    def inner_container_cls():
+        return pn.Row
 
     def build_inner_container(self, *objs) -> pn.layout.ListPanel:
         return self.inner_container_cls()(*objs)
