@@ -394,11 +394,15 @@ class UIWindow:
         # (i.e. if job.quiet == True)
         self._header_ns._run_btn.disabled = True
         self._header_ns._indicator.value = True
+        if self.properties.header_stop:
+            self._header_ns._stop_btn.disabled = False
         try:
             await self.run_this(run_from=self.get_job)
         finally:
             self._header_ns._run_btn.disabled = False
             self._header_ns._indicator.value = False
+            if self.properties.header_stop:
+                self._header_ns._stop_btn.disabled = True
 
     def run_this_bk(self, attr, old, new, run_from: RunFromT | None = None):
         # Run a job from a Bokeh-style callback, asynchronously
