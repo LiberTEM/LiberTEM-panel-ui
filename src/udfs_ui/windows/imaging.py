@@ -16,7 +16,8 @@ from libertem.udf.sumsigudf import SumSigUDF
 from libertem.udf.sum import SumUDF
 from libertem.udf.logsum import LogsumUDF
 
-from .base import UIType, UIState, UDFWindowJob, JobResults, WindowProperties
+from ..base import UIState
+from .base import WindowType, UDFWindowJob, JobResults, WindowProperties
 from .pick import PickUDFBaseWindow
 from ..display.display_base import DiskSet, RingSet, PointSet
 from ..results.containers import Numpy2DResultContainer
@@ -29,7 +30,7 @@ if TYPE_CHECKING:
     from ..results.results_manager import ResultRow
 
 
-class ImagingWindow(PickUDFBaseWindow, ui_type=UIType.STANDALONE):
+class ImagingWindow(PickUDFBaseWindow, ui_type=WindowType.STANDALONE):
     @staticmethod
     def default_properties():
         return WindowProperties(
@@ -293,7 +294,7 @@ class PickNoROIUDF(UDF):
         dest.intensity += src.intensity
 
 
-class FrameImaging(PickUDFBaseWindow, ui_type=UIType.STANDALONE):
+class FrameImaging(PickUDFBaseWindow, ui_type=WindowType.STANDALONE):
     @staticmethod
     def default_properties():
         return WindowProperties(

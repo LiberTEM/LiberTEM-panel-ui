@@ -1,5 +1,4 @@
 from __future__ import annotations
-import os
 import asyncio
 import uuid
 from functools import partial
@@ -11,8 +10,8 @@ import panel as pn
 from typing import Callable, TYPE_CHECKING, TypedDict, overload, Any
 from typing_extensions import Literal
 
-from .utils.progress import PanelProgressReporter
-from .windows.base import UIWindow, UIType, UIState, UDFWindowJob, JobResults
+from .base import UIContextBase, UIState
+from .windows.base import UIWindow, WindowType, UDFWindowJob, JobResults
 from .lifecycles import (
     UILifecycle,
     OfflineLifecycle,
@@ -26,6 +25,7 @@ from .results.results_manager import ResultsManager, ResultRow
 from .results.containers import RecordResultContainer
 from .applications.terminal_logger import UILog
 from .utils.panel_components import labelled_switch
+from .utils.progress import PanelProgressReporter
 
 if TYPE_CHECKING:
     import pathlib
@@ -88,7 +88,7 @@ class UITools:
         )
 
         window_keys = [
-            *tuple(UIWindow.get_implementations(UIType.STANDALONE).keys()),
+            *tuple(UIWindow.get_implementations(WindowType.STANDALONE).keys()),
         ]
         self.add_window_btn = pn.widgets.MenuButton(
             name='Add window',
@@ -126,7 +126,7 @@ class UniqueWindows(TypedDict):
     monitor: str | None
 
 
-class UIContext:
+class UIContext(UIContextBase):
     def __init__(self):
         self._windows: dict[str, UIWindow] = {}
         self._state: UIState = None
@@ -166,13 +166,6 @@ class UIContext:
     @property
     def logger(self):
         return self._logger.logger
-
-    @property
-    def save_root(self):
-        return self.results_manager.save_root
-
-    def change_save_root(self, save_root: os.PathLike):
-        self.results_manager.change_save_root(save_root)
 
     @property
     def datset(self):
@@ -234,10 +227,6 @@ class UIContext:
         # can cause clashes with Bokeh models. This method should re-create
         # the whole UI rather than just returning the existing layout
         return self._layout
-
-    @property
-    def results_manager(self):
-        return self._results_manager
 
     def add(
         self,
@@ -303,9 +292,6 @@ class UIContext:
                 pass
         return window
 
-    def _register_window(self, window: UIWindow):
-        self._windows[window.ident] = window
-
     def _toggle_unique_window(self, label, window_cls, e, insert_at: int | None = 0):
         window_id = self._unique_windows.get(label, None)
         window = self._windows.get(window_id, None)
@@ -332,7 +318,7 @@ class UIContext:
         window_id = self._unique_windows.get(name)
         return self._windows.get(window_id, None)
 
-    def _remove(self, window: UIWindow):
+    def _remove_window(self, window: UIWindow):
         index = tuple(i for i, _lo
                       in enumerate(self._windows_area)
                       if hasattr(_lo, 'ident') and _lo.ident == window.ident)
@@ -719,21 +705,3 @@ class UIContext:
                 f'- Complete jobs: {precisedelta(complete_job_time, minimum_unit="milliseconds")}\n'
                 f'- Notify: {precisedelta(notify_time, minimum_unit="milliseconds")}'
             )
-
-    def notify_new_results(self, *results: ResultRow):
-        if not results:
-            return
-        for window in self._windows.values():
-            window.on_results_registered(*results)
-            for tracker in window.trackers.values():
-                if tracker.auto_update:
-                    tracker.on_results_registered(*results)
-
-    def notify_deleted_results(self, *results: ResultRow):
-        if not results:
-            return
-        for window in self._windows.values():
-            window.on_results_deleted(*results)
-            for tracker in window.trackers.values():
-                if tracker.auto_update:
-                    tracker.on_results_deleted(*results)

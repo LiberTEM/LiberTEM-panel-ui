@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from .windows.base import UIState
+from .base import UIState
 
 if TYPE_CHECKING:
     from .ui_context import UIContext

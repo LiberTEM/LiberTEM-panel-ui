@@ -3,7 +3,9 @@ import uuid
 import asyncio
 from types import SimpleNamespace
 from strenum import StrEnum
-from typing import TYPE_CHECKING, TypeVar, NamedTuple, Any, Callable, TypedDict
+
+from typing import TYPE_CHECKING, TypeVar, NamedTuple, Any, TypedDict
+from typing_extensions import Self
 
 import panel as pn
 
@@ -17,41 +19,17 @@ if TYPE_CHECKING:
     from libertem.udf.base import UDF, BufferWrapper, UDFResultDict
     from libertem.viz.base import Live2DPlot
     from libertem.common.shape import Shape
-    from ..ui_context import UIContext
+    from ..base import UIContextBase, RunFromT, ResultHandlerT, UIState
+    from .standalone import StandaloneContext
     from ..results.results_manager import ResultRow
     from ..results.tracker import ResultTracker
     from ..live_plot import AperturePlot
-
-    TWindow = TypeVar("TWindow", bound="UIWindow")
-
-    RunFromT = Callable[
-        [
-            'UIState',
-            DataSet | AcquisitionProtocol,
-            np.ndarray | None,
-        ],
-        'UDFWindowJob' | None
-    ]
-
-    ResultHandlerT = Callable[
-        [
-            'UDFWindowJob',
-            'JobResults',
-        ],
-        tuple[ResultRow, ...]
-    ]
 
     T = TypeVar('T', bound='WindowProperties')
     W = TypeVar('W', bound='UIWindow')
 
 
-class UIState(StrEnum):
-    OFFLINE = 'Offline'
-    LIVE = 'Live'
-    REPLAY = 'Replay'
-
-
-class UIType(StrEnum):
+class WindowType(StrEnum):
     STANDALONE = 'Standalone'
     RESERVED = 'Reserved'
 
@@ -100,11 +78,11 @@ class WindowPropertiesTDict(TypedDict):
 
 
 class UIWindow:
-    _registry: dict[UIType, dict[str, type[UIWindow]]] = {t: {} for t in UIType}
+    _registry: dict[WindowType, dict[str, type[UIWindow]]] = {t: {} for t in WindowType}
 
     def __init_subclass__(
         cls,
-        ui_type: UIType | None = None,
+        ui_type: WindowType | None = None,
         force: bool = False,
         **kwargs,
     ):
@@ -113,8 +91,6 @@ class UIWindow:
             if ui_type not in cls._registry.keys():
                 cls._registry[ui_type] = {}
             all_names = tuple(n for implems in cls._registry.values() for n in implems.keys())
-            # Need to enforce or refactor the name-uniqueness of the implementations
-            # across different ui_types, this is currently relied on by UIContext
             props = cls.default_properties()
             if props.name in all_names and (not force):
                 raise TypeError(f'Cannot register a second UI with name {props.name}, '
@@ -125,7 +101,7 @@ class UIWindow:
             cls._registry[ui_type][props.name] = cls
 
     @classmethod
-    def get_implementations(cls, ui_type: UIType) -> dict[str, type[UIWindow]]:
+    def get_implementations(cls, ui_type: WindowType) -> dict[str, type[UIWindow]]:
         return cls._registry.get(ui_type, {})
 
     @classmethod
@@ -141,7 +117,7 @@ class UIWindow:
 
     def __init__(
         self,
-        ui_context: UIContext,
+        ui_context: UIContextBase,
         ident: str | None = None,
         prop_overrides: WindowPropertiesTDict | None = None,
         window_data: Any | None = None,
@@ -174,7 +150,7 @@ class UIWindow:
         return cls._using(ui_context)
 
     @classmethod
-    def _using(cls: type[W], ui_context: UIContext) -> W:
+    def _using(cls: type[W], ui_context: StandaloneContext) -> W:
         window = cls(
             ui_context,
             prop_overrides={
@@ -224,7 +200,7 @@ class UIWindow:
         return self._ui_context._run_job
 
     def remove_self(self, *e):
-        self._ui_context._remove(self)
+        self._ui_context._remove_window(self)
 
     def build_header_layout(self):
         lo = pn.Row()
@@ -360,7 +336,7 @@ class UIWindow:
             self._inner_layout.visible = True
             self._header_ns._collapse_button.name = '▼'
 
-    def initialize(self, dataset: DataSet) -> TWindow:
+    def initialize(self, dataset: DataSet) -> Self:
         # This method is problematic as we don't always have
         # the dataset in advance to initialize the plots,
         # nor does every conceivable window type need a dataset

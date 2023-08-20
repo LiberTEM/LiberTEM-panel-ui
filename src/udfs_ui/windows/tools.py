@@ -12,7 +12,8 @@ from libertem.udf.sumsigudf import SumSigUDF
 from libertem.common.math import prod
 
 from ..live_plot import AperturePlot
-from .base import UIWindow, UIType, UIState, UDFWindowJob, JobResults, WindowProperties
+from ..base import UIState
+from .base import UIWindow, WindowType, UDFWindowJob, JobResults, WindowProperties
 from .simple import SimpleUDFUIWindow
 from ..results.containers import RecordResultContainer
 
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
     from ..results.results_manager import ResultRow
 
 
-class ROIWindow(UIWindow, ui_type=UIType.RESERVED):
+class ROIWindow(UIWindow, ui_type=WindowType.RESERVED):
     @staticmethod
     def default_properties():
         return WindowProperties(
@@ -62,7 +63,7 @@ class ROIWindow(UIWindow, ui_type=UIType.RESERVED):
         self.nav_plot_tracker.on_results_deleted(*results)
 
 
-class RecordWindow(UIWindow, ui_type=UIType.RESERVED):
+class RecordWindow(UIWindow, ui_type=WindowType.RESERVED):
     @staticmethod
     def default_properties():
         return WindowProperties(
@@ -133,7 +134,7 @@ class RecordWindow(UIWindow, ui_type=UIType.RESERVED):
         return (result,)
 
 
-class SignalMonitorUDFWindow(SimpleUDFUIWindow, ui_type=UIType.RESERVED):
+class SignalMonitorUDFWindow(SimpleUDFUIWindow, ui_type=WindowType.RESERVED):
     udf_class = SignalMonitorUDF
 
     @staticmethod

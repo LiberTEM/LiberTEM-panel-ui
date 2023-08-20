@@ -1,7 +1,8 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from .base import UIWindow, UIState, UDFWindowJob, JobResults
+from ..base import UIState
+from .base import UIWindow, UDFWindowJob, JobResults
 from ..live_plot import AperturePlot
 from ..results.containers import Numpy2DResultContainer
 

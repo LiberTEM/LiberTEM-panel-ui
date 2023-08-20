@@ -11,7 +11,7 @@ from libertem.udf.com import (
 )
 
 from .imaging import ImagingWindow
-from .base import UIType, WindowProperties
+from .base import WindowType, WindowProperties
 from ..display.vectors import VectorsOverlay
 from ..results.containers import Numpy2DResultContainer
 
@@ -19,7 +19,8 @@ if TYPE_CHECKING:
     from libertem.io.dataset.base import DataSet
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import UDF
-    from .base import UDFWindowJob, JobResults, UIState
+    from ..base import UIState
+    from .base import UDFWindowJob, JobResults
     from ..results.results_manager import ResultRow
     from libertem.udf.base import UDFResultDict
 
@@ -42,7 +43,7 @@ class CoMChanN(StrEnum):
     REGRESSION_Y = 'regression_y'
 
 
-class CoMImagingWindow(ImagingWindow, ui_type=UIType.STANDALONE):
+class CoMImagingWindow(ImagingWindow, ui_type=WindowType.STANDALONE):
     @staticmethod
     def default_properties():
         return WindowProperties(
