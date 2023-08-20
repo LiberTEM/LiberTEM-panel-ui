@@ -57,7 +57,7 @@ class StandaloneContext:
         return self._dataset
 
     @property
-    def logger():
+    def logger(self):
         return logger
 
     @property
