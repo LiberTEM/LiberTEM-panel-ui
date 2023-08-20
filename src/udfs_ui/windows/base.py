@@ -342,7 +342,7 @@ class UIWindow:
         try:
             self._header_ns._collapse_button
         except AttributeError:
-            raise AttributeError('Cannot collapse window without header_collapse option.')
+            raise RuntimeError('Cannot collapse window without header_collapse option.')
         if self._inner_layout.visible:
             self._inner_layout.visible = False
             self._header_ns._collapse_button.name = '▶'

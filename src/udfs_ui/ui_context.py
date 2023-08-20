@@ -297,7 +297,10 @@ class UIContext:
             self.logger.info(f'Added window {window.__class__.__name__} - '
                              f'{window.ident} but no layout provided')
         if window.properties.init_collapsed:
-            window._collapse_cb(None)
+            try:
+                window._collapse_cb(None)
+            except RuntimeError:
+                pass
         for btn in window._get_remove_buttons():
             btn.on_click(lambda e: self._remove(window))
         return window
