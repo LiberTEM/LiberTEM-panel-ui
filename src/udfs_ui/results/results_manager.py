@@ -101,6 +101,9 @@ class ResultsManager:
     def save_root(self):
         return self._save_root
 
+    def change_save_root(self, save_root: os.PathLike):
+        self._save_root = pathlib.Path(save_root)
+
     def add_watcher(self, watcher: ResultWatcher):
         self._watchers.append(watcher)
 

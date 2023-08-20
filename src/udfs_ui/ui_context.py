@@ -127,7 +127,7 @@ class UniqueWindows(TypedDict):
 
 
 class UIContext:
-    def __init__(self, save_root: os.PathLike | None = '.'):
+    def __init__(self):
         self._windows: dict[str, UIWindow] = {}
         self._state: UIState = None
         self._resources: OfflineResources | LiveResources = None
@@ -138,7 +138,7 @@ class UIContext:
         # Create helper classes
         self._tools = UITools()
         self._p_reporter = PanelProgressReporter(self._tools.pbar)
-        self._results_manager = ResultsManager(save_root)
+        self._results_manager = ResultsManager()
         self._results_manager.add_watcher(self)
         self._logger = UILog()
         # Create layout
@@ -170,6 +170,9 @@ class UIContext:
     @property
     def save_root(self):
         return self.results_manager.save_root
+
+    def change_save_root(self, save_root: os.PathLike):
+        self.results_manager.change_save_root(save_root)
 
     def for_live(
         self,
