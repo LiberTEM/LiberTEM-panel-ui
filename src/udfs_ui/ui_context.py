@@ -326,11 +326,8 @@ class UIContext:
 
     def _set_state(self, new_state: UIState, *e):
         self.logger.info(f'Set UI-state {new_state.value.upper()}')
-        old_state = self._state
         self._state = new_state
         self._setup_tools()
-        for w in self._windows.values():
-            w.set_state(old_state, new_state)
 
     def _inital_setup(self):
         base_controls_buttons, base_controls_tools = self._controls()

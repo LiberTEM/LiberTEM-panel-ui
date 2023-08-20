@@ -310,10 +310,6 @@ class UIWindow:
             self._inner_layout.visible = True
             self._header_ns._collapse_button.name = '▼'
 
-    def set_state(self, old_state: UIState, new_state: UIState):
-        # Called on UI state transitions
-        pass
-
     def initialize(self, dataset: DataSet) -> TWindow:
         # This method is problematic as we don't always have
         # the dataset in advance to initialize the plots,
