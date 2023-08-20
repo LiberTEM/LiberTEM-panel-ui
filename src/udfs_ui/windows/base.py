@@ -422,6 +422,14 @@ class UIWindow:
     ) -> tuple[ResultRow, ...]:
         return tuple()
 
+    def run_starting(self):
+        if self.properties.header_indicate:
+            self._header_ns._indicator.update(value=True)
+
+    def run_finished(self):
+        if self.properties.header_indicate:
+            self._header_ns._indicator.update(value=False)
+
     def on_results_registered(
         self,
         *results: ResultRow,

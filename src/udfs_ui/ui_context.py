@@ -627,6 +627,8 @@ class UIContext:
                              f'on {len(to_run)} jobs{roi_message}')
             # Special optimisation for progress bar when using single-frame ROI
             progress = False if (n_frames <= 1 and roi is not None) else self._p_reporter
+            for w in self._windows.values():
+                w.run_starting()
 
         t_start_run = time.monotonic()
         part_completed = 0
@@ -649,6 +651,10 @@ class UIContext:
         except Exception as err:
             msg = 'Error during run_udf'
             self.logger.log_from_exception(err, reraise=True, msg=msg)
+        finally:
+            if not quiet_mode:
+                for w in self._windows.values():
+                    w.run_finished()
 
         t_end_run = time.monotonic()
 
