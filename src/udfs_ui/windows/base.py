@@ -448,11 +448,11 @@ class UIWindow:
 
     def run_starting(self):
         if self.properties.header_indicate:
-            self._header_ns._indicator.update(value=True)
+            self._header_ns._indicator.param.update(value=True)
 
     def run_finished(self):
         if self.properties.header_indicate:
-            self._header_ns._indicator.update(value=False)
+            self._header_ns._indicator.param.update(value=False)
 
     def on_results_registered(
         self,
