@@ -457,6 +457,11 @@ class UIWindow:
         )
         if initialize:
             tracker.initialize()
+            # This is a workaround for using a JS color mapper
+            # If we are initializing before the image is in the browser
+            # must ensure the color limits are correct after the call
+            # to img.update() inside initialize(). Should automate this.
+            plot.im.color.push_clims()
         self._trackers[name] = tracker
         self._layout_trackers()
         return tracker

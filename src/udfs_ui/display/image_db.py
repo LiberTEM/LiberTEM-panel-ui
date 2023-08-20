@@ -406,6 +406,12 @@ class BokehImageColor():
         self._log_mapper.palette = palette
         self.img.im.color_mapper = self._lin_mapper
 
+    def push_clims(self):
+        # Force current_minmax onto both colormappers
+        low, high = self.img.current_minmax
+        self._lin_mapper.update(low=low, high=high)
+        self._log_mapper.update(**self._log_norm_py(low, high))
+
     @property
     def color_mapper(self) -> ColorMapper:
         return self.img.im.color_mapper
