@@ -3,9 +3,12 @@ import os
 from weakref import WeakValueDictionary
 from typing import TYPE_CHECKING
 
+import panel as pn
+
 from ..results.results_manager import ResultsManager
 from ..utils.logging import logger
 from .base import JobResults, UIState
+from ..utils.progress import PanelProgressReporter
 
 if TYPE_CHECKING:
     from .base import UIWindow
@@ -21,11 +24,29 @@ class StandaloneContext:
         # As the standalone context does not control any
         # windows which are connected to it only keep a weakref to them
         self._windows: WeakValueDictionary[str, UIWindow] = WeakValueDictionary()
+        self._progress: dict[str, PanelProgressReporter] = {}
 
     def _register_window(self, ui_window: UIWindow):
+        self._windows[self._window_ident(ui_window)] = ui_window
+
+    @staticmethod
+    def _window_ident(ui_window: UIWindow):
         # To be sure we don't keep a ref to ui_window!
         ident = '_' + ui_window.ident
-        self._windows[ident[1:]] = ui_window
+        return ident[1:]
+
+    def _add_progress_bar(self, ui_window: UIWindow, insert_at: int = 1):
+        pbar = pn.widgets.Tqdm(
+            width=650,
+            align=('start', 'center'),
+            margin=(5, 5, 0, 5),
+        )
+        ident = self._window_ident(ui_window)
+        if ident in self._progress.keys():
+            raise RuntimeError('Can only create one progress bar per window')
+        self._progress[ident] = PanelProgressReporter(pbar)
+        # between _header_layout and _inner_layout
+        ui_window.layout().insert(insert_at, pbar)
 
     @property
     def ctx(self):
@@ -59,13 +80,15 @@ class StandaloneContext:
             # Mainly due to ROI negotiation...
             raise NotImplementedError
         else:
-            roi = to_run[0].roi
+            job = to_run[0]
+        roi = job.roi
+        progress = False if job.quiet else self._progress.get(job.window.ident, False)
         try:
             async for udfs_res in self.ctx.run_udf_iter(
                 dataset=self.dataset,
                 udf=tuple(udf for job in to_run for udf in job.udfs),
                 plots=tuple(plot for job in to_run for plot in job.plots),
-                progress=False,
+                progress=progress,
                 sync=False,
                 roi=roi,
             ):
