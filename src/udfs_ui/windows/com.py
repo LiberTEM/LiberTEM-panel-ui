@@ -245,6 +245,7 @@ class CoMImagingWindow(ImagingWindow, ui_type=WindowType.STANDALONE):
             results.append(
                 self.results_manager.new_result(rc, job_results.run_id, window_row.window_id)
             )
+            rc.tag_as('nav')
         return tuple(results)
 
     def _plot_regression_x(self, udf_results: UDFResultDict, damage):
