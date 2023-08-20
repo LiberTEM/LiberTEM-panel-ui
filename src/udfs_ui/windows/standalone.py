@@ -11,7 +11,7 @@ from .base import JobResults, UIState
 from ..utils.progress import PanelProgressReporter
 
 if TYPE_CHECKING:
-    from .base import UIWindow
+    from .base import UIWindow, UDFWindowJob
     from ..ui_context import RunFromT
     from libertem.api import DataSet, Context
 
@@ -69,7 +69,7 @@ class StandaloneContext:
         return self._dataset
 
     async def _run_job(self, run_from: list[RunFromT]):
-        to_run = [
+        to_run: list[UDFWindowJob] = [
             job for job_getter in run_from
             if (job := job_getter(UIState.OFFLINE, self.dataset, None))
             is not None
