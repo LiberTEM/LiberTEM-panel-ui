@@ -62,6 +62,7 @@ class WindowProperties(NamedTuple):
 
     insert_at: int | None = None
     init_collapsed: bool = False
+    header_indicate: bool = True
     header_activate: bool = True
     header_remove: bool = True
     header_run: bool = True
@@ -87,6 +88,7 @@ class WindowPropertiesTDict(TypedDict):
 
     insert_at: int | None
     init_collapsed: bool
+    header_indicate: bool
     header_activate: bool
     header_remove: bool
     header_run: bool
@@ -230,18 +232,30 @@ class UIWindow:
                 width=35,
                 height=35,
                 align='center',
-                margin=(0, 0),
+                margin=(3, 3),
             )
             self._header_ns._collapse_button.param.watch(self._collapse_cb, 'value')
             lo.append(self._header_ns._collapse_button)
 
+        if self.properties.header_indicate:
+            self._header_ns._indicator = pn.widgets.LoadingSpinner(
+                value=False,
+                color='success',
+                size=30,
+                align='center',
+                margin=(3, 3),
+            )
+            lo.append(self._header_ns._indicator)
+
         self._header_ns._title_text = pn.pane.Markdown(
             object=f'### {self.properties.title_md}',
             align='center',
+            margin=(3, 3),
         )
         self._header_ns._id_text = pn.widgets.StaticText(
             value=f'[<b>{self._ident}</b>]',
             align='center',
+            margin=(3, 3),
         )
 
         lo.extend((
@@ -368,10 +382,12 @@ class UIWindow:
         # want the run_btn to be disabled when pressed
         # (i.e. if job.quiet == True)
         self._header_ns._run_btn.disabled = True
+        self._header_ns._indicator.value = True
         try:
             await self.run_this(run_from=self.get_job)
         finally:
             self._header_ns._run_btn.disabled = False
+            self._header_ns._indicator.value = False
 
     def run_this_bk(self, attr, old, new, run_from: RunFromT | None = None):
         # Run a job from a Bokeh-style callback, asynchronously
