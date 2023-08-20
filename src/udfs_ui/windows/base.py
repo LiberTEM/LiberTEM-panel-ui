@@ -311,6 +311,10 @@ class UIWindow:
 
         return lo
 
+    @property
+    def stop_btn(self) -> pn.widgets.Button | None:
+        return getattr(self._header_ns, '_stop_btn', None)
+
     def build_outer_container(self, *objs) -> pn.layout.ListPanel:
         lo = pn.Column(width_policy='max')
         if self.properties.header_divider:
@@ -395,14 +399,20 @@ class UIWindow:
         self._header_ns._run_btn.disabled = True
         self._header_ns._indicator.value = True
         if self.properties.header_stop:
-            self._header_ns._stop_btn.disabled = False
+            self._header_ns._stop_btn.param.update(
+                disabled=False,
+                clicks=0,
+            )
         try:
             await self.run_this(run_from=self.get_job)
         finally:
             self._header_ns._run_btn.disabled = False
             self._header_ns._indicator.value = False
             if self.properties.header_stop:
-                self._header_ns._stop_btn.disabled = True
+                self._header_ns._stop_btn.param.update(
+                    disabled=True,
+                    clicks=0,
+                )
 
     def run_this_bk(self, attr, old, new, run_from: RunFromT | None = None):
         # Run a job from a Bokeh-style callback, asynchronously

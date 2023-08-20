@@ -83,6 +83,8 @@ class StandaloneContext:
             job = to_run[0]
         roi = job.roi
         progress = False if job.quiet else self._progress.get(job.window.ident, False)
+        stop_btn = job.window.stop_btn
+        has_stop_btn = stop_btn is not None
         try:
             async for udfs_res in self.ctx.run_udf_iter(
                 dataset=self.dataset,
@@ -92,7 +94,11 @@ class StandaloneContext:
                 sync=False,
                 roi=roi,
             ):
-                pass
+                if has_stop_btn and stop_btn.clicks > 0:
+                    self.logger.info('Early stop from button')
+                    break
+                import asyncio
+                await asyncio.sleep(1.)
         except Exception as err:
             msg = 'Error during run_udf'
             self.logger.log_from_exception(err, reraise=True, msg=msg)
