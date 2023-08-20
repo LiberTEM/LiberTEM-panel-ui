@@ -95,8 +95,6 @@ class StandaloneContext:
                 if job.window.should_stop():
                     self.logger.info('Job asked for early stop')
                     break
-                import asyncio
-                await asyncio.sleep(1.)
         except Exception as err:
             msg = 'Error during run_udf'
             self.logger.log_from_exception(err, reraise=True, msg=msg)
