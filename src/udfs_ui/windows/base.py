@@ -150,6 +150,7 @@ class UIWindow:
 
     @classmethod
     def _using(cls: type[W], ui_context: StandaloneContext) -> W:
+        default_properties = cls.default_properties()
         window = cls(
             ui_context,
             prop_overrides={
@@ -157,13 +158,14 @@ class UIWindow:
                 'header_remove': False,
                 'header_collapse': False,
                 'header_divider': False,
-                'header_stop': True,
+                'header_stop': default_properties.header_run,
                 'init_collapsed': False,
             }
         )
         window.initialize(ui_context.dataset)
         ui_context._register_window(window)
-        ui_context._add_progress_bar(window)
+        if window.properties.header_run:
+            ui_context._add_progress_bar(window)
         return window
 
     @classmethod
