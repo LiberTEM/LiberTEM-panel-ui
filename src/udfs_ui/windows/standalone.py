@@ -45,7 +45,11 @@ class StandaloneContext:
         ]
         if len(to_run) == 0:
             return
-        roi = to_run[0].roi
+        elif len(to_run) > 1:
+            # Mainly due to ROI negotiation...
+            raise NotImplementedError
+        else:
+            roi = to_run[0].roi
         try:
             async for udfs_res in self.ctx.run_udf_iter(
                 dataset=self.dataset,
