@@ -66,6 +66,7 @@ class WindowProperties(NamedTuple):
     header_activate: bool = True
     header_remove: bool = True
     header_run: bool = True
+    header_stop: bool = False
     header_divider: bool = True
     header_collapse: bool = True
     self_run_only: bool = False
@@ -92,6 +93,7 @@ class WindowPropertiesTDict(TypedDict):
     header_activate: bool
     header_remove: bool
     header_run: bool
+    header_stop: bool
     header_divider: bool
     header_collapse: bool
     self_run_only: bool
@@ -180,6 +182,7 @@ class UIWindow:
                 'header_remove': False,
                 'header_collapse': False,
                 'header_divider': False,
+                'header_stop': True,
             }
         )
         window.initialize(ui_context.dataset)
@@ -293,6 +296,17 @@ class UIWindow:
             )
             self._header_ns._run_btn.on_click(self.run_from_btn)
             lo.append(self._header_ns._run_btn)
+
+        if self.properties.header_stop:
+            self._header_ns._stop_btn = pn.widgets.Button(
+                name='Stop',
+                button_type='danger',
+                width_policy='min',
+                align='center',
+                min_width=75,
+                disabled=True,
+            )
+            lo.append(self._header_ns._stop_btn)
 
         return lo
 
