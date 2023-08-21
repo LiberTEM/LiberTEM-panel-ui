@@ -49,9 +49,10 @@ class StandaloneContext(UIContextBase):
         return self._results_manager
 
     async def _run_job(self, run_from: list[RunFromT]):
+        ds = self._resources.dataset
         to_run: list[UDFWindowJob] = [
             job for job_getter in run_from
-            if (job := job_getter(UIState.OFFLINE, self.dataset, None))
+            if (job := job_getter(UIState.OFFLINE, ds, None))
             is not None
         ]
         if len(to_run) == 0:
@@ -64,7 +65,6 @@ class StandaloneContext(UIContextBase):
         roi = job.roi
         progress = False if job.quiet else self._progress.get(job.window.ident, False)
         ctx = self._resources.ctx
-        ds = self._resources.dataset
         try:
             async for udfs_res in ctx.run_udf_iter(
                 dataset=ds,
