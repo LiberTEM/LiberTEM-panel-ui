@@ -8,9 +8,10 @@ from typing import TYPE_CHECKING, TypeVar, NamedTuple, Any, TypedDict
 from typing_extensions import Self
 
 import panel as pn
+from bokeh.models.widgets import Div
 
 from ..results.tracker import ImageResultTracker
-from ..utils.panel_components import button_divider
+from ..utils.panel_components import button_divider, get_spinner
 
 if TYPE_CHECKING:
     import numpy as np
@@ -219,12 +220,11 @@ class UIWindow:
             lo.append(self._header_ns._collapse_button)
 
         if self.properties.header_indicate:
-            self._header_ns._indicator = pn.widgets.LoadingSpinner(
-                value=False,
-                color='success',
-                size=30,
-                align='center',
-                margin=(3, 3),
+            size = 30
+            self._header_ns._indicator = Div(
+                text=get_spinner(False, size),
+                width=size,
+                height=size,
             )
             lo.append(self._header_ns._indicator)
 
@@ -273,6 +273,25 @@ class UIWindow:
                 min_width=75,
             )
             self._header_ns._run_btn.on_click(self.run_from_btn)
+
+            if self.properties.header_indicate:
+                size = self._header_ns._indicator.height
+                self._header_ns._run_btn.jslink(
+                    self._header_ns._indicator,
+                    args={
+                        'indicator': self._header_ns._indicator,
+                        'spin_text': get_spinner(True, size),
+                        'static_text': get_spinner(False, size),
+                    },
+                    code={'disabled': '''
+if (cb_obj.disabled) {
+    indicator.text=spin_text
+} else {
+    indicator.text=static_text
+}
+'''},
+                )
+
             lo.append(self._header_ns._run_btn)
 
         if self.properties.header_stop:
@@ -373,7 +392,6 @@ class UIWindow:
         # want the run_btn to be disabled when pressed
         # (i.e. if job.quiet == True)
         self._header_ns._run_btn.disabled = True
-        self._header_ns._indicator.value = True
         if self.properties.header_stop:
             self._header_ns._stop_btn.param.update(
                 disabled=False,
@@ -383,7 +401,6 @@ class UIWindow:
             await self.run_this(run_from=self.get_job)
         finally:
             self._header_ns._run_btn.disabled = False
-            self._header_ns._indicator.value = False
             if self.properties.header_stop:
                 self._header_ns._stop_btn.param.update(
                     disabled=True,
