@@ -302,17 +302,15 @@ class UIContext(UIContextBase):
         self.logger.info(f'Removed window {window.properties.title_md} - {window.ident}')
 
     def _inital_setup(self):
-        base_controls_buttons, base_controls_tools = self._controls()
-        self._button_row.extend(base_controls_buttons)
-        self._add_window_row.extend(base_controls_tools)
-
-        self._tools.add_window_btn.on_click(self._add_handler)
+        self._button_row.extend(self._controls())
         self._tools.run_btn.on_click(self._run_handler_pn)
         self._tools.stop_btn.on_click(self._stop_handler)
         self._tools.roi_toggle_btn.param.watch(
             partial(self._toggle_unique_window, 'roi', ROIWindow),
             'value'
         )
+        self._add_window_row.append(self._tools.add_window_btn)
+        self._tools.add_window_btn.on_click(self._add_handler)
 
     async def _add_handler(self, e):
         mapper = UIWindow.get_all_implementations()
@@ -327,7 +325,7 @@ class UIContext(UIContextBase):
         return UITools()
 
     def _controls(self):
-        button_row = [
+        return [
             self._tools.icon,
             self._tools.title,
             button_divider(),
@@ -336,10 +334,6 @@ class UIContext(UIContextBase):
             self._tools.roi_toggle_txt,
             self._tools.roi_toggle_btn,
         ]
-        tool_row = [
-            self._tools.add_window_btn,
-        ]
-        return button_row, tool_row
 
     async def _stop_handler(self, *e):
         if self._continue_running:
@@ -569,6 +563,7 @@ class LiveUIContext(UIContext):
         self._continuous_acquire = False
         super().__init__(resources)
         self._resources: LiveResources
+        self._tools: LiveUITools
         self._set_state(UIState.LIVE)
 
     def _build_tools(self):
@@ -592,15 +587,22 @@ class LiveUIContext(UIContext):
         )
 
     def _controls(self):
-        button_row, tool_row = super()._controls()
-        button_row.insert(4, self._tools.continuous_btn)
-        button_row.insert(-2, self._tools.mode_btn)
-        button_row.append(self._tools.record_toggle_txt)
-        button_row.append(self._tools.record_toggle_btn)
-        button_row.append(self._tools.monitor_toggle_txt)
-        button_row.append(self._tools.monitor_toggle_btn)
-        button_row.append(self._tools.replay_select)
-        return button_row, tool_row
+        return [
+            self._tools.icon,
+            self._tools.title,
+            button_divider(),
+            self._tools.run_btn,
+            self._tools.continuous_btn,
+            self._tools.stop_btn,
+            self._tools.mode_btn,
+            self._tools.roi_toggle_txt,
+            self._tools.roi_toggle_btn,
+            self._tools.record_toggle_txt,
+            self._tools.record_toggle_btn,
+            self._tools.monitor_toggle_txt,
+            self._tools.monitor_toggle_btn,
+            self._tools.replay_select,
+        ]
 
     @overload
     def _get_unique_window(self, name: Literal['record']) -> RecordWindow | None:
