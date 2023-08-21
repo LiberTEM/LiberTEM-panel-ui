@@ -260,6 +260,7 @@ class UIWindow:
                 button_type='danger',
                 width_policy='min',
                 align='center',
+                tags=['lt_remove_this'],
             )
 
             self._header_ns._remove_btn.on_click(self.remove_self)
@@ -272,6 +273,7 @@ class UIWindow:
                 width_policy='min',
                 align='center',
                 min_width=75,
+                tags=['lt_run_this'],
             )
             self._header_ns._run_btn.on_click(self.run_from_btn)
             lo.append(self._header_ns._run_btn)
@@ -284,6 +286,7 @@ class UIWindow:
                 align='center',
                 min_width=75,
                 disabled=True,
+                tags=['lt_stop_this'],
             )
             lo.append(self._header_ns._stop_btn)
 
@@ -358,7 +361,6 @@ class UIWindow:
         # Subclass can override this method if it does not
         # want the run_btn to be disabled when pressed
         # (i.e. if job.quiet == True)
-        self._header_ns._run_btn.disabled = True
         if self.properties.header_stop:
             self._header_ns._stop_btn.param.update(
                 disabled=False,
@@ -367,7 +369,6 @@ class UIWindow:
         try:
             await self.run_this(run_from=self.get_job)
         finally:
-            self._header_ns._run_btn.disabled = False
             if self.properties.header_stop:
                 self._header_ns._stop_btn.param.update(
                     disabled=True,

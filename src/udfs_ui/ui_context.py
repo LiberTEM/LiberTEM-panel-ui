@@ -84,6 +84,8 @@ for (let model of this.document._all_models.values()){
         } else {
             model.text = static_text
         }
+    } else if (model.tags.includes("lt_run_this") || model.tags.includes("lt_remove_this")) {
+        model.disabled = is_running
     }
 }
 '''}
