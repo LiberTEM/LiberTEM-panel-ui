@@ -173,7 +173,7 @@ class UIContext(UIContextBase):
             raise TypeError(f'Cannot instantiate UIContext on dataset of type {type(ds)}')
         resources = OfflineResources(
             ctx=ctx,
-            ds=ds,
+            dataset=ds,
         )
         return OfflineUIContext(resources)
 
