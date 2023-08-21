@@ -351,34 +351,6 @@ class UIContext(UIContextBase):
                 'value'
             )
 
-    async def _run_handler_pn(self, e):
-        await self._run_handler()
-
-    async def _run_job(self, run_from: list[RunFromT]):
-        await self._run_handler(run_from=run_from)
-
-    async def _run_handler(
-        self,
-        run_from: list[RunFromT] | None = None,
-        run_continuous: bool = False,
-    ):
-        # This is problematic if we pick a frame
-        # while running a long analysis, cursor will
-        # be out of sync
-        if self._run_lock.locked():
-            self.logger.warning('Run command dropped, lock is already held')
-            return
-        self._continue_running = True
-        async with self._run_lock:
-            if run_continuous:
-                await self.run_continuous(run_from=run_from)
-            elif self._state == UIState.OFFLINE:
-                await self.run_offline(run_from=run_from)
-            elif self._state == UIState.LIVE:
-                await self.run_live(run_from=run_from)
-            elif self._state == UIState.REPLAY:
-                await self.run_replay(run_from=run_from)
-
     async def _add_handler(self, e):
         mapper = UIWindow.get_all_implementations()
         selected = e.new
@@ -394,22 +366,6 @@ class UIContext(UIContextBase):
         elif self._state == UIState.REPLAY:
             self._set_state(UIState.LIVE)
 
-    async def _stop_handler(self, *e):
-        if self._continue_running:
-            self._continue_running = False
-
-    async def _continuous_handler_pn(self, e):
-        await self._continuous_handler()
-
-    async def _continuous_handler(self, run_from: list[RunFromT] | None = None):
-        if self._continuous_acquire:
-            self._continuous_acquire = False
-            # Should be on the lifecycle class, really!
-            # Would need an additional method
-            self._tools.continuous_btn.name = 'Stopping...'
-            return
-        await self._run_handler(run_from=run_from, run_continuous=True)
-
     def _setup_tools(self):
         if self._state == UIState.OFFLINE:
             self._setup_offline()
@@ -423,18 +379,6 @@ class UIContext(UIContextBase):
 
     def _setup_live(self):
         LiveLifecycle(self).setup()
-
-    def _get_recordings_map(self):
-        recordings = tuple(self.results_manager.yield_of_type(RecordResultContainer))
-        recordings = tuple(reversed(sorted(recordings, key=lambda r: r.timestamp)))
-        containers: tuple[RecordResultContainer, ...] = tuple(
-            self.results_manager.get_result_container(recording.result_id)
-            for recording in recordings
-        )
-        return {
-            cont.filepath.stem: row for row, cont in zip(recordings, containers)
-            if cont.filepath.is_file()
-        }
 
     def _setup_replay(self):
         ReplayLifecycle(self).setup()
@@ -465,6 +409,62 @@ class UIContext(UIContextBase):
             button_row.append(self._tools.monitor_toggle_btn)
             button_row.append(self._tools.replay_select)
         return button_row, tool_row
+
+    async def _stop_handler(self, *e):
+        if self._continue_running:
+            self._continue_running = False
+
+    async def _continuous_handler_pn(self, e):
+        await self._continuous_handler()
+
+    async def _continuous_handler(self, run_from: list[RunFromT] | None = None):
+        if self._continuous_acquire:
+            self._continuous_acquire = False
+            # Should be on the lifecycle class, really!
+            # Would need an additional method
+            self._tools.continuous_btn.name = 'Stopping...'
+            return
+        await self._run_handler(run_from=run_from, run_continuous=True)
+
+    def _get_recordings_map(self):
+        recordings = tuple(self.results_manager.yield_of_type(RecordResultContainer))
+        recordings = tuple(reversed(sorted(recordings, key=lambda r: r.timestamp)))
+        containers: tuple[RecordResultContainer, ...] = tuple(
+            self.results_manager.get_result_container(recording.result_id)
+            for recording in recordings
+        )
+        return {
+            cont.filepath.stem: row for row, cont in zip(recordings, containers)
+            if cont.filepath.is_file()
+        }
+
+    async def _run_handler_pn(self, e):
+        await self._run_handler()
+
+    async def _run_job(self, run_from: list[RunFromT]):
+        await self._run_handler(run_from=run_from)
+
+    async def _run_handler(
+        self,
+        run_from: list[RunFromT] | None = None,
+        run_continuous: bool = False,
+    ):
+        # This is problematic if we pick a frame
+        # while running a long analysis, cursor will
+        # be out of sync
+        if self._run_lock.locked():
+            self.logger.warning('Run command dropped, lock is already held')
+            return
+        self._continue_running = True
+        async with self._run_lock:
+            if run_continuous:
+                await self.run_continuous(run_from=run_from)
+            elif self._state == UIState.OFFLINE:
+                await self.run_offline(run_from=run_from)
+            elif self._state == UIState.LIVE:
+                await self.run_live(run_from=run_from)
+            elif self._state == UIState.REPLAY:
+                await self.run_replay(run_from=run_from)
 
     def get_roi(self, ds: DataSet) -> np.ndarray | None:
         # Get an ROI from an roi window if present and roi is set
