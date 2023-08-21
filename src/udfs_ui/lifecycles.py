@@ -20,15 +20,13 @@ class UILifecycle:
         self.ui._tools.stop_btn.button_type = 'danger'
 
     def before(self):
-        if not self.enabled:
-            return
-        self.ui._tools.stop_btn.disabled = False
+        ...
 
     def during(self):
         ...
 
     def after(self):
-        self.ui._tools.stop_btn.disabled = True
+        ...
 
 
 class OfflineLifecycle(UILifecycle):

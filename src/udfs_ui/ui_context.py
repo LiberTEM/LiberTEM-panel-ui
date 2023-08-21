@@ -65,6 +65,12 @@ class UITools:
             **self.common_params,
         )
 
+        self.run_btn.jslink(
+            self.stop_btn,
+            args={'stop_btn': self.stop_btn},
+            code={'disabled': '''stop_btn.disabled = !cb_obj.disabled'''}
+        )
+
         self.roi_toggle_txt, self.roi_toggle_btn = labelled_switch(
             label='Global ROI',
             state=False,
