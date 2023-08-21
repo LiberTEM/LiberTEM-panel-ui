@@ -7,6 +7,7 @@ import panel as pn
 from ..results.results_manager import ResultsManager
 from ..utils.logging import logger
 from ..base import UIContextBase, UIState
+from ..resources import OfflineResources
 from ..utils.progress import PanelProgressReporter
 
 if TYPE_CHECKING:
@@ -19,8 +20,8 @@ class StandaloneContext(UIContextBase):
     def __init__(self, ctx: Context, dataset: DataSet):
         self._results_manager = ResultsManager()
         self._results_manager.add_watcher(self)
-        self._ctx = ctx
-        self._dataset = dataset
+        self._resources = OfflineResources(ctx, dataset)
+        self._resources: OfflineResources
         # As the standalone context does not control any
         # windows which are connected to it only keep a weakref to them
         self._windows: WeakValueDictionary[str, UIWindow] = WeakValueDictionary()
@@ -38,10 +39,6 @@ class StandaloneContext(UIContextBase):
         self._progress[ident] = PanelProgressReporter(pbar)
         # between _header_layout and _inner_layout
         ui_window.layout().insert(insert_at, pbar)
-
-    @property
-    def dataset(self):
-        return self._dataset
 
     @property
     def logger(self):
@@ -66,9 +63,11 @@ class StandaloneContext(UIContextBase):
             job = to_run[0]
         roi = job.roi
         progress = False if job.quiet else self._progress.get(job.window.ident, False)
+        ctx = self._resources.ctx
+        ds = self._resources.dataset
         try:
-            async for udfs_res in self._ctx.run_udf_iter(
-                dataset=self.dataset,
+            async for udfs_res in ctx.run_udf_iter(
+                dataset=ds,
                 udf=tuple(udf for job in to_run for udf in job.udfs),
                 plots=tuple(plot for job in to_run for plot in job.plots),
                 progress=progress,
@@ -84,8 +83,8 @@ class StandaloneContext(UIContextBase):
 
         run_record = self.results_manager.new_run(
             shape={
-                'nav': tuple(self.dataset.shape.nav),
-                'sig': tuple(self.dataset.shape.sig),
+                'nav': tuple(ds.shape.nav),
+                'sig': tuple(ds.shape.sig),
             },
             has_roi=roi is not None,
             state=UIState.OFFLINE,

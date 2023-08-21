@@ -162,7 +162,7 @@ class UIWindow:
                 'init_collapsed': False,
             }
         )
-        window.initialize(ui_context.dataset)
+        window.initialize(ui_context._resources.init_with())
         ui_context._register_window(window)
         if window.properties.header_run:
             ui_context._add_progress_bar(window)

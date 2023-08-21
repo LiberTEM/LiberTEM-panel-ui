@@ -140,10 +140,6 @@ class UIContext(UIContextBase):
         self._inital_setup()
 
     @property
-    def dataset(self):
-        return self._resources.init_with()
-
-    @property
     def logger(self):
         return self._logger.logger
 
@@ -501,7 +497,7 @@ class OfflineUIContext(UIContext):
     async def run_offline(self, run_from: list[RunFromT] | None = None):
         lifecycle = OfflineLifecycle(self)
         ctx = self._resources.ctx
-        ds = self._resources.ds
+        ds = self._resources.dataset
         roi = self.get_roi(ds)
 
         try:

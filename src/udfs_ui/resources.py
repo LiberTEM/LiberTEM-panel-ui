@@ -9,10 +9,10 @@ if TYPE_CHECKING:
 
 class OfflineResources(NamedTuple):
     ctx: Context
-    ds: DataSet
+    dataset: DataSet
 
     def init_with(self) -> DataSet:
-        return self.ds
+        return self.dataset
 
 
 class LiveResources(NamedTuple):

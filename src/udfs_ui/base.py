@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from .windows.base import UIWindow, UDFWindowJob
     from .results.results_manager import ResultsManager, ResultRow, RunRow
     from .utils.logging import UILogger
+    from .resources import LiveResources, OfflineResources
 
     WindowIdent = NewType('WindowIdent', str)
 
@@ -52,13 +53,10 @@ class JobResults(NamedTuple):
 class UIContextBase(Protocol):
     _windows: dict[WindowIdent, UIWindow]
     _results_manager: ResultsManager
+    _resources: LiveResources | OfflineResources
 
     @property
     def logger(self) -> UILogger:
-        ...
-
-    @property
-    def dataset(self) -> DataSet | AcquisitionProtocol:
         ...
 
     def _register_window(self, ui_window: UIWindow):
