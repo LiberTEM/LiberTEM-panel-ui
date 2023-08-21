@@ -16,8 +16,10 @@ class UILifecycle:
         self.enabled = False
 
     def setup(self):
-        self.ui._tools.stop_btn.name = 'STOP'
-        self.ui._tools.stop_btn.button_type = 'danger'
+        self.ui._tools.stop_btn.param.update(
+            name='STOP',
+            button_type='danger',
+        )
 
     def before(self):
         ...
@@ -38,8 +40,10 @@ class OfflineLifecycle(UILifecycle):
         if not self.enabled:
             return
         super().before()
-        self.ui._tools.run_btn.name = 'Waiting...'
-        self.ui._tools.run_btn.disabled = True
+        self.ui._tools.run_btn.param.update(
+            name='Waiting...',
+            disabled=True
+        )
 
     def during(self):
         if not self.enabled:
@@ -50,8 +54,10 @@ class OfflineLifecycle(UILifecycle):
         if not self.enabled:
             return
         super().after()
-        self.ui._tools.run_btn.name = 'Run all'
-        self.ui._tools.run_btn.disabled = False
+        self.ui._tools.run_btn.param.update(
+            name='Run all',
+            disabled=False
+        )
 
 
 class LiveLifecycle(UILifecycle):
