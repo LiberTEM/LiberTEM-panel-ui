@@ -57,7 +57,9 @@ def button_divider(height: int = 35, width: int = 2, color: str = '#757575'):
         styles={
             'border-left': f'{width}px solid {color}',
             'height': f'{height}px',
-        }
+        },
+        align='center',
+        margin=(5, 5),
     )
 
 
