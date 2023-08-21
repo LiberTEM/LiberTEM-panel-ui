@@ -274,24 +274,6 @@ class UIWindow:
                 min_width=75,
             )
             self._header_ns._run_btn.on_click(self.run_from_btn)
-
-            if self.properties.header_indicate:
-                self._header_ns._run_btn.jslink(
-                    self._header_ns._indicator,
-                    args={
-                        'indicator': self._header_ns._indicator,
-                        'spin_text': get_spinner(True, UIWindow.SPINNER_SIZE),
-                        'static_text': get_spinner(False, UIWindow.SPINNER_SIZE),
-                    },
-                    code={'disabled': '''
-if (cb_obj.disabled) {
-    indicator.text=spin_text
-} else {
-    indicator.text=static_text
-}
-'''},
-                )
-
             lo.append(self._header_ns._run_btn)
 
         if self.properties.header_stop:
