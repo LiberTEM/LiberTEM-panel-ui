@@ -17,9 +17,8 @@ from ..results.containers import Numpy2DResultContainer
 
 if TYPE_CHECKING:
     from libertem.io.dataset.base import DataSet
-    from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.udf.base import UDF
-    from ..base import UIState, JobResults
+    from ..base import JobResults
     from .base import UDFWindowJob
     from ..results.results_manager import ResultRow
     from libertem.udf.base import UDFResultDict
@@ -135,6 +134,12 @@ class CoMImagingWindow(VirtualDetectorWindow, ui_type=WindowType.STANDALONE):
         self._channel_select.param.watch(self._apply_corrections, 'value')
         self._rot_reset_btn.on_click(self._apply_corrections)
 
+        self._rotation_slider.tags = ['lt_run_this']
+        self._channel_select.tags = ['lt_run_this']
+        self._flip_y_cbox.tags = ['lt_run_this']
+        self._guess_corrections_btn.tags = ['lt_run_this']
+        self._rot_reset_btn.tags = ['lt_run_this']
+
         self.toolbox.extend((
             pn.Row(
                 self._regression_select,
@@ -208,24 +213,7 @@ class CoMImagingWindow(VirtualDetectorWindow, ui_type=WindowType.STANDALONE):
         result_title = self._current_params.get('result_title', 'CoM')
         self.nav_plot.fig.title.text = f'{result_title} - {selected}'
 
-    def _set_hold(self, val: bool):
-        self._rotation_slider.disabled = val
-        self._channel_select.disabled = val
-        self._flip_y_cbox.disabled = val
-        self._guess_corrections_btn.disabled = val
-        self._rot_reset_btn.disabled = val
-
-    def get_job(
-        self,
-        state: UIState,
-        dataset: DataSet | AcquisitionProtocol,
-        roi: np.ndarray | None,
-    ):
-        self._set_hold(True)
-        return super().get_job(state, dataset, roi)
-
     def complete_job(self, job: UDFWindowJob, job_results: JobResults) -> tuple[ResultRow, ...]:
-        self._set_hold(False)
         self._current_params = CoMParamsUI(**job.params)
         self._update_nav_title()
 
