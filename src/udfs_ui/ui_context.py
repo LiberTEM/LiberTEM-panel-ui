@@ -128,9 +128,9 @@ for (let model of this.document._all_models.values()){
 
 
 class UIContext(UIContextBase):
-    def __init__(self, resources: ResourcesProtocol):
+    def __init__(self):
         self._state: UIState
-        self._resources = resources
+        self._resources: ResourcesProtocol
         # Run components
         self._run_lock = asyncio.Lock()
         self._continue_running = False
@@ -489,7 +489,8 @@ class OfflineUniqueWindows(TypedDict):
 class OfflineUIContext(UIContext):
     def __init__(self, resources: OfflineResources):
         self._state = UIState.OFFLINE
-        super().__init__(resources)
+        self._resources = resources
+        super().__init__()
         OfflineLifecycle(self).setup()
         self._resources: OfflineResources
 
@@ -565,8 +566,9 @@ class LiveUITools(UITools):
 class LiveUIContext(UIContext):
     def __init__(self, resources: LiveResources):
         self._state = UIState.LIVE
+        self._resources = resources
         self._continuous_acquire = False
-        super().__init__(resources)
+        super().__init__()
         self._resources: LiveResources
         self._tools: LiveUITools
         self._set_state(UIState.LIVE)
