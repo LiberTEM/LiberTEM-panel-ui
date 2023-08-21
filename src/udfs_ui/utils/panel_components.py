@@ -77,3 +77,37 @@ def labelled_switch(label: str, state: bool, align='center', text_width: int = 8
         value=state,
     )
     return txt, btn
+
+
+def get_spinner(
+    active: bool,
+    size: int,
+    spin_time: int = 2,
+    inactive_color: str = '#f3f3f3',
+    active_color: str = '#3498db',
+):
+    border_size = max(1, int(size * (16 / 120)))
+    if active:
+        anim_line = f"""border-top: {border_size}px solid {active_color}; /* Blue */
+animation: spin {spin_time}s linear infinite;
+"""
+    else:
+        anim_line = ""
+    return f"""<!-- https://www.w3schools.com/howto/howto_css_loader.asp -->
+<div class="loader">
+<style scoped>
+.loader {{
+    border: {border_size}px solid {inactive_color}; /* Light grey */
+    border-radius: 50%;
+    width: {size}px;
+    height: {size}px;
+    {anim_line}
+}}
+
+@keyframes spin {{
+    0% {{ transform: rotate(0deg); }}
+    100% {{ transform: rotate(360deg); }}
+}}
+</style>
+</div>
+"""
