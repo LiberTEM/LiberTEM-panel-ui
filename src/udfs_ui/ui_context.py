@@ -260,7 +260,7 @@ class UIContext(UIContextBase):
             window = self._add(window_cls, window_props=dict(insert_at=insert_at))
             self._unique_windows[label] = window.ident
         else:
-            self._remove(window)
+            self._remove_window(window)
             self._unique_windows[label] = None
 
     def _get_unique_window(self, name: Literal['roi']):
