@@ -134,12 +134,8 @@ class UIContext(UIContextBase):
     def __init__(self):
         self._windows: dict[str, UIWindow] = {}
         self._state: UIState = None
-        self._resources: OfflineResources | LiveResources = None
-        self._run_lock = asyncio.Lock()
-        self._continue_running = False
-        self._continuous_acquire = False
-        self._unique_windows = UniqueWindows()
         # Create helper classes
+        self._unique_windows = UniqueWindows()
         self._tools = UITools()
         self._p_reporter = PanelProgressReporter(self._tools.pbar)
         self._results_manager = ResultsManager()
@@ -160,14 +156,19 @@ class UIContext(UIContextBase):
             self._add_window_row,
             min_width=700,
         )
-
-    @property
-    def logger(self):
-        return self._logger.logger
+        # Run components
+        self._resources: OfflineResources | LiveResources = None
+        self._run_lock = asyncio.Lock()
+        self._continue_running = False
+        self._continuous_acquire = False
 
     @property
     def datset(self):
         return self._resources.init_with()
+
+    @property
+    def logger(self):
+        return self._logger.logger
 
     @classmethod
     def for_live(
