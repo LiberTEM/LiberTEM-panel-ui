@@ -35,7 +35,6 @@ class OfflineLifecycle(UILifecycle):
     def setup(self):
         super().setup()
         self.after()
-        self.ui._tools.set_subtitle(UIState.OFFLINE.value)
 
     def before(self):
         if not self.enabled:
@@ -62,7 +61,6 @@ class LiveLifecycle(UILifecycle):
         super().setup()
         self.after()
         self.ui._tools.replay_select.visible = False
-        self.ui._tools.set_subtitle(UIState.LIVE.value)
         self.ui._tools.mode_btn.name = f'Go to {UIState.REPLAY.value}'
         self.ui._tools.continuous_btn.visible = True
         # Toggles
@@ -121,7 +119,6 @@ class ReplayLifecycle(OfflineLifecycle):
     def setup(self):
         self.after()
         self.ui._tools.replay_select.visible = True
-        self.ui._tools.set_subtitle(UIState.REPLAY.value)
         self.ui._tools.mode_btn.name = f'Go to {UIState.LIVE.value}'
         self.ui._tools.mode_btn.disabled = False
         self.ui._tools.continuous_btn.visible = False

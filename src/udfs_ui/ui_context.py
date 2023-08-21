@@ -10,6 +10,7 @@ import panel as pn
 from typing import Callable, TYPE_CHECKING, TypedDict, overload, Any
 from typing_extensions import Literal
 
+from . import icon_path
 from .base import UIContextBase, UIState
 from .windows.base import UIWindow, WindowType, UDFWindowJob
 from .lifecycles import (
@@ -24,7 +25,7 @@ from .windows.tools import ROIWindow, RecordWindow, SignalMonitorUDFWindow
 from .results.results_manager import ResultsManager
 from .results.containers import RecordResultContainer
 from .applications.terminal_logger import UILog
-from .utils.panel_components import labelled_switch
+from .utils.panel_components import labelled_switch, button_divider
 from .utils.progress import PanelProgressReporter
 
 if TYPE_CHECKING:
@@ -43,8 +44,15 @@ class UITools:
             min_width=125,
         )
 
-        self.title = pn.pane.Markdown(
-            object='## UDFs UI',
+        self.icon = pn.pane.SVG(
+            icon_path,
+            height=50,
+            margin=(2, 2),
+            align='center',
+        )
+
+        self.title = pn.pane.HTML(
+            object='<H2><font color="#005b9e">UI Context</font></H2>',
         )
 
         self.run_btn = pn.widgets.Button(
@@ -114,9 +122,6 @@ class UITools:
         )
         self.pbar.progress.margin = (0, 10, 0, 10)
         self.pbar.progress.height = 10
-
-    def set_subtitle(self, subtitle: str):
-        self.title.object = f'## UDFs UI - {subtitle}'
 
 
 class UniqueWindows(TypedDict):
@@ -448,9 +453,10 @@ class UIContext(UIContextBase):
             self._tools.replay_select.value = self._tools.replay_select.options[0]
 
     def _controls(self):
-        self._tools.title.object = f'## UDFs UI - {self._state.value}'
         button_row = [
+            self._tools.icon,
             self._tools.title,
+            button_divider(),
             self._tools.run_btn,
             self._tools.stop_btn,
             self._tools.roi_toggle_txt,
