@@ -11,7 +11,7 @@ from typing import Callable, TYPE_CHECKING, TypedDict, overload, Any
 from typing_extensions import Literal
 
 from . import icon_path
-from .base import UIContextBase, UIState
+from .base import UIContextBase, UIState, WindowIdent
 from .windows.base import UIWindow, WindowType, UDFWindowJob
 from .lifecycles import (
     UILifecycle,
@@ -125,14 +125,14 @@ class UITools:
 
 
 class UniqueWindows(TypedDict):
-    roi: str | None
-    record: str | None
-    monitor: str | None
+    roi: WindowIdent | None
+    record: WindowIdent | None
+    monitor: WindowIdent | None
 
 
 class UIContext(UIContextBase):
     def __init__(self):
-        self._windows: dict[str, UIWindow] = {}
+        self._windows: dict[WindowIdent, UIWindow] = {}
         self._state: UIState = None
         # Create helper classes
         self._unique_windows = UniqueWindows()
@@ -680,3 +680,7 @@ class UIContext(UIContextBase):
                 f'- Complete jobs: {precisedelta(complete_job_time, minimum_unit="milliseconds")}\n'
                 f'- Notify: {precisedelta(notify_time, minimum_unit="milliseconds")}'
             )
+
+
+class LiveUIContext:
+    ...
