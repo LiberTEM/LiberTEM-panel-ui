@@ -129,6 +129,7 @@ for (let model of this.document._all_models.values()){
 
 class UIContext(UIContextBase):
     def __init__(self):
+        # Set in subcasses
         self._state: UIState
         self._resources: ResourcesProtocol
         # Run components
