@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import NamedTuple, Callable, TYPE_CHECKING
+from typing import NamedTuple, Callable, TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from libertem.api import DataSet, Context
@@ -7,7 +7,12 @@ if TYPE_CHECKING:
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
 
 
-class OfflineResources(NamedTuple):
+class ResourcesProtocol(Protocol):
+    def init_with(self) -> AcquisitionProtocol | DataSet:
+        ...
+
+
+class OfflineResources(NamedTuple, ResourcesProtocol):
     ctx: Context
     dataset: DataSet
 
@@ -15,7 +20,7 @@ class OfflineResources(NamedTuple):
         return self.dataset
 
 
-class LiveResources(NamedTuple):
+class LiveResources(NamedTuple, ResourcesProtocol):
     live_ctx: LiveContext
     # This could be replaced with a true AcquisitionPlan object
     # which contains the intended shapes / dtype

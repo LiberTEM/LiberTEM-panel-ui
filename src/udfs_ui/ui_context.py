@@ -20,7 +20,7 @@ from .lifecycles import (
     ReplayLifecycle,
     ContinuousLifecycle,
 )
-from .resources import LiveResources, OfflineResources
+from .resources import LiveResources, OfflineResources, ResourcesProtocol
 from .windows.tools import ROIWindow, RecordWindow, SignalMonitorUDFWindow
 from .results.results_manager import ResultsManager
 from .results.containers import RecordResultContainer
@@ -132,8 +132,7 @@ class OfflineUniqueWindows(TypedDict):
 
 
 class UIContext(UIContextBase):
-    def __init__(self, resources: OfflineResources | LiveResources):
-        # Must be set in child class
+    def __init__(self, resources: ResourcesProtocol):
         self._state: UIState
         self._resources = resources
         # Run components
