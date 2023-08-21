@@ -127,10 +127,6 @@ for (let model of this.document._all_models.values()){
         )
 
 
-class OfflineUniqueWindows(TypedDict):
-    roi: WindowIdent | None
-
-
 class UIContext(UIContextBase):
     def __init__(self, resources: ResourcesProtocol):
         self._state: UIState
@@ -289,7 +285,7 @@ class UIContext(UIContextBase):
         return self._windows.get(window_id, None)
 
     def _register_unique_window_names(self):
-        return OfflineUniqueWindows()
+        raise NotImplementedError
 
     def _remove_window(self, window: UIWindow):
         index = tuple(i for i, _lo
@@ -321,7 +317,7 @@ class UIContext(UIContextBase):
         self._add(window_cls)
 
     def _build_tools(self):
-        return UITools()
+        raise NotImplementedError
 
     def _controls(self):
         return [
@@ -486,12 +482,22 @@ class UIContext(UIContextBase):
             )
 
 
+class OfflineUniqueWindows(TypedDict):
+    roi: WindowIdent | None
+
+
 class OfflineUIContext(UIContext):
     def __init__(self, resources: OfflineResources):
         self._state = UIState.OFFLINE
         super().__init__(resources)
         OfflineLifecycle(self).setup()
         self._resources: OfflineResources
+
+    def _build_tools(self):
+        return UITools()
+
+    def _register_unique_window_names(self):
+        return OfflineUniqueWindows()
 
     async def _run_handler(
         self,
