@@ -161,12 +161,6 @@ class UIContext(UIContextBase):
             min_width=700,
         )
 
-    def log_window(self, with_reload: bool = True):
-        if with_reload:
-            from .utils.notebook_tools import get_ipyw_reload_button
-            get_ipyw_reload_button()
-        return self._logger.widget
-
     @property
     def logger(self):
         return self._logger.logger
