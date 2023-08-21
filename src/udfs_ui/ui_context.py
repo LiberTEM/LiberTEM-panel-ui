@@ -215,10 +215,7 @@ class UIContext(UIContextBase):
         ui_context._set_state(UIState.OFFLINE)
         return ui_context
 
-    def layout(self, with_reload: bool = False):
-        if with_reload:
-            from .utils.notebook_tools import get_ipyw_reload_button
-            get_ipyw_reload_button()
+    def layout(self):
         if self._state is None:
             raise ValueError('Must initialize UI before displaying')
         # The potential to redraw the same layout by re-executing the cell
