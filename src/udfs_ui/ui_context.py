@@ -7,7 +7,7 @@ from datetime import timedelta
 from humanize import naturalsize, precisedelta
 import numpy as np
 import panel as pn
-from typing import Callable, TYPE_CHECKING, TypedDict, overload, Any
+from typing import Callable, TYPE_CHECKING, TypedDict, overload, Any, NamedTuple
 from typing_extensions import Literal
 
 from . import icon_path
@@ -20,7 +20,7 @@ from .lifecycles import (
     ReplayLifecycle,
     ContinuousLifecycle,
 )
-from .resources import LiveResources, OfflineResources, ResourcesProtocol
+from .resources import LiveResources, OfflineResources
 from .windows.tools import ROIWindow, RecordWindow, SignalMonitorUDFWindow
 from .results.results_manager import ResultsManager
 from .results.containers import RecordResultContainer
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 
 
 class UITools:
-    def __init__(self):
+    def __init__(self, properties: UIContextProperties):
         self.icon = pn.pane.SVG(
             icon_path,
             height=50,
@@ -96,19 +96,20 @@ for (let model of this.document._all_models.values()){
             state=False,
         )
 
-        window_keys = [
-            *tuple(UIWindow.get_implementations(WindowType.STANDALONE).keys()),
-        ]
-        self.add_window_btn = pn.widgets.MenuButton(
-            name='Add window',
-            button_type='primary',
-            items=window_keys,
-            stylesheets=[
-                """.bk-menu {
-  position: unset;
-}"""],
-            **self.common_params,
-        )
+        if properties.add_window_widget:
+            window_keys = [
+                *tuple(UIWindow.get_implementations(WindowType.STANDALONE).keys()),
+            ]
+            self.add_window_btn = pn.widgets.MenuButton(
+                name='Add window',
+                button_type='primary',
+                items=window_keys,
+                stylesheets=[
+                    """.bk-menu {
+    position: unset;
+    }"""],
+                **self.common_params,
+            )
 
         self.pbar = pn.widgets.Tqdm(
             width=650,
@@ -127,11 +128,18 @@ for (let model of this.document._all_models.values()){
         )
 
 
+class UIContextProperties(NamedTuple):
+    add_window_widget: bool = True
+    allow_manual_add: bool = True
+    allow_remove: bool = True
+
+
 class UIContext(UIContextBase):
-    def __init__(self):
+    def __init__(self, properties: UIContextProperties):
         # Set in subcasses
         self._state: UIState
-        self._resources: ResourcesProtocol
+        self._resources: LiveResources | OfflineResources
+        self._properties = properties
         # Run components
         self._run_lock = asyncio.Lock()
         self._continue_running = False
@@ -145,7 +153,6 @@ class UIContext(UIContextBase):
         # Layout anbd windows
         self._windows: dict[WindowIdent, UIWindow] = {}
         self._button_row = pn.Row(margin=(0, 0))
-        self._add_window_row = pn.Row(margin=(0, 0))
         self._windows_area = pn.Column(
             margin=(0, 0),
         )
@@ -154,10 +161,14 @@ class UIContext(UIContextBase):
             self._tools.pbar,
             self._logger.as_collapsible(),
             self._windows_area,
-            pn.layout.Divider(),
-            self._add_window_row,
             min_width=700,
         )
+        if self.properties.add_window_widget:
+            self._add_window_row = pn.Row(margin=(0, 0))
+            self._layout.extend((
+                pn.layout.Divider(),
+                self._add_window_row,
+            ))
         # Configuration of button / tool states
         self._inital_setup()
 
@@ -165,12 +176,17 @@ class UIContext(UIContextBase):
     def logger(self):
         return self._logger.logger
 
+    @property
+    def properties(self):
+        return self._properties
+
     @staticmethod
     def for_live(
         live_ctx: LiveContext,
         aq_plan: AcquisitionProtocol | DataSet,
         get_aq: Callable[[LiveContext], AcquisitionProtocol | None],
         offline_ctx: Context | None = None,
+        ui_properties: UIContextProperties = UIContextProperties(),
     ) -> LiveUIContext:
         if not hasattr(live_ctx, 'make_acquisition'):
             raise TypeError('Cannot instantiate live UIContext '
@@ -181,12 +197,13 @@ class UIContext(UIContextBase):
             get_aq=get_aq,
             offline_ctx=offline_ctx,
         )
-        return LiveUIContext(resources)
+        return LiveUIContext(resources, properties=ui_properties)
 
     @staticmethod
     def for_offline(
         ctx: Context,
         ds: DataSet,
+        ui_properties: UIContextProperties = UIContextProperties(),
     ) -> OfflineUIContext:
         import libertem.api as lt  # noqa
         if not isinstance(ctx, lt.Context):
@@ -197,7 +214,7 @@ class UIContext(UIContextBase):
             ctx=ctx,
             dataset=ds,
         )
-        return OfflineUIContext(resources)
+        return OfflineUIContext(resources, properties=ui_properties)
 
     def layout(self):
         if self._state is None:
@@ -213,6 +230,9 @@ class UIContext(UIContextBase):
         window_props: WindowPropertiesTDict | None = None,
         window_data: Any | None = None,
     ) -> UIContext:
+        if not self.properties.allow_manual_add:
+            self.logger.warning('Adding new windows disabled on this UIContext')
+            return
         # Add a window and return self to allow method chaining
         # Internal methods use _add to get the created UIWindow
         self._add(
@@ -240,11 +260,14 @@ class UIContext(UIContextBase):
                     window_name = window_cls.__name__
                 except AttributeError:
                     raise RuntimeError(f'window_cls must be a UIWindow sub-class, got {window_cls}')
+            window_props = window_props if window_props is not None else {}
+            if not self.properties.allow_remove:
+                window_props.update({'header_remove': False})
             window_cls: type[UIWindow]
             window = window_cls(
                 self,
                 window_id,
-                prop_overrides=window_props if window_props else {},
+                prop_overrides=window_props,
                 window_data=window_data,
             )
             window.initialize(self._resources.init_with())
@@ -285,10 +308,14 @@ class UIContext(UIContextBase):
         window_id = self._unique_windows.get(name)
         return self._windows.get(window_id, None)
 
-    def _register_unique_window_names(self):
+    def _register_unique_window_names(self) -> TypedDict[str, WindowIdent | None]:
         raise NotImplementedError
 
     def _remove_window(self, window: UIWindow):
+        if not self.properties.allow_remove:
+            self.logger.warning('Window removal is disabled on this UIContext')
+            return
+
         index = tuple(i for i, _lo
                       in enumerate(self._windows_area)
                       if hasattr(_lo, 'ident') and _lo.ident == window.ident)
@@ -305,8 +332,9 @@ class UIContext(UIContextBase):
             partial(self._toggle_unique_window, 'roi', ROIWindow),
             'value'
         )
-        self._add_window_row.append(self._tools.add_window_btn)
-        self._tools.add_window_btn.on_click(self._add_handler)
+        if self.properties.add_window_widget:
+            self._add_window_row.append(self._tools.add_window_btn)
+            self._tools.add_window_btn.on_click(self._add_handler)
 
     async def _add_handler(self, e):
         mapper = UIWindow.get_all_implementations()
@@ -317,7 +345,7 @@ class UIContext(UIContextBase):
             return
         self._add(window_cls)
 
-    def _build_tools(self):
+    def _build_tools(self) -> UITools:
         raise NotImplementedError
 
     def _controls(self):
@@ -488,15 +516,19 @@ class OfflineUniqueWindows(TypedDict):
 
 
 class OfflineUIContext(UIContext):
-    def __init__(self, resources: OfflineResources):
+    def __init__(
+        self,
+        resources: LiveResources,
+        properties: UIContextProperties = UIContextProperties()
+    ):
         self._state = UIState.OFFLINE
         self._resources = resources
-        super().__init__()
+        super().__init__(properties)
         OfflineLifecycle(self).setup()
         self._resources: OfflineResources
 
     def _build_tools(self):
-        return UITools()
+        return UITools(self.properties)
 
     def _register_unique_window_names(self):
         return OfflineUniqueWindows()
@@ -534,8 +566,8 @@ class LiveUniqueWindows(TypedDict):
 
 
 class LiveUITools(UITools):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, properties: UIContextProperties):
+        super().__init__(properties)
         self.continuous_btn = pn.widgets.Button(
             name='Run continuous',
             button_type='success',
@@ -565,17 +597,21 @@ class LiveUITools(UITools):
 
 
 class LiveUIContext(UIContext):
-    def __init__(self, resources: LiveResources):
+    def __init__(
+        self,
+        resources: LiveResources,
+        properties: UIContextProperties = UIContextProperties()
+    ):
         self._state = UIState.LIVE
         self._resources = resources
-        self._continuous_acquire = False
-        super().__init__()
+        super().__init__(properties)
         self._resources: LiveResources
         self._tools: LiveUITools
+        self._continuous_acquire = False
         self._set_state(UIState.LIVE)
 
     def _build_tools(self):
-        return LiveUITools()
+        return LiveUITools(self.properties)
 
     def _register_unique_window_names(self):
         return LiveUniqueWindows()
