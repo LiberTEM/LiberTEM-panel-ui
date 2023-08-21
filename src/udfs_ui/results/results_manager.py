@@ -355,18 +355,18 @@ class ResultsManager:
             max_width=100,
             align='center',
         )
-        gb_text = pn.widgets.StaticText(
-            value='Group-By:',
-            align='center',
-        )
-        gb_select = pn.widgets.RadioButtonGroup(
-            name='Group-by',
-            value='None',
-            options=['None', 'Run #', 'Window #'],
-            button_type='success',
-            max_width=300,
-            align='center',
-        )
+        # gb_text = pn.widgets.StaticText(
+        #     value='Group-By:',
+        #     align='center',
+        # )
+        # gb_select = pn.widgets.RadioButtonGroup(
+        #     name='Group-by',
+        #     value='None',
+        #     options=['None', 'Run #', 'Window #'],
+        #     button_type='success',
+        #     max_width=300,
+        #     align='center',
+        # )
         table_df, hidden_columns = self.get_table_df()
         df_widget = pn.widgets.Tabulator(
             table_df,
@@ -384,17 +384,17 @@ class ResultsManager:
             },
         )
 
-        def _change_gb(e):
-            if not e.new or e.new == 'None':
-                df_widget.groupby = []
-                return
-            matches = tuple(k for k, v in titles.items() if e.new == v)
-            if not matches:
-                return
-            new_gb = matches[0]
-            df_widget.groupby = [new_gb]
+        # def _change_gb(e):
+        #     if not e.new or e.new == 'None':
+        #         df_widget.groupby = []
+        #         return
+        #     matches = tuple(k for k, v in titles.items() if e.new == v)
+        #     if not matches:
+        #         return
+        #     new_gb = matches[0]
+        #     df_widget.groupby = [new_gb]
 
-        gb_select.param.watch(_change_gb, 'value')
+        # gb_select.param.watch(_change_gb, 'value')
 
         current_preview = None
 
@@ -463,8 +463,8 @@ class ResultsManager:
                 refresh_btn,
             ),
             pn.Row(
-                gb_text,
-                gb_select,
+                # gb_text,
+                # gb_select,
                 pn.layout.HSpacer(),
                 delete_btn,
             ),
