@@ -58,7 +58,7 @@ class UIContextBase(Protocol):
         ...
 
     @property
-    def datset(self) -> DataSet | AcquisitionProtocol:
+    def dataset(self) -> DataSet | AcquisitionProtocol:
         ...
 
     def _register_window(self, ui_window: UIWindow):

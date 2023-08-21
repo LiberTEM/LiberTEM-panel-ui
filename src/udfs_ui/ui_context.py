@@ -11,7 +11,7 @@ from typing import Callable, TYPE_CHECKING, TypedDict, overload, Any
 from typing_extensions import Literal
 
 from . import icon_path
-from .base import UIContextBase, UIState, WindowIdent
+from .base import UIContextBase, UIState
 from .windows.base import UIWindow, WindowType, UDFWindowJob
 from .lifecycles import (
     UILifecycle,
@@ -34,16 +34,11 @@ if TYPE_CHECKING:
     from libertem_live.api import LiveContext
     from libertem.api import DataSet, Context
     from .windows.base import RunFromT, WindowPropertiesTDict
+    from .base import WindowIdent
 
 
 class UITools:
     def __init__(self):
-        common_params = dict(
-            width_policy='min',
-            align='center',
-            min_width=125,
-        )
-
         self.icon = pn.pane.SVG(
             icon_path,
             height=50,
@@ -58,40 +53,21 @@ class UITools:
         self.run_btn = pn.widgets.Button(
             name='Run',
             button_type='success',
-            **common_params,
-        )
-
-        self.mode_btn = pn.widgets.Button(
-            name='Replay data',
-            button_type='primary',
-            **common_params,
+            width=85,
+            **self.common_params,
         )
 
         self.stop_btn = pn.widgets.Button(
             name='STOP',
             button_type='danger',
             disabled=True,
-            **common_params,
-        )
-
-        self.continuous_btn = pn.widgets.Button(
-            name='Run continuous',
-            button_type='success',
-            **common_params,
+            width=85,
+            **self.common_params,
         )
 
         self.roi_toggle_txt, self.roi_toggle_btn = labelled_switch(
             label='Global ROI',
             state=False,
-        )
-        self.record_toggle_txt, self.record_toggle_btn = labelled_switch(
-            label='Record data',
-            state=False,
-        )
-        self.monitor_toggle_txt, self.monitor_toggle_btn = labelled_switch(
-            label='Frame monitor',
-            state=False,
-            text_width=100,
         )
 
         window_keys = [
@@ -105,14 +81,7 @@ class UITools:
                 """.bk-menu {
   position: unset;
 }"""],
-            **common_params,
-        )
-
-        common_params['min_width'] = 175
-        self.replay_select = pn.widgets.Select(
-            name='Dataset',
-            options=[],
-            **common_params,
+            **self.common_params,
         )
 
         self.pbar = pn.widgets.Tqdm(
@@ -123,25 +92,36 @@ class UITools:
         self.pbar.progress.margin = (0, 10, 0, 10)
         self.pbar.progress.height = 10
 
+    @property
+    def common_params(self):
+        return dict(
+            width_policy='min',
+            align='center',
+            min_width=125,
+        )
 
-class UniqueWindows(TypedDict):
+
+class OfflineUniqueWindows(TypedDict):
     roi: WindowIdent | None
-    record: WindowIdent | None
-    monitor: WindowIdent | None
 
 
 class UIContext(UIContextBase):
-    def __init__(self):
-        self._windows: dict[WindowIdent, UIWindow] = {}
-        self._state: UIState = None
+    def __init__(self, resources: OfflineResources | LiveResources):
+        # Must be set in child class
+        self._state: UIState
+        self._resources = resources
+        # Run components
+        self._run_lock = asyncio.Lock()
+        self._continue_running = False
         # Create helper classes
-        self._unique_windows = UniqueWindows()
-        self._tools = UITools()
+        self._unique_windows = self._register_unique_window_names()
+        self._tools = self._build_tools()
         self._p_reporter = PanelProgressReporter(self._tools.pbar)
         self._results_manager = ResultsManager()
         self._results_manager.add_watcher(self)
         self._logger = UILog()
-        # Create layout
+        # Layout anbd windows
+        self._windows: dict[WindowIdent, UIWindow] = {}
         self._button_row = pn.Row(margin=(0, 0))
         self._add_window_row = pn.Row(margin=(0, 0))
         self._windows_area = pn.Column(
@@ -156,65 +136,50 @@ class UIContext(UIContextBase):
             self._add_window_row,
             min_width=700,
         )
-        # Run components
-        self._resources: OfflineResources | LiveResources = None
-        self._run_lock = asyncio.Lock()
-        self._continue_running = False
-        self._continuous_acquire = False
+        # Configuration of button / tool states
+        self._inital_setup()
 
     @property
-    def datset(self):
+    def dataset(self):
         return self._resources.init_with()
 
     @property
     def logger(self):
         return self._logger.logger
 
-    @classmethod
+    @staticmethod
     def for_live(
-        cls,
         live_ctx: LiveContext,
         aq_plan: AcquisitionProtocol | DataSet,
         get_aq: Callable[[LiveContext], AcquisitionProtocol | None],
         offline_ctx: Context | None = None,
-    ) -> UIContext:
+    ) -> LiveUIContext:
         if not hasattr(live_ctx, 'make_acquisition'):
             raise TypeError('Cannot instantiate live UIContext '
                             f'with Context of type {type(live_ctx)}')
-        ui_context = cls()
-        # Temporary until refactoring
-        ui_context._resources = LiveResources(
+        resources = LiveResources(
             live_ctx=live_ctx,
             aq_plan=aq_plan,
             get_aq=get_aq,
             offline_ctx=offline_ctx,
         )
-        ui_context._state = UIState.LIVE
-        ui_context._inital_setup()
-        ui_context._set_state(UIState.LIVE)
-        return ui_context
+        return LiveUIContext(resources)
 
-    @classmethod
+    @staticmethod
     def for_offline(
-        cls,
         ctx: Context,
         ds: DataSet,
-    ) -> UIContext:
+    ) -> OfflineUIContext:
         import libertem.api as lt  # noqa
         if not isinstance(ctx, lt.Context):
             raise TypeError(f'Cannot instantiate UIContext with Context of type {type(ctx)}')
         if not isinstance(ds, lt.DataSet):
             raise TypeError(f'Cannot instantiate UIContext on dataset of type {type(ds)}')
-        ui_context = cls()
-        # Temporary until refactoring
-        ui_context._resources = OfflineResources(
+        resources = OfflineResources(
             ctx=ctx,
             ds=ds,
         )
-        ui_context._state = UIState.OFFLINE
-        ui_context._inital_setup()
-        ui_context._set_state(UIState.OFFLINE)
-        return ui_context
+        return OfflineUIContext(resources)
 
     def layout(self):
         if self._state is None:
@@ -298,21 +263,12 @@ class UIContext(UIContextBase):
             self._remove(window)
             self._unique_windows[label] = None
 
-    @overload
-    def _get_unique_window(self, name: Literal['roi']) -> ROIWindow | None:
-        ...
-
-    @overload
-    def _get_unique_window(self, name: Literal['record']) -> RecordWindow | None:
-        ...
-
-    @overload
-    def _get_unique_window(self, name: Literal['monitor']) -> SignalMonitorUDFWindow | None:
-        ...
-
-    def _get_unique_window(self, name: Literal['roi', 'record', 'monitor']):
+    def _get_unique_window(self, name: Literal['roi']):
         window_id = self._unique_windows.get(name)
         return self._windows.get(window_id, None)
+
+    def _register_unique_window_names(self):
+        return OfflineUniqueWindows()
 
     def _remove_window(self, window: UIWindow):
         index = tuple(i for i, _lo
@@ -322,11 +278,6 @@ class UIContext(UIContextBase):
             self._windows_area.pop(i)
         self._windows.pop(window.ident, None)
         self.logger.info(f'Removed window {window.properties.title_md} - {window.ident}')
-
-    def _set_state(self, new_state: UIState, *e):
-        self.logger.info(f'Set UI-state {new_state.value.upper()}')
-        self._state = new_state
-        self._setup_tools()
 
     def _inital_setup(self):
         base_controls_buttons, base_controls_tools = self._controls()
@@ -340,17 +291,6 @@ class UIContext(UIContextBase):
             partial(self._toggle_unique_window, 'roi', ROIWindow),
             'value'
         )
-        if self._state in (UIState.LIVE, UIState.REPLAY):
-            self._tools.mode_btn.on_click(self._mode_handler)
-            self._tools.continuous_btn.on_click(self._continuous_handler_pn)
-            self._tools.record_toggle_btn.param.watch(
-                partial(self._toggle_unique_window, 'record', RecordWindow),
-                'value'
-            )
-            self._tools.monitor_toggle_btn.param.watch(
-                partial(self._toggle_unique_window, 'monitor', SignalMonitorUDFWindow),
-                'value'
-            )
 
     async def _add_handler(self, e):
         mapper = UIWindow.get_all_implementations()
@@ -361,32 +301,8 @@ class UIContext(UIContextBase):
             return
         self._add(window_cls)
 
-    async def _mode_handler(self, *e):
-        if self._state == UIState.LIVE:
-            self._set_state(UIState.REPLAY)
-        elif self._state == UIState.REPLAY:
-            self._set_state(UIState.LIVE)
-
-    def _setup_tools(self):
-        if self._state == UIState.OFFLINE:
-            self._setup_offline()
-        elif self._state == UIState.LIVE:
-            self._setup_live()
-        elif self._state == UIState.REPLAY:
-            self._setup_replay()
-
-    def _setup_offline(self):
-        OfflineLifecycle(self).setup()
-
-    def _setup_live(self):
-        LiveLifecycle(self).setup()
-
-    def _setup_replay(self):
-        ReplayLifecycle(self).setup()
-        self._recording_map = self._get_recordings_map()
-        self._tools.replay_select.options = [*self._recording_map.keys()]
-        if len(self._tools.replay_select.options):
-            self._tools.replay_select.value = self._tools.replay_select.options[0]
+    def _build_tools(self):
+        return UITools()
 
     def _controls(self):
         button_row = [
@@ -401,43 +317,11 @@ class UIContext(UIContextBase):
         tool_row = [
             self._tools.add_window_btn,
         ]
-        if self._state in (UIState.REPLAY, UIState.LIVE):
-            button_row.insert(2, self._tools.continuous_btn)
-            button_row.insert(-2, self._tools.mode_btn)
-            button_row.append(self._tools.record_toggle_txt)
-            button_row.append(self._tools.record_toggle_btn)
-            button_row.append(self._tools.monitor_toggle_txt)
-            button_row.append(self._tools.monitor_toggle_btn)
-            button_row.append(self._tools.replay_select)
         return button_row, tool_row
 
     async def _stop_handler(self, *e):
         if self._continue_running:
             self._continue_running = False
-
-    async def _continuous_handler_pn(self, e):
-        await self._continuous_handler()
-
-    async def _continuous_handler(self, run_from: list[RunFromT] | None = None):
-        if self._continuous_acquire:
-            self._continuous_acquire = False
-            # Should be on the lifecycle class, really!
-            # Would need an additional method
-            self._tools.continuous_btn.name = 'Stopping...'
-            return
-        await self._run_handler(run_from=run_from, run_continuous=True)
-
-    def _get_recordings_map(self):
-        recordings = tuple(self.results_manager.yield_of_type(RecordResultContainer))
-        recordings = tuple(reversed(sorted(recordings, key=lambda r: r.timestamp)))
-        containers: tuple[RecordResultContainer, ...] = tuple(
-            self.results_manager.get_result_container(recording.result_id)
-            for recording in recordings
-        )
-        return {
-            cont.filepath.stem: row for row, cont in zip(recordings, containers)
-            if cont.filepath.is_file()
-        }
 
     async def _run_handler_pn(self, e):
         await self._run_handler()
@@ -448,24 +332,8 @@ class UIContext(UIContextBase):
     async def _run_handler(
         self,
         run_from: list[RunFromT] | None = None,
-        run_continuous: bool = False,
     ):
-        # This is problematic if we pick a frame
-        # while running a long analysis, cursor will
-        # be out of sync
-        if self._run_lock.locked():
-            self.logger.warning('Run command dropped, lock is already held')
-            return
-        self._continue_running = True
-        async with self._run_lock:
-            if run_continuous:
-                await self.run_continuous(run_from=run_from)
-            elif self._state == UIState.OFFLINE:
-                await self.run_offline(run_from=run_from)
-            elif self._state == UIState.LIVE:
-                await self.run_live(run_from=run_from)
-            elif self._state == UIState.REPLAY:
-                await self.run_replay(run_from=run_from)
+        raise NotImplementedError
 
     def get_roi(self, ds: DataSet) -> np.ndarray | None:
         # Get an ROI from an roi window if present and roi is set
@@ -473,79 +341,6 @@ class UIContext(UIContextBase):
         if (roi_window := self._get_unique_window('roi')) is not None:
             roi = roi_window.get_roi(ds)
         return roi
-
-    async def run_live(self, run_from: list[RunFromT] | None = None):
-        lifecycle = LiveLifecycle(self)
-        live_ctx = self._resources.live_ctx
-        # If the record_window is available then it is implicitly active
-        record_window = self._get_unique_window('record')
-        if record_window is not None:
-            record_window.set_active(True)
-            if run_from is not None:
-                run_from.append(record_window.get_job)
-        try:
-            if (aq := self._resources.get_aq(live_ctx)) is not None:
-                await self._run(live_ctx, aq, lifecycle, run_from=run_from)
-        finally:
-            lifecycle.after()
-
-    async def run_continuous(self, run_from: list[RunFromT] | None = None):
-        lifecycle = ContinuousLifecycle(self)
-        live_ctx = self._resources.live_ctx
-        self._continuous_acquire = True
-        # If the record_window is available then it is implicitly active
-        record_window = self._get_unique_window('record')
-        if record_window is not None:
-            record_window.set_active(True)
-            if run_from is not None:
-                # This will be called on each iteration so new filename
-                run_from.append(record_window.get_job)
-        try:
-            while self._continuous_acquire and self._continue_running:
-                if (aq := self._resources.get_aq(live_ctx)) is not None:
-                    await self._run(live_ctx, aq, lifecycle, run_from=run_from)
-        finally:
-            self._continuous_acquire = False
-            lifecycle.after()
-
-    async def run_replay(self, run_from: list[RunFromT] | None = None):
-        lifecycle = ReplayLifecycle(self)
-        ctx = self._resources.replay_context
-        try:
-            recording = self._recording_map.get(self._tools.replay_select.value, None)
-            if recording is None:
-                raise FileNotFoundError
-            path: pathlib.Path = self.results_manager.get_result_container(recording.result_id).data
-            ds = ctx.load('npy', path)
-        except (AttributeError, FileNotFoundError):
-            self.logger.error(f'Cannot find dataset {self._tools.replay_select.value}')
-            return
-        except Exception as err:
-            self.logger.log_from_exception(err, reraise=True)
-
-        roi = self.get_roi(ds)
-
-        try:
-            await self._run(
-                ctx,
-                ds,
-                lifecycle,
-                roi=roi,
-                run_from=run_from,
-            )
-        finally:
-            lifecycle.after()
-
-    async def run_offline(self, run_from: list[RunFromT] | None = None):
-        lifecycle = OfflineLifecycle(self)
-        ctx = self._resources.ctx
-        ds = self._resources.ds
-        roi = self.get_roi(ds)
-
-        try:
-            await self._run(ctx, ds, lifecycle, roi=roi, run_from=run_from)
-        finally:
-            lifecycle.after()
 
     async def _run(
         self,
@@ -682,5 +477,256 @@ class UIContext(UIContextBase):
             )
 
 
-class LiveUIContext:
-    ...
+class OfflineUIContext(UIContext):
+    def __init__(self, resources: OfflineResources):
+        self._state = UIState.OFFLINE
+        super().__init__(resources)
+        OfflineLifecycle(self).setup()
+        self._resources: OfflineResources
+
+    async def _run_handler(
+        self,
+        run_from: list[RunFromT] | None = None,
+    ):
+        # This is problematic if we pick a frame
+        # while running a long analysis, cursor will
+        # be out of sync
+        if self._run_lock.locked():
+            self.logger.warning('Run command dropped, lock is already held')
+            return
+        self._continue_running = True
+        async with self._run_lock:
+            await self.run_offline(run_from=run_from)
+
+    async def run_offline(self, run_from: list[RunFromT] | None = None):
+        lifecycle = OfflineLifecycle(self)
+        ctx = self._resources.ctx
+        ds = self._resources.ds
+        roi = self.get_roi(ds)
+
+        try:
+            await self._run(ctx, ds, lifecycle, roi=roi, run_from=run_from)
+        finally:
+            lifecycle.after()
+
+
+class LiveUniqueWindows(TypedDict):
+    roi: WindowIdent | None
+    record: WindowIdent | None
+    monitor: WindowIdent | None
+
+
+class LiveUITools(UITools):
+    def __init__(self):
+        super().__init__()
+        self.continuous_btn = pn.widgets.Button(
+            name='Run continuous',
+            button_type='success',
+            width=110,
+            **self.common_params,
+        )
+        self.mode_btn = pn.widgets.Button(
+            name='Replay data',
+            button_type='primary',
+            width=100,
+            **self.common_params,
+        )
+        self.record_toggle_txt, self.record_toggle_btn = labelled_switch(
+            label='Record data',
+            state=False,
+        )
+        self.monitor_toggle_txt, self.monitor_toggle_btn = labelled_switch(
+            label='Frame monitor',
+            state=False,
+            text_width=100,
+        )
+        self.replay_select = pn.widgets.Select(
+            name='Dataset',
+            options=[],
+            **{**self.common_params, 'min_width': 175},
+        )
+
+
+class LiveUIContext(UIContext):
+    def __init__(self, resources: LiveResources):
+        self._state = UIState.LIVE
+        self._continuous_acquire = False
+        super().__init__(resources)
+        self._resources: LiveResources
+        self._set_state(UIState.LIVE)
+
+    def _build_tools(self):
+        return LiveUITools()
+
+    def _register_unique_window_names(self):
+        return LiveUniqueWindows()
+
+    def _inital_setup(self):
+        super()._inital_setup()
+
+        self._tools.mode_btn.on_click(self._mode_handler)
+        self._tools.continuous_btn.on_click(self._continuous_handler_pn)
+        self._tools.record_toggle_btn.param.watch(
+            partial(self._toggle_unique_window, 'record', RecordWindow),
+            'value'
+        )
+        self._tools.monitor_toggle_btn.param.watch(
+            partial(self._toggle_unique_window, 'monitor', SignalMonitorUDFWindow),
+            'value'
+        )
+
+    def _controls(self):
+        button_row, tool_row = super()._controls()
+        button_row.insert(4, self._tools.continuous_btn)
+        button_row.insert(-2, self._tools.mode_btn)
+        button_row.append(self._tools.record_toggle_txt)
+        button_row.append(self._tools.record_toggle_btn)
+        button_row.append(self._tools.monitor_toggle_txt)
+        button_row.append(self._tools.monitor_toggle_btn)
+        button_row.append(self._tools.replay_select)
+        return button_row, tool_row
+
+    @overload
+    def _get_unique_window(self, name: Literal['record']) -> RecordWindow | None:
+        ...
+
+    @overload
+    def _get_unique_window(self, name: Literal['monitor']) -> SignalMonitorUDFWindow | None:
+        ...
+
+    def _get_unique_window(self, name: Literal['roi', 'record', 'monitor']):
+        window_id = self._unique_windows.get(name)
+        return self._windows.get(window_id, None)
+
+    def _set_state(self, new_state: UIState, *e):
+        self.logger.info(f'Set UI-state {new_state.value.upper()}')
+        self._state = new_state
+        self._configure_state()
+
+    def _configure_state(self):
+        if self._state == UIState.LIVE:
+            self._setup_live()
+        elif self._state == UIState.REPLAY:
+            self._setup_replay()
+
+    def _setup_live(self):
+        LiveLifecycle(self).setup()
+
+    def _setup_replay(self):
+        ReplayLifecycle(self).setup()
+        self._recording_map = self._get_recordings_map()
+        self._tools.replay_select.options = [*self._recording_map.keys()]
+        if len(self._tools.replay_select.options):
+            self._tools.replay_select.value = self._tools.replay_select.options[0]
+
+    async def _mode_handler(self, *e):
+        if self._state == UIState.LIVE:
+            self._set_state(UIState.REPLAY)
+        elif self._state == UIState.REPLAY:
+            self._set_state(UIState.LIVE)
+
+    async def _continuous_handler_pn(self, e):
+        await self._continuous_handler()
+
+    async def _continuous_handler(self, run_from: list[RunFromT] | None = None):
+        if self._continuous_acquire:
+            self._continuous_acquire = False
+            # Should be on the lifecycle class, really!
+            # Would need an additional method
+            self._tools.continuous_btn.name = 'Stopping...'
+            return
+        await self._run_handler(run_from=run_from, run_continuous=True)
+
+    def _get_recordings_map(self):
+        recordings = tuple(self.results_manager.yield_of_type(RecordResultContainer))
+        recordings = tuple(reversed(sorted(recordings, key=lambda r: r.timestamp)))
+        containers: tuple[RecordResultContainer, ...] = tuple(
+            self.results_manager.get_result_container(recording.result_id)
+            for recording in recordings
+        )
+        return {
+            cont.filepath.stem: row for row, cont in zip(recordings, containers)
+            if cont.filepath.is_file()
+        }
+
+    async def run_live(self, run_from: list[RunFromT] | None = None):
+        lifecycle = LiveLifecycle(self)
+        live_ctx = self._resources.live_ctx
+        # If the record_window is available then it is implicitly active
+        record_window = self._get_unique_window('record')
+        if record_window is not None:
+            record_window.set_active(True)
+            if run_from is not None:
+                run_from.append(record_window.get_job)
+        try:
+            if (aq := self._resources.get_aq(live_ctx)) is not None:
+                await self._run(live_ctx, aq, lifecycle, run_from=run_from)
+        finally:
+            lifecycle.after()
+
+    async def run_continuous(self, run_from: list[RunFromT] | None = None):
+        lifecycle = ContinuousLifecycle(self)
+        live_ctx = self._resources.live_ctx
+        self._continuous_acquire = True
+        # If the record_window is available then it is implicitly active
+        record_window = self._get_unique_window('record')
+        if record_window is not None:
+            record_window.set_active(True)
+            if run_from is not None:
+                # This will be called on each iteration so new filename
+                run_from.append(record_window.get_job)
+        try:
+            while self._continuous_acquire and self._continue_running:
+                if (aq := self._resources.get_aq(live_ctx)) is not None:
+                    await self._run(live_ctx, aq, lifecycle, run_from=run_from)
+        finally:
+            self._continuous_acquire = False
+            lifecycle.after()
+
+    async def run_replay(self, run_from: list[RunFromT] | None = None):
+        lifecycle = ReplayLifecycle(self)
+        ctx = self._resources.replay_context
+        try:
+            recording = self._recording_map.get(self._tools.replay_select.value, None)
+            if recording is None:
+                raise FileNotFoundError
+            path: pathlib.Path = self.results_manager.get_result_container(recording.result_id).data
+            ds = ctx.load('npy', path)
+        except (AttributeError, FileNotFoundError):
+            self.logger.error(f'Cannot find dataset {self._tools.replay_select.value}')
+            return
+        except Exception as err:
+            self.logger.log_from_exception(err, reraise=True)
+
+        roi = self.get_roi(ds)
+
+        try:
+            await self._run(
+                ctx,
+                ds,
+                lifecycle,
+                roi=roi,
+                run_from=run_from,
+            )
+        finally:
+            lifecycle.after()
+
+    async def _run_handler(
+        self,
+        run_from: list[RunFromT] | None = None,
+        run_continuous: bool = False,
+    ):
+        # This is problematic if we pick a frame
+        # while running a long analysis, cursor will
+        # be out of sync
+        if self._run_lock.locked():
+            self.logger.warning('Run command dropped, lock is already held')
+            return
+        self._continue_running = True
+        async with self._run_lock:
+            if run_continuous:
+                await self.run_continuous(run_from=run_from)
+            elif self._state == UIState.LIVE:
+                await self.run_live(run_from=run_from)
+            elif self._state == UIState.REPLAY:
+                await self.run_replay(run_from=run_from)
