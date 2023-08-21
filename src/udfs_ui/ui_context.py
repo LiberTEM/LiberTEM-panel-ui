@@ -25,7 +25,7 @@ from .windows.tools import ROIWindow, RecordWindow, SignalMonitorUDFWindow
 from .results.results_manager import ResultsManager
 from .results.containers import RecordResultContainer
 from .applications.terminal_logger import UILog
-from .utils.panel_components import labelled_switch, button_divider
+from .utils.panel_components import labelled_switch, button_divider, get_spinner
 from .utils.progress import PanelProgressReporter
 
 if TYPE_CHECKING:
@@ -67,8 +67,26 @@ class UITools:
 
         self.run_btn.jslink(
             self.stop_btn,
-            args={'stop_btn': self.stop_btn},
-            code={'disabled': '''stop_btn.disabled = !cb_obj.disabled'''}
+            args={
+                'stop_btn': self.stop_btn,
+                'spin_text': get_spinner(True, UIWindow.SPINNER_SIZE),
+                'static_text': get_spinner(False, UIWindow.SPINNER_SIZE),
+            },
+            code={'disabled': '''
+const is_running = cb_obj.disabled
+stop_btn.disabled = !is_running
+
+                  // searching through *all* models is really a hack...
+for (let model of this.document._all_models.values()){
+    if (model.tags.includes("lt_indicator")){
+        if (is_running){
+            model.text = spin_text
+        } else {
+            model.text = static_text
+        }
+    }
+}
+'''}
         )
 
         self.roi_toggle_txt, self.roi_toggle_btn = labelled_switch(
@@ -408,8 +426,6 @@ class UIContext(UIContextBase):
                              f'on {len(to_run)} jobs{roi_message}')
             # Special optimisation for progress bar when using single-frame ROI
             progress = False if (n_frames <= 1 and roi is not None) else self._p_reporter
-            for w in self._windows.values():
-                w.run_starting()
 
         t_start_run = time.monotonic()
         part_completed = 0
@@ -432,10 +448,6 @@ class UIContext(UIContextBase):
         except Exception as err:
             msg = 'Error during run_udf'
             self.logger.log_from_exception(err, reraise=True, msg=msg)
-        finally:
-            if not quiet_mode:
-                for w in self._windows.values():
-                    w.run_finished()
 
         t_end_run = time.monotonic()
 

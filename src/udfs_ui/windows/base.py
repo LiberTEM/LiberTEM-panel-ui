@@ -78,6 +78,7 @@ class WindowPropertiesTDict(TypedDict):
 
 
 class UIWindow:
+    SPINNER_SIZE = 30
     _registry: dict[WindowType, dict[str, type[UIWindow]]] = {t: {} for t in WindowType}
 
     def __init_subclass__(
@@ -220,11 +221,11 @@ class UIWindow:
             lo.append(self._header_ns._collapse_button)
 
         if self.properties.header_indicate:
-            size = 30
             self._header_ns._indicator = Div(
-                text=get_spinner(False, size),
-                width=size,
-                height=size,
+                text=get_spinner(False, self.SPINNER_SIZE),
+                width=self.SPINNER_SIZE,
+                height=self.SPINNER_SIZE,
+                tags=['lt_indicator'],
             )
             lo.append(self._header_ns._indicator)
 
@@ -275,13 +276,12 @@ class UIWindow:
             self._header_ns._run_btn.on_click(self.run_from_btn)
 
             if self.properties.header_indicate:
-                size = self._header_ns._indicator.height
                 self._header_ns._run_btn.jslink(
                     self._header_ns._indicator,
                     args={
                         'indicator': self._header_ns._indicator,
-                        'spin_text': get_spinner(True, size),
-                        'static_text': get_spinner(False, size),
+                        'spin_text': get_spinner(True, UIWindow.SPINNER_SIZE),
+                        'static_text': get_spinner(False, UIWindow.SPINNER_SIZE),
                     },
                     code={'disabled': '''
 if (cb_obj.disabled) {
@@ -328,21 +328,6 @@ if (cb_obj.disabled) {
 
     def layout(self) -> pn.layout.ListPanel | None:
         return self._layout
-
-    @property
-    def hidden(self):
-        if self._layout is None:
-            # Something which doesn't exist is not hidden
-            return False
-        return (not self._layout.visible)
-
-    def hide(self):
-        if self._layout is not None:
-            self._layout.visible = False
-
-    def unhide(self):
-        if self._layout is not None:
-            self._layout.visible = True
 
     def _collapse_cb(self, e):
         try:
@@ -439,14 +424,6 @@ if (cb_obj.disabled) {
         results: JobResults,
     ) -> tuple[ResultRow, ...]:
         return tuple()
-
-    def run_starting(self):
-        if self.properties.header_indicate:
-            self._header_ns._indicator.param.update(value=True)
-
-    def run_finished(self):
-        if self.properties.header_indicate:
-            self._header_ns._indicator.param.update(value=False)
 
     def on_results_registered(
         self,
