@@ -41,7 +41,7 @@ LiberTEM `Context` and `DataSet` objects):
     rc = com_window.results_manager.get_result_container(result_id)
     assert isinstance(rc.data, np.ndarray)
 
-.. image:: https://raw.githubusercontent/LiberTEM/LiberTEM-panel-ui/blob/4ac20b6e13a9c3b5f85997d4fb07859cc4c09f3a/examples/com_window.png
+.. image:: examples/com_window.png
 
 A second standalone window can be linked to the first,
 and will share the data and LiberTEM resources. Results from
@@ -80,7 +80,7 @@ from multiple windows in parallel:
     # Display table / dataframe-based results manager
     ui_context.results_manager.layout()
 
-.. image:: https://raw.githubusercontent/LiberTEM/LiberTEM-panel-ui/blob/4ac20b6e13a9c3b5f85997d4fb07859cc4c09f3a/examples/ui_context.png
+.. image:: examples/ui_context.png
 
 see :code:`examples/` for some more complete example use cases.
 
