@@ -18,7 +18,7 @@ in a Jupyter Notebook.
 There are two ways to use the framework:
 - as standalone analysis windows connected to a dataset
 - through a :code:`UIContext` window manager, which can
-  be dynamically add and remove windows as required.
+be dynamically add and remove windows as required.
 
 The standalone case (where :code:`ctx`, :code:`ds` are
 LiberTEM `Context` and `DataSet` objects):

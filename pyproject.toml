@@ -7,11 +7,7 @@ name = "udfs_ui"
 version = "0.0.1"
 license = {file = "LICENSE"}
 description="Panel+Bokeh-based GUI Toolkit for LiberTEM"
-long_description="""
-Window-based web GUI framework intended to support the
-LiberTEM library for electron microscopy data analysis.
-The primary usage environment is within a Jupyter Notebook.
-"""
+readme="README.rst"
 requires-python = ">=3.9"
 authors = [
     {"name" = "Matthew Bryan", email="matthewbryan52@gmail.com"},
