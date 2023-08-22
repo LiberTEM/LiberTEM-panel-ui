@@ -1,13 +1,15 @@
-UDFs UI
-=======
+LiberTEM-panel-ui
+=================
 
-Window-based web GUI framework intended to support the
+Widget-based web GUI package intended to support the
 `LiberTEM <https://github.com/LiberTEM/LiberTEM/>`_
 library for electron microscopy data analysis. The primary
-usage environment is within a Jupyter Notebook.
+usage environment is from within Jupyter Notebooks. Built using
+the `Panel <https://panel.holoviz.org/>`_ and `Bokeh <https://bokeh.org/>`_
+frameworks.
 
 Runs LiberTEM User Defined Functions (UDFs) in interactive
-windows, to simplify adjusting parameters and exploring
+panels, which simplies adjustment of parameters and exploring
 data.
 
 The framework is capable of running certain analyses on top of the
@@ -15,18 +17,18 @@ The framework is capable of running certain analyses on top of the
 framework, allowing for interactive live acquisitions
 in a Jupyter Notebook.
 
-There are two ways to use the framework:
+There are two ways to use the UI tools:
 
 * as standalone analysis windows connected to a dataset
 * through a :code:`UIContext` window manager, which can
-  be dynamically add and remove windows as required.
+  dynamically add and remove windows as required
 
 The standalone case (where :code:`ctx`, :code:`ds` are
 LiberTEM `Context` and `DataSet` objects):
 
 .. code-block:: python
 
-    from udfs_ui.windows.com import CoMImagingWindow
+    from libertem_ui.windows.com import CoMImagingWindow
     # Create the window using a context and dataset
     com_window = CoMImagingWindow.using(ctx, ds)
     # Display the window itself
@@ -39,7 +41,7 @@ LiberTEM `Context` and `DataSet` objects):
     rc = com_window.results_manager.get_result_container(result_id)
     assert isinstance(rc.data, np.ndarray)
 
-.. image:: https://raw.githubusercontent/matbryan52/udfs_ui/blob/4ac20b6e13a9c3b5f85997d4fb07859cc4c09f3a/examples/com_window.png
+.. image:: https://raw.githubusercontent/LiberTEM/LiberTEM-panel-ui/blob/4ac20b6e13a9c3b5f85997d4fb07859cc4c09f3a/examples/com_window.png
 
 A second standalone window can be linked to the first,
 and will share the data and LiberTEM resources. Results from
@@ -47,7 +49,7 @@ both windows will appear in the same :code:`results_manager`.
 
 .. code-block:: python
 
-    from udfs_ui.windows.imaging import VirtualDetectorWindow
+    from libertem_ui.windows.imaging import VirtualDetectorWindow
     # Create new window linked to the previous window
     v_window = VirtualDetectorWindow.linked_to(com_window)
     # Display the new window
@@ -65,7 +67,7 @@ from multiple windows in parallel:
 
 .. code-block:: python
 
-    from udfs_ui import UIContext
+    from libertem_ui import UIContext
 
     # Create the UIContext object
     # This orchestrates:
@@ -78,32 +80,32 @@ from multiple windows in parallel:
     # Display table / dataframe-based results manager
     ui_context.results_manager.layout()
 
-.. image:: https://raw.githubusercontent/matbryan52/udfs_ui/blob/4ac20b6e13a9c3b5f85997d4fb07859cc4c09f3a/examples/ui_context.png
+.. image:: https://raw.githubusercontent/LiberTEM/LiberTEM-panel-ui/blob/4ac20b6e13a9c3b5f85997d4fb07859cc4c09f3a/examples/ui_context.png
 
 see :code:`examples/` for some more complete example use cases.
 
 Installation
 ------------
 
-:code:`udfs_ui` requires Python 3.9 or greater.
+:code:`libertem_ui` requires Python 3.9 or greater.
 
 As always, it is advisable to use a virtual or conda environment
 for testing packages.
 
-At this time, :code:`udfs_ui` is not availble through PyPi, but can be
-insalled using:
+At this time, :code:`libertem_ui` is not availble through PyPi, but can be
+installed using:
 
 .. code-block:: bash
 
-    pip install https://github.com/matbryan52/udfs_ui.git
+    pip install https://github.com/LiberTEM/LiberTEM-panel-ui.git
 
-Certain components require an installation of NodeJS available
-to run in a Notebook. If you don't already have an installation
+Certain components require an installation of NodeJS
+to run correctly. If you don't already have an installation
 of NodeJS, you can use conda to easily install it using:
 
 .. code-block:: bash
 
     conda install nodejs
 
-(particularly on Windows), or a tool like
+(particularly on Windows), or use a tool like
 `nvm <https://github.com/nvm-sh/nvm>`_ on linux.

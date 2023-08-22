@@ -3,7 +3,7 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "udfs_ui"
+name = "libertem_ui"
 version = "0.0.1"
 license = {file = "LICENSE"}
 description="Panel+Bokeh-based GUI Toolkit for LiberTEM"
@@ -54,7 +54,7 @@ notebook = [
 ]
 
 [project.urls]
-repository = "https://github.com/matbryan52/udfs_ui"
+repository = "https://github.com/LiberTEM/LiberTEM-panel-ui"
 
 [tool.setuptools.packages.find]
 where = ["src"]
