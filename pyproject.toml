@@ -28,28 +28,29 @@ classifiers=[
     'Environment :: Console',
 ]
 dependencies = [
+    "libertem",
+    "libertem-live",  # used for RecordUDF and SignalMonitorUDF
     "numpy",
     "scipy",
     "pandas",
     "scikit-image",
     "tifffile",
-    "PyYAML",
+    "bokeh>=3",
+    "panel>=1",
     "xarray",
-    "bokeh>=2.4.2",
-    "panel",
     "datashader",
     "colorcet",
-    "typing_extensions",
-    "notebook",
-    "ipywidgets",
-    "ipython",
-    "libertem",
-    "libertem-live",
     "humanize",
     "bidict",
-    "xarray",
-    "datashader",
     "StrEnum",  # in stdlib from 3.11
+    "typing_extensions",
+]
+
+[project.optional-dependencies]
+notebook = [
+    "notebook",
+    "ipython",
+    "ipywidgets",
 ]
 
 [project.urls]

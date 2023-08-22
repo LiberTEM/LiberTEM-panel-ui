@@ -16,9 +16,10 @@ framework, allowing for interactive live acquisitions
 in a Jupyter Notebook.
 
 There are two ways to use the framework:
-- as standalone analysis windows connected to a dataset
-- through a :code:`UIContext` window manager, which can
-be dynamically add and remove windows as required.
+
+* as standalone analysis windows connected to a dataset
+* through a :code:`UIContext` window manager, which can
+  be dynamically add and remove windows as required.
 
 The standalone case (where :code:`ctx`, :code:`ds` are
 LiberTEM `Context` and `DataSet` objects):
@@ -80,3 +81,29 @@ from multiple windows in parallel:
 .. image:: https://raw.githubusercontent/matbryan52/udfs_ui/blob/4ac20b6e13a9c3b5f85997d4fb07859cc4c09f3a/examples/ui_context.png
 
 see :code:`examples/` for some more complete example use cases.
+
+Installation
+------------
+
+:code:`udfs_ui` requires Python 3.9 or greater.
+
+As always, it is advisable to use a virtual or conda environment
+for testing packages.
+
+At this time, :code:`udfs_ui` is not availble through PyPi, but can be
+insalled using:
+
+.. code-block:: bash
+
+    pip install https://github.com/matbryan52/udfs_ui.git
+
+Certain components require an installation of NodeJS available
+to run in a Notebook. If you don't already have an installation
+of NodeJS, you can use conda to easily install it using:
+
+.. code-block:: bash
+
+    conda install nodejs
+
+(particularly on Windows), or a tool like
+`nvm <https://github.com/nvm-sh/nvm>`_ on linux.
