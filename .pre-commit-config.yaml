@@ -1,9 +1,8 @@
-# Copied from LiberTEM github
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.1.0
+  rev: v4.4.0
   hooks:
   - id: trailing-whitespace
     files: ^src/
@@ -12,16 +11,17 @@ repos:
   - id: check-yaml
   - id: check-added-large-files
 - repo: https://github.com/pycqa/flake8
-  rev: 4.0.1
+  rev: 6.1.0
   hooks:
   - id: flake8
-    exclude: ^install/
+    exclude: ^prototypes/
 - repo: https://github.com/regebro/pyroma
-  rev: "3.2"
+  rev: "4.2"
   hooks:
   - id: pyroma
 - repo: https://github.com/asottile/pyupgrade
-  rev: v2.31.0
+  rev: v3.10.1
   hooks:
     - id: pyupgrade
-      args: ["--py36-plus"]
+      args: ["--py37-plus"]
+  
