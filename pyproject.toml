@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "udfs_ui"
+version = "0.0.1"
+license = {file = "LICENSE"}
+description="Panel+Bokeh-based GUI Toolkit for LiberTEM"
+long_description="""
+Window-based web GUI framework intended to support the
+LiberTEM library for electron microscopy data analysis.
+The primary usage environment is within a Jupyter Notebook.
+"""
+requires-python = ">=3.9"
+authors = [
+    {"name" = "Matthew Bryan", email="matthewbryan52@gmail.com"},
+]
+keywords=["electron microscopy", "notebook", "gui"]
+classifiers=[
+    'Development Status :: 3 - Alpha',
+    'Programming Language :: Python :: 3',
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
+    'License :: OSI Approved :: MIT License',
+    'Operating System :: POSIX :: Linux',
+    'Operating System :: MacOS :: MacOS X',
+    'Operating System :: Microsoft :: Windows',
+    'Environment :: Web Environment',
+    'Environment :: Console',
+]
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "scikit-image",
+    "tifffile",
+    "PyYAML",
+    "xarray",
+    "bokeh>=2.4.2",
+    "panel",
+    "datashader",
+    "colorcet",
+    "typing_extensions",
+    "notebook",
+    "ipywidgets",
+    "ipython",
+    "libertem",
+    "libertem-live",
+    "humanize",
+    "bidict",
+    "xarray",
+    "datashader",
+    "StrEnum",  # in stdlib from 3.11
+]
+
+[project.urls]
+repository = "https://github.com/matbryan52/udfs_ui"
+
+[tool.setuptools.packages.find]
+where = ["src"]
