@@ -260,8 +260,8 @@ class CoMImagingWindow(VirtualDetectorWindow, ui_type=WindowType.STANDALONE):
         column = 0 if direction == 'y' else 1
         ydims, xdims = np.ogrid[0: h, 0: w]
         regression = udf_results['regression'].data
-        c, dy, dx = regression[:, column]
-        return c + (dy * xdims) * (dx * ydims)
+        c, ddy, ddx = regression[:, column]
+        return c + (ddy * ydims) * (ddx * xdims)
 
     def _get_corrected_live(self, idx: int, raw_shifts):
         shifts = apply_correction(
