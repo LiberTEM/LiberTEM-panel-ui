@@ -55,6 +55,11 @@ class UIContextBase(Protocol):
     _results_manager: ResultsManager
     _resources: LiveResources | OfflineResources
 
+    @staticmethod
+    def notebook_fullwidth():
+        from .utils.notebook_tools import notebook_fullwidth
+        notebook_fullwidth()
+
     @property
     def logger(self) -> UILogger:
         ...
