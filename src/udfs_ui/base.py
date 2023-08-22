@@ -128,5 +128,6 @@ class UIContextBase(Protocol):
                 except Exception as err:
                     msg = 'Error while unpacking result'
                     self.logger.log_from_exception(err, msg=msg)
+                    continue
                 all_results.extend(result_entries)
         return all_results
