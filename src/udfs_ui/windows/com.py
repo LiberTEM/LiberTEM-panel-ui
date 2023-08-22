@@ -134,6 +134,11 @@ class CoMImagingWindow(VirtualDetectorWindow, ui_type=WindowType.STANDALONE):
         self._channel_select.param.watch(self._apply_corrections, 'value')
         self._rot_reset_btn.on_click(self._apply_corrections)
 
+        # FIXME Using the global tag like this is efficient but
+        # means these widgets are disabled when *any* UIWindow
+        # runs (when using a managed UIContext), which is not
+        # desirable. Would need a mechanism to select these widgets,
+        # maybe using a second callback on this window's button
         self._rotation_slider.tags = ['lt_disable_on_run']
         self._channel_select.tags = ['lt_disable_on_run']
         self._flip_y_cbox.tags = ['lt_disable_on_run']
