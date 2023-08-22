@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import itertools
 import pandas as pd
+import panel as pn
 from typing import TYPE_CHECKING, Sequence, NamedTuple, Callable, TypeVar
 from typing_extensions import Self
 import colorcet as cc
@@ -504,6 +505,34 @@ class DiskSet(DisplayBase):
             make_tool=partial(get_point_tool, add=add, drag=drag, tag_name=tag_name)
         )
         return self
+
+    def get_radius_slider(self, max_r: float, min_r: float = 1.0, label: str = 'Disk radius'):
+        try:
+            initial_radius = self.cds.data[self.disks.radius][0]
+        except IndexError:
+            initial_radius = (max_r + min_r) / 2.
+
+        slider = pn.widgets.FloatSlider(
+            name=label,
+            value=initial_radius,
+            start=1.,
+            end=max_r,
+        )
+        slider.param.watch(self._update_radius, 'value_throttled')
+        slider.jscallback(
+            value="""
+cds.data[glyph.radius.field].fill(cb_obj.value);
+cds.change.emit();
+""",
+            args={
+                'cds': self.cds,
+                'glyph': self.disks,
+            },
+        )
+        return slider
+
+    def _update_radius(self, e):
+        self.update(radius=e.new)
 
 
 class DiskSetCons(ConsBase):
