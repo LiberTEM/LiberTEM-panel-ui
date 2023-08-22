@@ -75,7 +75,7 @@ class MultiLineCons(ConsBase):
 
 class VectorsOverlay(DisplayBase):
     """
-    Adds two lines to the figure at right-angles. Has functionality
+    Adds two lines to the figure at a user-specified angle. Has functionality
     to interactively set the vector angle using a slider.
     """
     glyph_map = {
