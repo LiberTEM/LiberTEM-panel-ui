@@ -23,7 +23,7 @@ setup(
         "notebook",
         "ipywidgets",
         "ipython",
-        "libertem @ git+https://github.com/LiberTEM/LiberTEM.git@master",
+        "libertem",
         "libertem-live",
         "humanize",
         "bidict",
