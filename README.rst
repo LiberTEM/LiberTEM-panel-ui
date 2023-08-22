@@ -93,11 +93,11 @@ As always, it is advisable to use a virtual or conda environment
 for testing packages.
 
 At this time, :code:`libertem_ui` is not availble through PyPi, but can be
-installed using:
+installed using (requires :code:`git`):
 
 .. code-block:: bash
 
-    pip install https://github.com/LiberTEM/LiberTEM-panel-ui.git
+    pip install 'libertem_ui @ git+https://github.com/LiberTEM/LiberTEM-panel-ui'
 
 Certain components require an installation of NodeJS
 to run correctly. If you don't already have an installation
