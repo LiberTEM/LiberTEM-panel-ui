@@ -62,21 +62,19 @@ class UITools:
             button_type='danger',
             disabled=True,
             width=85,
+            tags=['lt_enable_on_run'],
             **self.common_params,
         )
 
-        self.run_btn.jslink(
-            self.stop_btn,
+        self.run_btn.jscallback(
             args={
-                'stop_btn': self.stop_btn,
                 'spin_text': get_spinner(True, UIWindow.SPINNER_SIZE),
                 'static_text': get_spinner(False, UIWindow.SPINNER_SIZE),
             },
-            code={'disabled': '''
+            disabled='''
 const is_running = cb_obj.disabled
-stop_btn.disabled = !is_running
 
-                  // searching through *all* models is really a hack...
+// searching through *all* models is really a hack...
 for (let model of this.document._all_models.values()){
     if (model.tags.includes("lt_indicator")){
         if (is_running){
@@ -84,12 +82,13 @@ for (let model of this.document._all_models.values()){
         } else {
             model.text = static_text
         }
-    } else if (model.tags.includes("lt_run_this") || model.tags.includes("lt_remove_this")) {
+    } else if (model.tags.includes("lt_disable_on_run")) {
         model.disabled = is_running
+    } else if (model.tags.includes("lt_enable_on_run")) {
+        model.disabled = !is_running
     }
 }
-'''}
-        )
+''')
 
         self.roi_toggle_txt, self.roi_toggle_btn = labelled_switch(
             label='Global ROI',

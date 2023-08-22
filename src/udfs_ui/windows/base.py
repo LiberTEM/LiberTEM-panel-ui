@@ -260,7 +260,7 @@ class UIWindow:
                 button_type='danger',
                 width_policy='min',
                 align='center',
-                tags=['lt_remove_this'],
+                tags=['lt_disable_on_run'],
             )
 
             self._header_ns._remove_btn.on_click(self.remove_self)
@@ -273,7 +273,7 @@ class UIWindow:
                 width_policy='min',
                 align='center',
                 min_width=75,
-                tags=['lt_run_this'],
+                tags=['lt_disable_on_run'],
             )
             self._header_ns._run_btn.on_click(self.run_from_btn)
             lo.append(self._header_ns._run_btn)
@@ -286,7 +286,7 @@ class UIWindow:
                 align='center',
                 min_width=75,
                 disabled=True,
-                tags=['lt_stop_this'],
+                tags=['lt_enable_on_run'],
             )
             lo.append(self._header_ns._stop_btn)
 

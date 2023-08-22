@@ -134,11 +134,11 @@ class CoMImagingWindow(VirtualDetectorWindow, ui_type=WindowType.STANDALONE):
         self._channel_select.param.watch(self._apply_corrections, 'value')
         self._rot_reset_btn.on_click(self._apply_corrections)
 
-        self._rotation_slider.tags = ['lt_run_this']
-        self._channel_select.tags = ['lt_run_this']
-        self._flip_y_cbox.tags = ['lt_run_this']
-        self._guess_corrections_btn.tags = ['lt_run_this']
-        self._rot_reset_btn.tags = ['lt_run_this']
+        self._rotation_slider.tags = ['lt_disable_on_run']
+        self._channel_select.tags = ['lt_disable_on_run']
+        self._flip_y_cbox.tags = ['lt_disable_on_run']
+        self._guess_corrections_btn.tags = ['lt_disable_on_run']
+        self._rot_reset_btn.tags = ['lt_disable_on_run']
 
         self.toolbox.extend((
             pn.Row(
