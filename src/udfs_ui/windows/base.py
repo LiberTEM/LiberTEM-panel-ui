@@ -168,6 +168,7 @@ class UIWindow:
         ui_context._register_window(window)
         if window.properties.header_run:
             ui_context._add_progress_bar(window)
+            ui_context._setup_run_button(window._header_ns._run_btn)
         return window
 
     @classmethod
@@ -350,30 +351,12 @@ class UIWindow:
         return self.properties.header_stop and self._header_ns._stop_btn.clicks > 0
 
     async def run_this(self, run_from: RunFromT | None = None):
-        # The functionality here could allow running
-        # windows independently and concurrently, but would
-        # need to refactor progress bar + UI state synchronisation
         if run_from is None:
             run_from = self.get_job
         await self.submit_to(run_from=[run_from])
 
     async def run_from_btn(self, e):
-        # Subclass can override this method if it does not
-        # want the run_btn to be disabled when pressed
-        # (i.e. if job.quiet == True)
-        if self.properties.header_stop:
-            self._header_ns._stop_btn.param.update(
-                disabled=False,
-                clicks=0,
-            )
-        try:
-            await self.run_this(run_from=self.get_job)
-        finally:
-            if self.properties.header_stop:
-                self._header_ns._stop_btn.param.update(
-                    disabled=True,
-                    clicks=0,
-                )
+        await self.run_this(run_from=self.get_job)
 
     def run_this_bk(self, attr, old, new, run_from: RunFromT | None = None):
         # Run a job from a Bokeh-style callback, asynchronously
@@ -392,6 +375,19 @@ class UIWindow:
             self.logger.log_from_exception(e, reraise=True)
         finally:
             self._futures.discard(future)
+
+    def _run_buttons(self) -> tuple[pn.widgets.Button, ...]:
+        # StandaloneContext uses this to set disabled = True
+        # when the job is not quiet to trigger the JS callbacks
+        if self.properties.header_run:
+            return (self._header_ns._run_btn,)
+        return ()
+
+    def _stop_buttons(self) -> tuple[pn.widgets.Button, ...]:
+        # StandaloneContext uses this to listen stop iteration
+        if self.properties.header_stop:
+            return (self._header_ns._stop_btn,)
+        return ()
 
     def get_job(
         self,
