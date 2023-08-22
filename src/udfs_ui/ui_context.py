@@ -28,6 +28,8 @@ from .applications.terminal_logger import UILog
 from .utils.panel_components import labelled_switch, button_divider, get_spinner
 from .utils.progress import PanelProgressReporter
 
+pn.extension('tabulator', 'jsoneditor', 'terminal', 'floatpanel')
+
 if TYPE_CHECKING:
     import pathlib
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
