@@ -10,5 +10,5 @@ if __name__ == '__main__':
         ds_mem = ctx.load('memory', data=data, num_partitions=1)
         prime_numba_cache(ds_mem)
         roi = np.zeros(ds_mem.shape.nav, dtype=bool)
-        ds_mem[0, 0] = True
-        ctx.run_udf(ds_mem, PickUDF, roi=roi)
+        roi[0, 0] = True
+        ctx.run_udf(ds_mem, PickUDF(), roi=roi)
