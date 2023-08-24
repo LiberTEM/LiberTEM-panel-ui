@@ -3,6 +3,7 @@ import warnings
 from typing import Any, NewType
 import numpy as np
 import numpy.typing as nt
+from skimage.filters import gaussian
 from skimage.draw import disk, circle_perimeter_aa
 
 
@@ -157,7 +158,7 @@ def generate_data(
         if (np.abs(a) < 0.5 * radius).any():
             warnings.warn('a-vector length much less than radius in some frames')
     if b is not None:
-        if not is_numpy(a):
+        if not is_numpy(b):
             b = np.full(nav_shape, b, dtype=complex)
         b = transform_complex(b, scale=b_mult, rotation=b_rot)
         if (np.abs(b) < 0.5 * radius).any():
@@ -182,8 +183,10 @@ def generate_data(
             noise_level=noise_level.flat[idx],
         )
     if norm is not None:
+        if not is_numpy(norm):
+            norm = np.full(nav_shape, norm, dtype=float)
         data /= (data.sum(axis=(2, 3))[..., np.newaxis, np.newaxis])
-        data *= norm
+        data *= norm[..., np.newaxis, np.newaxis]
     return data
 
 
@@ -200,3 +203,36 @@ def planar_field(
         x0, x1 = xrange
         xrange = np.linspace(x0, x1, num=w, endpoint=True)
     return yrange.reshape(-1, 1) + xrange.reshape(1, -1)
+
+
+def demo_dataset():
+    nav_shape = (12, 32)
+    sig_shape = (128, 128)
+    descan = planar_field(nav_shape, (-1-2j, 2+1j), (2-1j, -2+1j))
+    feature_slice = np.s_[:, 18:25]
+    feature_shift = np.zeros(nav_shape, dtype=complex)
+    feature_shift[feature_slice] = 4 + 2j
+    feature_shift.real = gaussian(feature_shift.real)
+    feature_shift.imag = gaussian(feature_shift.imag)
+    haadf_slice = np.s_[:, :8]
+    bias = np.zeros(nav_shape, dtype=float)
+    bias[haadf_slice] = 0.35
+    bias = gaussian(bias)
+    a_vec = 32+0j
+    base_tilt = 12
+    ab_angle = 60
+    return generate_data(
+        nav_shape,
+        sig_shape,
+        centre=58+70j,
+        centre_offset=descan + feature_shift,
+        radius=8,
+        a=a_vec,
+        b=a_vec,
+        a_rot=base_tilt,
+        b_rot=base_tilt + ab_angle,
+        noise_level=0.05,
+        falloff=1.5,
+        bias=bias,
+        norm=np.random.uniform(low=0.95, high=1.05, size=nav_shape),
+    )
