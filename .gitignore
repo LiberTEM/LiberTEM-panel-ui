@@ -140,3 +140,4 @@ extras/
 .vscode/
 *.pkl
 *.tif
+*.npy
