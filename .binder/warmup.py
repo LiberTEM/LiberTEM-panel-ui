@@ -9,7 +9,7 @@ if __name__ == '__main__':
     data = demo_dataset()
     np.save('test_data.npy', data)
 
-    with lt.Context.make_with(cpus=1) as ctx:
+    with lt.Context.make_with('inline') as ctx:
         ds = ctx.load('npy', path='test_data.npy')
         roi = np.zeros(ds.shape.nav, dtype=bool)
         roi[0, 0] = True
