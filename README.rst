@@ -112,3 +112,13 @@ of NodeJS, you can use conda to easily install it using:
 
 (particularly on Windows), or use a tool like
 `nvm <https://github.com/nvm-sh/nvm>`_ on linux.
+
+Disclaimer
+----------
+
+:code:`LiberTEM-panel-ui` is at an early proof-of-concept stage. All interfaces
+and functionality is subject to change in the future.
+
+If you are interested in the project and would like to see it taken further,
+please don't hesitate to get in touch by posting an
+`Issue <https://github.com/LiberTEM/LiberTEM-panel-ui/issues>`_.
