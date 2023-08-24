@@ -3,8 +3,6 @@ import libertem.api as lt
 from libertem.udf.raw import PickUDF
 from libertem.web.dataset import prime_numba_cache
 
-from libertem_ui import UIContext
-
 
 if __name__ == '__main__':
     data = np.zeros((8, 8, 8, 8), dtype=np.float32)
