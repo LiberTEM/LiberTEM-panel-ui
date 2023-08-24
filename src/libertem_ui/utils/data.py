@@ -1,4 +1,5 @@
 from __future__ import annotations
+import warnings
 from typing import Any, NewType
 import numpy as np
 import numpy.typing as nt
@@ -27,8 +28,8 @@ def intensity_fn(val: float, falloff: float, bias: float) -> float:
 
 def diff_frame(
     frame_shape: tuple[int, int],
-    radius: float,
     centre: complex,
+    radius: float,
     a: complex | None,
     b: complex | None,
     dtype: nt.DTypeLike = np.float32,
@@ -78,6 +79,7 @@ def diff_frame(
         maxdim = np.linalg.norm(frame.shape)
         maxidx = np.ceil(maxdim / ming)
 
+        n_drawn = 0
         for ai, bi in np.mgrid[-maxidx: maxidx + 1, -maxidx: maxidx + 1].reshape(2, -1).T:
             if ai == 0 and bi == 0:
                 continue
@@ -94,6 +96,10 @@ def diff_frame(
                 radius,
                 intensity_fn(1. - (np.abs(shift) / max_r), falloff, bias)
             )
+            n_drawn += 1
+            if n_drawn == 128:
+                warnings.warn('Drawing more than 128 disks in this '
+                              'frame, this could take a while...')
 
     return frame[buffer: -buffer, buffer: -buffer]
 
@@ -108,12 +114,21 @@ def transform_complex(c: complex, scale: float = 1., rotation: Degree = 0.) -> c
     return dx + dy * 1j
 
 
+def is_numpy(obj):
+    try:
+        obj.shape
+        obj.size
+        return True
+    except AttributeError:
+        return False
+
+
 def generate_data(
     nav_shape: tuple[int, ...],
     sig_shape: tuple[int, int],
     *,
-    radius: float,
     centre: complex,
+    radius: np.ndarray | float,
     a: np.ndarray[Any, complex] | complex | None,
     b: np.ndarray[Any, complex] | complex | None,
     centre_offset: np.ndarray[Any, complex] | None = None,
@@ -128,40 +143,37 @@ def generate_data(
     dtype: nt.DTypeLike = np.float32,
 ):
     assert len(sig_shape) == 2
+    centre = complex(centre)
+    if not is_numpy(radius):
+        radius = np.full(nav_shape, radius, dtype=float)
     if centre_offset is None:
         centre_offset = np.zeros(nav_shape, dtype=complex)
     ab_none = (a is None, b is None)
     assert all(ab_none) or (not any(ab_none))
     if a is not None:
-        try:
-            a.shape
-        except AttributeError:
+        if not is_numpy(a):
             a = np.full(nav_shape, a, dtype=complex)
         a = transform_complex(a, scale=a_mult, rotation=a_rot)
+        if (np.abs(a) < 0.5 * radius).any():
+            warnings.warn('a-vector length much less than radius in some frames')
     if b is not None:
-        try:
-            b.shape
-        except AttributeError:
+        if not is_numpy(a):
             b = np.full(nav_shape, b, dtype=complex)
         b = transform_complex(b, scale=b_mult, rotation=b_rot)
-    try:
-        falloff.shape
-    except AttributeError:
+        if (np.abs(b) < 0.5 * radius).any():
+            warnings.warn('b-vector length much less than radius in some frames')
+    if not is_numpy(falloff):
         falloff = np.full(nav_shape, falloff, dtype=float)
-    try:
-        bias.shape
-    except AttributeError:
+    if not is_numpy(bias):
         bias = np.full(nav_shape, bias, dtype=float)
-    try:
-        noise_level.shape
-    except AttributeError:
+    if not is_numpy(noise_level):
         noise_level = np.full(nav_shape, noise_level, dtype=float)
     data = np.zeros(nav_shape + sig_shape, dtype=dtype)
     for idx, array in enumerate(data.reshape(-1, *sig_shape)):
         array[:] = diff_frame(
             sig_shape,
-            radius,
             centre + centre_offset.flat[idx],
+            radius.flat[idx],
             a.flat[idx] if a is not None else a,
             b.flat[idx] if b is not None else b,
             dtype=dtype,
@@ -173,3 +185,18 @@ def generate_data(
         data /= (data.sum(axis=(2, 3))[..., np.newaxis, np.newaxis])
         data *= norm
     return data
+
+
+def planar_field(
+    shape: tuple[int, int],
+    yrange: np.ndarray | tuple[complex, complex] | tuple[float, float],
+    xrange: np.ndarray | tuple[complex, complex] | tuple[float, float],
+) -> np.ndarray:
+    h, w = shape
+    if not is_numpy(yrange):
+        y0, y1 = yrange
+        yrange = np.linspace(y0, y1, num=h, endpoint=True)
+    if not is_numpy(xrange):
+        x0, x1 = xrange
+        xrange = np.linspace(x0, x1, num=w, endpoint=True)
+    return yrange.reshape(-1, 1) + xrange.reshape(1, -1)
