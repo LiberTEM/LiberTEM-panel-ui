@@ -2,7 +2,7 @@ LiberTEM-panel-ui
 =================
 
 .. image:: https://mybinder.org/badge_logo.svg
- :target: https://mybinder.org/v2/gh/LiberTEM/LiberTEM-panel-ui.git/HEAD?labpath=examples%2FUIContext.ipynb
+ :target: https://mybinder.org/v2/gh/LiberTEM/LiberTEM-panel-ui/HEAD?labpath=examples%2FDemo.ipynb
 
 Widget-based web GUI package intended to support the
 `LiberTEM <https://github.com/LiberTEM/LiberTEM/>`_
@@ -70,7 +70,7 @@ from multiple windows in parallel:
 
 .. code-block:: python
 
-    from libertem_ui import UIContext
+    from libertem_ui.api import UIContext
 
     # Create the UIContext object
     # This orchestrates:
