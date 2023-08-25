@@ -4,6 +4,7 @@ from libertem.udf.raw import PickUDF
 from libertem.udf.sum import SumUDF
 from libertem_ui.utils.data import demo_dataset
 
+from libertem_ui.windows.imaging import VirtualDetectorWindow  # noqa
 
 if __name__ == '__main__':
     data = demo_dataset()
@@ -15,3 +16,6 @@ if __name__ == '__main__':
         roi[0, 0] = True
         ctx.run_udf(ds, PickUDF(), roi=roi)
         ctx.run_udf(ds, SumUDF())
+
+    with lt.Context.make_with(cpus=1) as ctx:
+        pass
