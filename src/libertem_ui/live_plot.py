@@ -161,7 +161,6 @@ class ApertureFigure:
                     for i in range(self._channel_data.ndim)
                 )
                 out_data = self._channel_data[slices]
-                print(slices, out_data.shape)
             else:
                 raise ValueError(f"Unrecognized ndarray shape {data.shape}")
         elif isinstance(data, dict):
