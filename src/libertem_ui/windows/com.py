@@ -54,7 +54,8 @@ class CoMImagingWindow(VirtualDetectorWindow, ui_type=WindowType.STANDALONE):
         super().initialize(dataset, with_layout=False)
 
         self._current_params = CoMParamsUI()
-        self.nav_plot._channel_map = {
+        self.nav_plot._channel_map = 'DICT'
+        self.nav_plot._channel_data = {
             CoMChanN.SHIFT_MAGNITUDE: 'magnitude',
             CoMChanN.RAW_X_SHIFT: ('raw_shifts', lambda buffer: buffer[..., 1]),
             CoMChanN.RAW_Y_SHIFT: ('raw_shifts', lambda buffer: buffer[..., 0]),
