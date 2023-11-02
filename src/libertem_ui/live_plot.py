@@ -58,155 +58,20 @@ def adapt_figure(fig: figure, shape, maxdim: int | None = 450, mindim: int | Non
         pass
 
 
-class AperturePlotBase(Live2DPlot):
-    def __init__(
-            self, dataset, udf, roi=None, channel=None, title=None, min_delta=0.25, udfresult=None
-    ):
-        super().__init__(
-            dataset, udf,
-            roi=roi, channel=channel,
-            title=title, min_delta=min_delta,
-            udfresult=udfresult
-        )
+class ApertureFigure:
+    def __init__(self):
+        """
+        A wrapper around a bokeh.plotting.figure and a BokehImage with:
+
+            - a toolbar to hold buttons, channel select etc
+            - a floating toolbox with colormap widgets
+            - methods to add drawing tools which define
+              a mask / ROI on the image
+        """
         self._pane: pn.pane.Bokeh | None = None
         self._fig: figure | None = None
         self._im: BokehImage | None = None
-        self._last_res: tuple[UDFResultDict, np.ndarray | bool] | None = None
 
-    @property
-    def pane(self) -> pn.pane.Bokeh | None:
-        return self._pane
-
-    @property
-    def fig(self) -> figure | None:
-        return self._fig
-
-    @property
-    def im(self) -> BokehImage | None:
-        return self._im
-
-    @property
-    def layout(self):
-        return self.pane
-
-    def push(self, *others: AperturePlotBase):
-        pn.io.notebook.push_notebook(self.pane, *(o.pane for o in others))
-
-    def _setup(self):
-        # Do any custom setup after fig/im are created and set
-        pass
-
-    def set_plot(
-        self,
-        *,
-        plot: AperturePlot | None = None,
-        fig: figure | None = None,
-        im: BokehImage | None = None
-    ):
-        if plot is not None:
-            self._pane = plot.pane
-            fig = plot.fig
-            im = plot.im
-        else:
-            self._pane = pn.pane.Bokeh(fig)
-        self._fig = fig
-        self._im = im
-        self._was_rate_limited: bool = False
-
-    @classmethod
-    def new(
-        cls,
-        dataset,
-        udf,
-        *,
-        maxdim: int = 450,
-        # If mindim is None, plot aspect ratio is always preserved
-        # even if the plot is very thin or tall
-        mindim: int | None = 100,
-        roi: np.ndarray | None = None,
-        channel=None,
-        title: str = '',
-        downsampling: bool = True,
-    ):
-        # Live plot gets a None title if not specified so it keeps its default
-        plot = cls(dataset, udf, roi=roi, channel=channel, title=title if len(title) else None)
-        # Bokeh needs a string title, however, so gets the default ''
-        fig = figure(title=title)
-        im = BokehImage.new().from_numpy(plot.data).on(fig)
-        if downsampling:
-            im.enable_downsampling()
-        plot.set_plot(fig=fig, im=im)
-        adapt_figure(fig, plot.data.shape, maxdim=maxdim, mindim=mindim)
-        plot._setup()
-        return plot
-
-    def update(self, damage, force=False, push_nb: bool = True):
-        if self.fig is None:
-            raise RuntimeError('Cannot update plot before set_plot called')
-        if force and (not self._was_rate_limited):
-            return
-        self.im.update(self.data)
-        self.last_update = time.time()
-        if push_nb:
-            self.push()
-
-    def display(self):
-        if self.fig is None:
-            raise RuntimeError('Cannot display plot before set_plot called')
-        return self.fig
-
-    def new_data(
-        self,
-        udf_results: UDFResultDict,
-        damage: np.ndarray | bool,
-        force=False,
-        manual=False
-    ):
-        """
-        This method is called with the raw `udf_results` any time a new
-        partition has finished processing.
-
-        The :code:`damage` parameter is filtered to only cover finite
-        values of :code:`self.data` and passed to :meth:`self.update`,
-        which should then be implemented by a subclass.
-        """
-        t0 = time.time()
-        delta = t0 - self.last_update
-        rate_limited = delta < self.min_delta
-        # The manual flag is only necessary because we are
-        # assuming force= is only used at the end of a UDF run
-        # when this is changed then manual= can be removed
-        if manual or force or not rate_limited:
-            self._last_res = (udf_results, damage)
-            self.data, damage = self.extract(*self._last_res)
-            self.update(damage, force=force)
-        else:
-            self._was_rate_limited = rate_limited
-            return  # don't update plot if we recently updated
-        if force:
-            # End of plotting, so reset this flag for the next run
-            self._was_rate_limited = False
-
-
-class AperturePlot(AperturePlotBase):
-    def __init__(
-            self, dataset, udf, roi=None, channel=None, title=None, min_delta=0.25, udfresult=None
-    ):
-        self._channel_map: dict[str, str | tuple[str, Callable] | Callable] | None = None
-        self._channel_select = None
-        if isinstance(channel, dict):
-            self._channel_map = channel
-            channel_names = tuple(self._channel_map.keys())
-            # can be {name: str | tuple[str, Callable[buffer]] | Callable(udf_result, damage)}
-            # following the base class behaviour
-            # name does not have to correspond to UDF buffer names
-            channel = self._channel_map[channel_names[0]]
-        super().__init__(
-            dataset, udf,
-            roi=roi, channel=channel,
-            title=title, min_delta=min_delta,
-            udfresult=udfresult
-        )
         self._mask_elements: list[DisplayBase] = []
         self._displayed = None
         self._toolbar = pn.Row(
@@ -221,101 +86,70 @@ class AperturePlot(AperturePlotBase):
         self._clear_btn: pn.widgets.Button | None = None
         self._floatpanel: pn.layout.FloatPanel | None = None
 
-    @property
-    def displayed(self) -> ResultRow | float | None:
-        return self._displayed
-
-    @displayed.setter
-    def displayed(self, val: ResultRow | float):
-        self._displayed = val
-
-    @property
-    def layout(self) -> pn.Column:
-        return self._layout
-
     def set_plot(
         self,
         *,
-        plot: AperturePlot | None = None,
+        plot: ApertureFigure | None = None,
         fig: figure | None = None,
         im: BokehImage | None = None
     ):
-        super().set_plot(
-            plot=plot,
-            fig=fig,
-            im=im,
-        )
+        if plot is not None:
+            self._pane = plot.pane
+            fig = plot.fig
+            im = plot.im
+        else:
+            self._pane = pn.pane.Bokeh(fig)
+        self._fig = fig
+        self._im = im
+        self._was_rate_limited: bool = False
         if plot is None:
             self._layout.append(self.pane)
 
-    def update(self, damage, force=False, push_nb: bool = True):
-        self.displayed = time.monotonic()
-        return super().update(damage, force=force, push_nb=push_nb)
+    @classmethod
+    def new(
+        cls,
+        data: np.ndarray,
+        *,
+        maxdim: int = 450,
+        # If mindim is None, plot aspect ratio is always preserved
+        # even if the plot is very thin or tall
+        mindim: int | None = 100,
+        title: str = '',
+        downsampling: bool = True,
+    ):
+        plot = cls()
+        # Bokeh needs a string title, however, so gets the default ''
+        fig = figure(title=title)
+        im = BokehImage.new().from_numpy(data).on(fig)
+        if downsampling:
+            im.enable_downsampling()
+        plot.set_plot(fig=fig, im=im)
+        adapt_figure(fig, data.shape, maxdim=maxdim, mindim=mindim)
+        plot._setup()
+        return plot
 
     def _setup(self):
         self.add_hover_position_text()
         self.add_control_panel()
 
-    def add_mask_tools(
-        self,
-        rectangles: bool = True,
-        polygons: bool = True,
-        activate: bool = False,
-        clear_btn: bool = True,
-    ):
-        if polygons:
-            self._mask_elements.append(
-                Polygons
-                .new()
-                .empty()
-                .on(self.fig)
-                .editable()
-            )
-        if rectangles:
-            self._mask_elements.append(
-                Rectangles
-                .new()
-                .empty()
-                .on(self.fig)
-                .editable()
-            )
-        # Could use custom icons to show which tools are ROI tools
-        # Could add clear ROI button as a callback on the toolbar
-        if activate and len(self.fig.tools):
-            self.fig.toolbar.active_drag = self.fig.tools[-1]
-        if clear_btn:
-            self.get_clear_mask_btn()
-        return self
+    @property
+    def pane(self) -> pn.pane.Bokeh | None:
+        return self._pane
 
-    def get_mask(self, shape: tuple[int, int]) -> np.ndarray | None:
-        mask = None
-        for element in self._mask_elements:
-            try:
-                _mask = element.as_mask(shape)
-            except (AttributeError, NotImplementedError):
-                continue
-            if _mask is not None:
-                if mask is None:
-                    mask = _mask
-                else:
-                    mask = np.logical_or(mask, _mask)
-        return mask
+    @property
+    def fig(self) -> figure | None:
+        return self._fig
 
-    def clear_mask(self, *e):
-        for element in self._mask_elements:
-            element.clear()
-        self.push()
+    @property
+    def im(self) -> BokehImage | None:
+        return self._im
 
-    def get_clear_mask_btn(self):
-        if self._clear_btn is None:
-            self._clear_btn = pn.widgets.Button(
-                name='Clear ROI',
-                button_type='default',
-                width=100,
-            )
-            self._clear_btn.on_click(self.clear_mask)
-            self._toolbar.insert(0, self._clear_btn)
-        return self._clear_btn
+    @property
+    def layout(self) -> pn.Column:
+        return self._layout
+
+    def push(self, *others: ApertureFigure):
+        pn.io.notebook.push_notebook(self.pane, *(o.pane for o in others))
 
     def add_control_panel(
         self,
@@ -411,6 +245,208 @@ action.callback.execute(action)
     def get_float_panel(self):
         return self._floatpanel
 
+    def add_hover_position_text(self):
+        title = Title(
+            text=' ',
+            align='left',
+            syncable=False,
+        )
+        self.fig.add_layout(
+            title,
+            place="below",
+        )
+        cb_code = 'pos_title.text = `[x: ${(cb_obj.x).toFixed(1)}, y: ${(cb_obj.y).toFixed(1)}]`'
+        self.fig.js_on_event(
+            MouseMove,
+            CustomJS(
+                args={
+                    'pos_title': title,
+                },
+                code=cb_code,
+            ),
+        )
+        self.fig.js_on_event(
+            MouseLeave,
+            CustomJS(
+                args={
+                    'pos_title': title,
+                },
+                code='pos_title.text = " "',
+            ),
+        )
+
+    def add_mask_tools(
+        self,
+        rectangles: bool = True,
+        polygons: bool = True,
+        activate: bool = False,
+        clear_btn: bool = True,
+    ):
+        if polygons:
+            self._mask_elements.append(
+                Polygons
+                .new()
+                .empty()
+                .on(self.fig)
+                .editable()
+            )
+        if rectangles:
+            self._mask_elements.append(
+                Rectangles
+                .new()
+                .empty()
+                .on(self.fig)
+                .editable()
+            )
+        # Could use custom icons to show which tools are ROI tools
+        # Could add clear ROI button as a callback on the toolbar
+        if activate and len(self.fig.tools):
+            self.fig.toolbar.active_drag = self.fig.tools[-1]
+        if clear_btn:
+            self.get_clear_mask_btn()
+        return self
+
+    def get_mask(self, shape: tuple[int, int]) -> np.ndarray | None:
+        mask = None
+        for element in self._mask_elements:
+            try:
+                _mask = element.as_mask(shape)
+            except (AttributeError, NotImplementedError):
+                continue
+            if _mask is not None:
+                if mask is None:
+                    mask = _mask
+                else:
+                    mask = np.logical_or(mask, _mask)
+        return mask
+
+    def clear_mask(self, *e):
+        for element in self._mask_elements:
+            element.clear()
+        self.push()
+
+    def get_clear_mask_btn(self):
+        if self._clear_btn is None:
+            self._clear_btn = pn.widgets.Button(
+                name='Clear ROI',
+                button_type='default',
+                width=100,
+            )
+            self._clear_btn.on_click(self.clear_mask)
+            self._toolbar.insert(0, self._clear_btn)
+        return self._clear_btn
+
+
+class AperturePlot(Live2DPlot, ApertureFigure):
+    def __init__(
+            self, dataset, udf, roi=None, channel=None, title=None, min_delta=0.25, udfresult=None
+    ):
+        """
+        ApertureFigure that implements the LiberTEM Live2DPlot interface
+        """
+        self._last_res: tuple[UDFResultDict, np.ndarray | bool] | None = None
+        self._channel_map: dict[str, str | tuple[str, Callable] | Callable] | None = None
+        self._channel_select = None
+        if isinstance(channel, dict):
+            self._channel_map = channel
+            channel_names = tuple(self._channel_map.keys())
+            # can be {name: str | tuple[str, Callable[buffer]] | Callable(udf_result, damage)}
+            # following the base class behaviour
+            # name does not have to correspond to UDF buffer names
+            channel = self._channel_map[channel_names[0]]
+
+        Live2DPlot.__init__(
+            self,
+            dataset, udf,
+            roi=roi, channel=channel,
+            title=title, min_delta=min_delta,
+            udfresult=udfresult
+        )
+        ApertureFigure.__init__(self)
+
+    @classmethod
+    def new(
+        cls,
+        dataset,
+        udf,
+        *,
+        maxdim: int = 450,
+        # If mindim is None, plot aspect ratio is always preserved
+        # even if the plot is very thin or tall
+        mindim: int | None = 100,
+        roi: np.ndarray | None = None,
+        channel=None,
+        title: str = '',
+        downsampling: bool = True,
+    ):
+        # Live plot gets a None title if not specified so it keeps its default
+        plot = cls(dataset, udf, roi=roi, channel=channel, title=title if len(title) else None)
+        # Bokeh needs a string title, however, so gets the default ''
+        fig = figure(title=title)
+        im = BokehImage.new().from_numpy(plot.data).on(fig)
+        if downsampling:
+            im.enable_downsampling()
+        plot.set_plot(fig=fig, im=im)
+        adapt_figure(fig, plot.data.shape, maxdim=maxdim, mindim=mindim)
+        plot._setup()
+        return plot
+
+    def update(self, damage, force=False, push_nb: bool = True):
+        self.displayed = time.monotonic()
+        if self.fig is None:
+            raise RuntimeError('Cannot update plot before set_plot called')
+        if force and (not self._was_rate_limited):
+            return
+        self.im.update(self.data)
+        self.last_update = time.time()
+        if push_nb:
+            self.push()
+
+    def display(self):
+        if self.fig is None:
+            raise RuntimeError('Cannot display plot before set_plot called')
+        return self.fig
+
+    def new_data(
+        self,
+        udf_results: UDFResultDict,
+        damage: np.ndarray | bool,
+        force=False,
+        manual=False
+    ):
+        """
+        This method is called with the raw `udf_results` any time a new
+        partition has finished processing.
+
+        The :code:`damage` parameter is filtered to only cover finite
+        values of :code:`self.data` and passed to :meth:`self.update`,
+        which should then be implemented by a subclass.
+        """
+        t0 = time.time()
+        delta = t0 - self.last_update
+        rate_limited = delta < self.min_delta
+        # The manual flag is only necessary because we are
+        # assuming force= is only used at the end of a UDF run
+        # when this is changed then manual= can be removed
+        if manual or force or not rate_limited:
+            self._last_res = (udf_results, damage)
+            self.data, damage = self.extract(*self._last_res)
+            self.update(damage, force=force)
+        else:
+            self._was_rate_limited = rate_limited
+            return  # don't update plot if we recently updated
+        if force:
+            # End of plotting, so reset this flag for the next run
+            self._was_rate_limited = False
+
+    @property
+    def displayed(self) -> ResultRow | float | None:
+        return self._displayed
+
+    @displayed.setter
+    def displayed(self, val: ResultRow | float):
+        self._displayed = val
+
     def get_channel_select(
         self,
         selected: str | None = None,
@@ -486,33 +522,3 @@ action.callback.execute(action)
         # Will cause a double update if called during UDF run
         if push_update and self._last_res is not None:
             self.new_data(*self._last_res, manual=push_update)
-
-    def add_hover_position_text(self):
-        title = Title(
-            text=' ',
-            align='left',
-            syncable=False,
-        )
-        self.fig.add_layout(
-            title,
-            place="below",
-        )
-        cb_code = 'pos_title.text = `[x: ${(cb_obj.x).toFixed(1)}, y: ${(cb_obj.y).toFixed(1)}]`'
-        self.fig.js_on_event(
-            MouseMove,
-            CustomJS(
-                args={
-                    'pos_title': title,
-                },
-                code=cb_code,
-            ),
-        )
-        self.fig.js_on_event(
-            MouseLeave,
-            CustomJS(
-                args={
-                    'pos_title': title,
-                },
-                code='pos_title.text = " "',
-            ),
-        )
