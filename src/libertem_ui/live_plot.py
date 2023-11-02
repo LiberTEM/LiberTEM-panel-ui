@@ -1,5 +1,6 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Sequence
+from typing_extensions import Literal
 import time
 from functools import partial
 import uuid
@@ -86,6 +87,10 @@ class ApertureFigure:
         self._clear_btn: pn.widgets.Button | None = None
         self._floatpanel: pn.layout.FloatPanel | None = None
 
+        self._channel_select: pn.widgets.Select | pn.widgets.IntSlider | None = None
+        self._channel_data: np.ndarray | dict[str, np.ndarray] | Sequence[np.ndarray] = None
+        self._channel_map: Literal['SEQUENCE', 'DICT'] | int | None = None
+
     def set_plot(
         self,
         *,
@@ -108,7 +113,7 @@ class ApertureFigure:
     @classmethod
     def new(
         cls,
-        data: np.ndarray,
+        data: np.ndarray | dict[str, np.ndarray] | Sequence[np.ndarray],
         *,
         maxdim: int = 450,
         # If mindim is None, plot aspect ratio is always preserved
@@ -116,8 +121,10 @@ class ApertureFigure:
         mindim: int | None = 100,
         title: str = '',
         downsampling: bool = True,
+        channel_dimension: int = -1,
     ):
         plot = cls()
+        data = plot._setup_multichannel(data, dim=channel_dimension)
         # Bokeh needs a string title, however, so gets the default ''
         fig = figure(title=title)
         im = BokehImage.new().from_numpy(data).on(fig)
@@ -131,6 +138,46 @@ class ApertureFigure:
     def _setup(self):
         self.add_hover_position_text()
         self.add_control_panel()
+        if self.is_multichannel:
+            self.get_channel_select()
+
+    @property
+    def is_multichannel(self):
+        return self._channel_map is not None
+
+    def _setup_multichannel(
+        self,
+        data: np.ndarray | dict[str, np.ndarray] | Sequence[np.ndarray],
+        dim: int = -1,
+    ):
+        if isinstance(data, np.ndarray):
+            if data.ndim == 2:
+                return data
+            elif data.ndim == 3:
+                self._channel_data = data
+                self._channel_map = (dim % data.ndim)
+                slices = tuple(
+                    slice(None) if i != self._channel_map else 0
+                    for i in range(self._channel_data.ndim)
+                )
+                out_data = self._channel_data[slices]
+                print(slices, out_data.shape)
+            else:
+                raise ValueError(f"Unrecognized ndarray shape {data.shape}")
+        elif isinstance(data, dict):
+            assert all(isinstance(k, str) for k in data.keys())
+            assert all(isinstance(v, np.ndarray) and v.ndim == 2 for v in data.values())
+            self._channel_map = 'DICT'
+            self._channel_data = data
+            out_data = self._channel_data[tuple(self._channel_data.keys())[0]]
+        elif isinstance(data, (tuple, list)):
+            assert all(isinstance(v, np.ndarray) and v.ndim == 2 for v in data)
+            self._channel_data = data
+            self._channel_map = 'SEQUENCE'
+            out_data = data[0]
+        else:
+            raise ValueError('Unrecognized data format for multichannel')
+        return out_data
 
     @property
     def pane(self) -> pn.pane.Bokeh | None:
@@ -336,6 +383,92 @@ action.callback.execute(action)
             self._toolbar.insert(0, self._clear_btn)
         return self._clear_btn
 
+    def get_channel_select(
+        self,
+        selected: str | None = None,
+        label: str = 'Display channel',
+        update_title: bool = True,
+        embed: bool = True,
+        link: bool = True,
+    ) -> pn.widgets.Select:
+        if self._channel_select is not None:
+            return self._channel_select
+        elif self._channel_map is None:
+            raise RuntimeError('Cannot select channels if a channel map '
+                               'was not provided')
+        elif self._channel_map == 'DICT':
+            channel_names = list(self._channel_data.keys())
+            if selected is None:
+                selected = channel_names[0]
+            self._channel_select = pn.widgets.Select(
+                options=channel_names,
+                value=selected,
+                width=200,
+                margin=(5, 5),
+            )
+        elif self._channel_map == 'SEQUENCE' or isinstance(self._channel_map, int):
+            if self._channel_map == 'SEQUENCE':
+                sequence_length = len(self._channel_data)
+            else:
+                sequence_length = self._channel_data.shape[self._channel_map]
+            if selected is None:
+                selected = 0
+            self._channel_select = pn.widgets.IntSlider(
+                start=0,
+                end=sequence_length - 1,
+                value=selected,
+                width=200,
+                margin=(5, 5),
+            )
+        else:
+            raise ValueError('Unrecognized channel map format')
+
+        self.change_channel(selected, push_update=False)
+        display_text = pn.widgets.StaticText(
+            value=label,
+            align='center',
+            margin=(5, 5),
+        )
+        if link:
+            self._channel_select.param.watch(
+                partial(self._switch_channel_cb, update_title=update_title),
+                'value',
+            )
+        if embed:
+            self._toolbar.insert(0, self._channel_select)
+            self._toolbar.insert(0, display_text)
+        else:
+            self._channel_select.name = label
+        return self._channel_select
+
+    def _switch_channel_cb(self, e, update_title=True):
+        return self.change_channel(e.new, update_title=update_title)
+
+    def change_channel(
+        self,
+        channel: str | int,
+        push_update: bool = True,
+        update_title: bool = True,
+    ):
+        if isinstance(self._channel_data, dict):
+            data = self._channel_data[channel]
+            title = channel
+        elif self._channel_map == 'SEQUENCE':
+            data = self._channel_data[channel]
+            title = f"Channel: {channel}"
+        else:
+            slices = tuple(
+                slice(None) if i != self._channel_map else channel
+                for i in range(self._channel_data.ndim)
+            )
+            data = self._channel_data[slices]
+            title = f"Channel: {channel}"
+        self.im.update(data)
+        if update_title:
+            self.fig.title.text = title
+        if push_update:
+            self.push()
+
 
 class AperturePlot(Live2DPlot, ApertureFigure):
     def __init__(
@@ -344,16 +477,17 @@ class AperturePlot(Live2DPlot, ApertureFigure):
         """
         ApertureFigure that implements the LiberTEM Live2DPlot interface
         """
+        ApertureFigure.__init__(self)
         self._last_res: tuple[UDFResultDict, np.ndarray | bool] | None = None
-        self._channel_map: dict[str, str | tuple[str, Callable] | Callable] | None = None
-        self._channel_select = None
+        self._channel_data: dict[str, str | tuple[str, Callable] | Callable] | None = None
         if isinstance(channel, dict):
-            self._channel_map = channel
-            channel_names = tuple(self._channel_map.keys())
+            self._channel_data = channel
+            self._channel_map = 'DICT'
+            channel_names = tuple(self._channel_data.keys())
             # can be {name: str | tuple[str, Callable[buffer]] | Callable(udf_result, damage)}
             # following the base class behaviour
             # name does not have to correspond to UDF buffer names
-            channel = self._channel_map[channel_names[0]]
+            channel = self._channel_data[channel_names[0]]
 
         Live2DPlot.__init__(
             self,
@@ -362,7 +496,6 @@ class AperturePlot(Live2DPlot, ApertureFigure):
             title=title, min_delta=min_delta,
             udfresult=udfresult
         )
-        ApertureFigure.__init__(self)
 
     @classmethod
     def new(
@@ -447,52 +580,9 @@ class AperturePlot(Live2DPlot, ApertureFigure):
     def displayed(self, val: ResultRow | float):
         self._displayed = val
 
-    def get_channel_select(
-        self,
-        selected: str | None = None,
-        label: str = 'Display channel',
-        update_title: bool = True,
-        embed: bool = True,
-        link: bool = True,
-    ) -> pn.widgets.Select:
-        if self._channel_select is not None:
-            return self._channel_select
-        elif self._channel_map is None:
-            raise RuntimeError('Cannot select channels if a channel map '
-                               'was not provided')
-        channel_names = list(self._channel_map.keys())
-        if selected is None:
-            selected = channel_names[0]
-        self.change_channel(selected, push_update=False)
-        display_text = pn.widgets.StaticText(
-            value=label,
-            align='center',
-            margin=(5, 5),
-        )
-        self._channel_select = pn.widgets.Select(
-            options=channel_names,
-            value=selected,
-            width=200,
-            margin=(5, 5),
-        )
-        if link:
-            self._channel_select.param.watch(
-                partial(self._switch_channel_cb, update_title=update_title),
-                'value',
-            )
-        if embed:
-            self._toolbar.insert(0, self._channel_select)
-            self._toolbar.insert(0, display_text)
-        else:
-            self._channel_select.name = label
-        return self._channel_select
-
-    def _switch_channel_cb(self, e, update_title=True):
-        return self.change_channel(e.new, update_title=update_title)
-
     def _change_channel_attrs(self, channel_name: str):
         try:
-            channel = self._channel_map[channel_name]
+            channel = self._channel_data[channel_name]
         except (TypeError, KeyError):
             raise RuntimeError('Invalid channel_map / channel_name')
 
