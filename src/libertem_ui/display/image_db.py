@@ -483,10 +483,12 @@ class BokehImageColor():
                                        code=self._clim_slider_value_js())
         self._cbar_slider.js_on_change('value', clim_value_callback)
 
+        autorange_btn = self.get_clip_outliers_btn(nstep=nstep)
         clim_freeze_callback = CustomJS(args={'cds': self.img.cds,
                                               'clim_slider': self._cbar_slider,
                                               'nstep': nstep,
-                                              'full_btn': self._full_scale_btn},
+                                              'full_btn': self._full_scale_btn,
+                                              'autorange_btn': autorange_btn},
                                         code=self._clim_freeze_toggle_js())
         self._cbar_freeze.js_on_change('active', clim_freeze_callback)
 
@@ -500,7 +502,9 @@ class BokehImageColor():
         self.img.cds.js_on_change('data', clim_update_callback)
 
         full_scale_callback = CustomJS(args={'clim_slider': self._cbar_slider,
+                                             'cds': self.img.cds,
                                              'freeze': self._cbar_freeze,
+                                             'nstep': nstep,
                                              'im_glyph': self.img.im},
                                        code=self._clim_full_scale_js())
         self._full_scale_btn.js_on_event("button_click", full_scale_callback)
@@ -617,11 +621,13 @@ log_mapper.high = high;
 if (cb_obj.active.length == 1){
     clim_slider.disabled = true
     full_btn.disabled = true
+    autorange_btn.disabled = true
     return
 }
 
 clim_slider.disabled = false
 full_btn.disabled = false
+autorange_btn.disabled = false
 
 var low = cds.data.val_low[0]
 var high = cds.data.val_high[0]
@@ -642,12 +648,14 @@ if (freeze.active.length == 1){
     return
 }
 
-var low = clim_slider.start
-var high = clim_slider.end
 
-// clim_slider.start = low
-// clim_slider.end = high
+const low = cds.data.val_low[0]
+const high = cds.data.val_high[0]
+
+clim_slider.start = low
+clim_slider.end = high
 clim_slider.value = [low, high];
+clim_slider.step = (high - low) / nstep;
 '''
 
     @property
@@ -777,3 +785,49 @@ clim_slider.value = [low, high];
                 # Need reference so we can change the mapper
                 # when switching from log to lin
                 self._colorbars.append(color_bar)
+
+    @property
+    def clip_outliers_btn(self):
+        try:
+            return self._clip_outliers_btn
+        except AttributeError:
+            return None
+
+    def get_clip_outliers_btn(self, nstep: int = 300) -> Button:
+        if self.clip_outliers_btn is not None:
+            return self.clip_outliers_btn
+
+        self._clip_outliers_btn = Button(label="Autorange", button_type="default")
+        autorange_callback = CustomJS(args={'clim_slider': self._cbar_slider,
+                                            'freeze': self._cbar_freeze,
+                                            'cds': self.img.cds,
+                                            'nstep': nstep},
+                                      code=self._clim_autorange_js())
+        self._clip_outliers_btn.js_on_event("button_click", autorange_callback)
+
+        return self.clip_outliers_btn
+
+    @staticmethod
+    def _clim_autorange_js():
+        return """
+if (freeze.active.length == 1){
+    return
+}
+
+const data = cds.data.image[0]
+const mean = data.reduce((acc, v) => acc + v, 0) / data.length
+const std = Math.sqrt(data.reduce((acc, v) => acc + (Math.abs(v - mean) ** 2), 0) / data.length)
+
+const data_low = cds.data.val_low[0]
+const data_high = cds.data.val_high[0]
+
+const low = Math.max(data_low, mean - std)
+const high = Math.min(data_high, mean + std)
+const bar_low = Math.max(data_low, mean - 2 * std)
+const bar_high = Math.min(data_high, mean + 2 * std)
+
+clim_slider.value = [low, high]
+clim_slider.start = bar_low
+clim_slider.end = bar_high
+clim_slider.step = (bar_high - bar_low) / nstep;
+"""
