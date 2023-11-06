@@ -12,7 +12,7 @@ from bokeh.models.annotations import ColorBar
 from .display_base import DisplayBase, PointSet
 from .gamma_mapper import GammaColorMapper
 from ..utils import colormaps as cmaps
-from bokeh.models.widgets import RangeSlider, CheckboxGroup, Button, Slider
+from bokeh.models.widgets import RangeSlider, CheckboxGroup, Button, Slider, Spinner
 from bokeh.models import CustomJS
 from bokeh.events import RangesUpdate
 
@@ -793,15 +793,35 @@ clim_slider.step = (high - low) / nstep;
         except AttributeError:
             return None
 
+    @property
+    def clip_outliers_sigma_spinner(self):
+        try:
+            return self._clip_outliers_sigma_spinner
+        except AttributeError:
+            return None
+
     def get_clip_outliers_btn(self, nstep: int = 300) -> Button:
         if self.clip_outliers_btn is not None:
             return self.clip_outliers_btn
 
-        self._clip_outliers_btn = Button(label="Autorange", button_type="default")
+        self._clip_outliers_btn = Button(
+            label="Autorange (n-sigma)",
+            button_type="default"
+        )
+        self._clip_outliers_sigma_spinner = Spinner(
+            value=2,
+            low=0.1,
+            high=8.,
+            step=1.,
+            mode='float',
+            syncable=False,
+            width=75,
+        )
         autorange_callback = CustomJS(args={'clim_slider': self._cbar_slider,
                                             'freeze': self._cbar_freeze,
                                             'cds': self.img.cds,
-                                            'nstep': nstep},
+                                            'nstep': nstep,
+                                            'nsigma': self._clip_outliers_sigma_spinner},
                                       code=self._clim_autorange_js())
         self._clip_outliers_btn.js_on_event("button_click", autorange_callback)
 
@@ -821,10 +841,12 @@ const std = Math.sqrt(data.reduce((acc, v) => acc + (Math.abs(v - mean) ** 2), 0
 const data_low = cds.data.val_low[0]
 const data_high = cds.data.val_high[0]
 
-const low = Math.max(data_low, mean - std)
-const high = Math.min(data_high, mean + std)
-const bar_low = Math.max(data_low, mean - 2 * std)
-const bar_high = Math.min(data_high, mean + 2 * std)
+const nsig = nsigma.value
+
+const low = Math.max(data_low, mean - nsig * std)
+const high = Math.min(data_high, mean + nsig * std)
+const bar_low = Math.max(data_low, mean - (nsig + 1) * std)
+const bar_high = Math.min(data_high, mean + (nsig + 1) * std)
 
 clim_slider.value = [low, high]
 clim_slider.start = bar_low
