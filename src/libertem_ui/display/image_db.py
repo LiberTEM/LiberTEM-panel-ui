@@ -843,8 +843,20 @@ if (freeze.active.length == 1){
 }
 
 const data = cds.data.image[0]
-const mean = data.reduce((acc, v) => acc + v, 0) / data.length
-const std = Math.sqrt(data.reduce((acc, v) => acc + (Math.abs(v - mean) ** 2), 0) / data.length)
+var non_nan = Math.max(data.length, 1)
+const mean = data.reduce((acc, v) => {
+    if (!Number.isNaN(v)) {
+        return acc + v
+    }
+    non_nan -= 1
+    return acc
+}, 0) / Math.max(non_nan, 1)
+var std = Math.sqrt(data.reduce((acc, v) => {
+    return Number.isNaN(v) ? acc : acc + (Math.abs(v - mean) ** 2)}
+, 0) / Math.max(non_nan, 1))
+if (std == 0.) {
+    std = 0.1
+}
 
 const data_low = cds.data.val_low[0]
 const data_high = cds.data.val_high[0]
