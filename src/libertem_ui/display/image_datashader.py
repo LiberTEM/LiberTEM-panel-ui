@@ -321,7 +321,10 @@ class DatashadeHelper:
     def axis_overlaps(obj_range, view_range):
         return (obj_range[0] <= view_range[1]) and (view_range[0] <= obj_range[1])
 
-    def update_view(self, event: RangesUpdate, force: bool = False, do_update: bool = True):
+    def update_view(
+        self, event: RangesUpdate, force: bool = False,
+        do_update: bool = True, with_clims: bool = False
+    ):
         """
         This is the main callback linked to the RangesUpdate event
 
@@ -433,6 +436,7 @@ class DatashadeHelper:
         new_data = {
             **new_cds_coords,
             **BokehImageCons._get_array(shaded),
+            'clim_update': [with_clims],
         }
         if do_update:
             self.im.raw_update(**new_data)
