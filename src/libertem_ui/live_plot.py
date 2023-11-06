@@ -153,16 +153,9 @@ class ApertureFigure:
         if isinstance(data, np.ndarray):
             if data.ndim == 2:
                 return data
-            elif data.ndim == 3:
-                self._channel_data = data
-                assert isinstance(dim, int), "3D data requires int channel dim"
-                self._channel_map = (dim % data.ndim,)
-                slices = tuple(
-                    slice(None) if i not in self._channel_map else 0
-                    for i in range(self._channel_data.ndim)
-                )
-                out_data = self._channel_data[slices]
-            elif data.ndim > 3:
+            elif data.ndim > 2:
+                if isinstance(dim, int):
+                    dim = (dim,)
                 try:
                     if not all(isinstance(i, int) for i in dim):
                         raise TypeError
@@ -172,7 +165,7 @@ class ApertureFigure:
                     num_nav = len(dim)
                 except TypeError:
                     raise TypeError(
-                        'Must supply sequence of int channel dims when data.ndim > 3'
+                        'Must supply sequence of int channel dims when data.ndim > 2'
                     )
                 if (data.ndim - num_nav) != 2 or (num_nav != len(set(dim))):
                     raise ValueError(
