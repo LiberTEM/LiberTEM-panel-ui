@@ -89,7 +89,7 @@ class ApertureFigure:
 
         self._channel_select: pn.widgets.Select | pn.widgets.IntSlider | None = None
         self._channel_data: np.ndarray | dict[str, np.ndarray] | Sequence[np.ndarray] = None
-        self._channel_map: Literal['SEQUENCE', 'DICT'] | int | None = None
+        self._channel_map: Literal['SEQUENCE', 'DICT'] | tuple[int, ...] | None = None
 
     def set_plot(
         self,
@@ -121,7 +121,7 @@ class ApertureFigure:
         mindim: int | None = 100,
         title: str = '',
         downsampling: bool = True,
-        channel_dimension: int = -1,
+        channel_dimension: int | tuple[int, ...] = -1,
     ):
         plot = cls()
         data = plot._setup_multichannel(data, dim=channel_dimension)
@@ -148,21 +148,47 @@ class ApertureFigure:
     def _setup_multichannel(
         self,
         data: np.ndarray | dict[str, np.ndarray] | Sequence[np.ndarray],
-        dim: int = -1,
+        dim: int | tuple[int, ...] = -1,
     ):
         if isinstance(data, np.ndarray):
             if data.ndim == 2:
                 return data
             elif data.ndim == 3:
                 self._channel_data = data
-                self._channel_map = (dim % data.ndim)
+                assert isinstance(dim, int), "3D data requires int channel dim"
+                self._channel_map = (dim % data.ndim,)
                 slices = tuple(
-                    slice(None) if i != self._channel_map else 0
+                    slice(None) if i not in self._channel_map else 0
+                    for i in range(self._channel_data.ndim)
+                )
+                out_data = self._channel_data[slices]
+            elif data.ndim > 3:
+                try:
+                    if not all(isinstance(i, int) for i in dim):
+                        raise TypeError
+                    # Note the dims are normalised and sorted here
+                    # Needed to ensure the slicing logic works later
+                    dim = tuple(sorted(d % data.ndim for d in dim))
+                    num_nav = len(dim)
+                except TypeError:
+                    raise TypeError(
+                        'Must supply sequence of int channel dims when data.ndim > 3'
+                    )
+                if (data.ndim - num_nav) != 2 or (num_nav != len(set(dim))):
+                    raise ValueError(
+                        f"Channel dim {dim} with data shape "
+                        f"{data.shape} does not yield 2D arrays"
+                    )
+                self._channel_map = dim
+                self._channel_data = data
+                slices = tuple(
+                    slice(None) if i not in self._channel_map else 0
                     for i in range(self._channel_data.ndim)
                 )
                 out_data = self._channel_data[slices]
             else:
-                raise ValueError(f"Unrecognized ndarray shape {data.shape}")
+                raise ValueError('No support for 0/1-D images')
+
         elif isinstance(data, dict):
             assert all(isinstance(k, str) for k in data.keys())
             assert all(isinstance(v, np.ndarray) and v.ndim == 2 for v in data.values())
@@ -405,11 +431,12 @@ action.callback.execute(action)
                 width=200,
                 margin=(5, 5),
             )
-        elif self._channel_map == 'SEQUENCE' or isinstance(self._channel_map, int):
+        elif self._channel_map == 'SEQUENCE' or isinstance(self._channel_map, tuple):
             if self._channel_map == 'SEQUENCE':
                 sequence_length = len(self._channel_data)
             else:
-                sequence_length = self._channel_data.shape[self._channel_map]
+                dims = tuple(self._channel_data.shape[i] for i in self._channel_map)
+                sequence_length = int(np.prod(dims))
             if selected is None:
                 selected = 0
             self._channel_select = pn.widgets.IntSlider(
@@ -456,12 +483,21 @@ action.callback.execute(action)
             data = self._channel_data[channel]
             title = f"Channel: {channel}"
         else:
+            # The following relies on having sorted, normalised, unique self._channel_map
+            partial_shape = tuple(
+                s for i, s in enumerate(self._channel_data.shape)
+                if i in self._channel_map
+            )
+            partial_slice = np.unravel_index(channel, partial_shape)
             slices = tuple(
-                slice(None) if i != self._channel_map else channel
+                slice(None)
+                if i not in self._channel_map
+                else partial_slice[self._channel_map.index(i)]
                 for i in range(self._channel_data.ndim)
             )
             data = self._channel_data[slices]
-            title = f"Channel: {channel}"
+            slice_as_str = ', '.join(':' if s == slice(None) else str(s) for s in slices)
+            title = f"Channel [{slice_as_str}]"
         self.im.update(data)
         if update_title:
             self.fig.title.text = title
