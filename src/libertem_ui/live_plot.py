@@ -238,16 +238,20 @@ class ApertureFigure:
         )
 
         self._floatpanel = pn.layout.FloatPanel(
-            close_btn,
-            self.im.color.get_cmap_select(),
+            pn.Row(
+                self.im.color.get_cmap_select(width=200),
+                pn.layout.HSpacer(width=50),
+                close_btn,
+            ),
+            self.im.color.get_cmap_invert(),
             self.im.color.get_cmap_slider(),
+            self.im.color._gamma_slider,
             self.im.color._cbar_freeze,
             pn.Row(
                 self.im.color._full_scale_btn,
                 self.im.color.clip_outliers_btn,
+                self.im.color.clip_outliers_sigma_spinner,
             ),
-            self.im.color._gamma_slider,
-            self.im.color.get_cmap_invert(),
             name=name,
             config={
                 "headerControls": {
