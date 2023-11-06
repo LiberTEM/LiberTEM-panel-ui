@@ -97,6 +97,7 @@ class BokehImageCons:
             **cls._get_minmax(minmax),
             'cbar_slider': [False],
             'cbar_centered': [False],
+            'clim_update': [True],  # when False this will disable clim updates in the jscallback
         }
 
     @staticmethod
@@ -253,6 +254,7 @@ class BokehImage(DisplayBase):
                     self._px_offset,
                 ),
             }
+        data['clim_update'] = [True]
         super().update(
             **data,
             **self.constructor._get_minmax(minmax),
@@ -571,6 +573,12 @@ if (low <= 0.  && high <= 0.) {
     @staticmethod
     def _clim_slider_update_image_js():
         return '''
+
+const clim_update = cb_obj.data.clim_update[0]
+if (!clim_update){
+    return
+}
+
 if (freeze.active.length == 1){
     return
 }
