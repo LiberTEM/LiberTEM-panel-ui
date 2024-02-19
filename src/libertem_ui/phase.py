@@ -22,7 +22,7 @@ def get_pos(
 
 
 def get_search_grid(
-    array_shape: Tuple[int, int],
+    array_shape: tuple[int, int],
     g1: complex,
     g2: complex,
     max_g1: int = -1,
@@ -187,7 +187,7 @@ class PhaseMap(NamedTuple):
     @classmethod
     def for_single_phase(
         cls,
-        nav_shape: Tuple[int, int],
+        nav_shape: tuple[int, int],
         phase: Phase,
         max_val: np.ndarray | None = None,
         max_pos: np.ndarray | None = None,
@@ -315,7 +315,7 @@ class PhaseMap(NamedTuple):
             return roi
         return None
 
-    def get_absolute_positions(self, frame_shape: Tuple[int, int], max_only: bool = True):
+    def get_absolute_positions(self, frame_shape: tuple[int, int], max_only: bool = True):
         if self.max_pos is None:
             raise RuntimeError('Phase map needs max_pos result to compute absolute centres')
         assert self.max_pos.shape[0] == len(self.phases), 'first dimension should be phases!'
