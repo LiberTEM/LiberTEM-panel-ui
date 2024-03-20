@@ -245,7 +245,7 @@ class ApertureFigure:
             ),
             self.im.color.get_cmap_invert(),
             self.im.color.get_cmap_slider(),
-            self.im.color._gamma_slider,
+            # self.im.color._gamma_slider,
             self.im.color._cbar_freeze,
             pn.Row(
                 self.im.color._full_scale_btn,

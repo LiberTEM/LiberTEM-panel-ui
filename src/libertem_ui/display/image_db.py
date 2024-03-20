@@ -10,9 +10,9 @@ from bokeh.models.sources import ColumnDataSource
 from bokeh.models.annotations import ColorBar
 
 from .display_base import DisplayBase, PointSet
-from .gamma_mapper import GammaColorMapper
+# from .gamma_mapper import GammaColorMapper
 from ..utils import colormaps as cmaps
-from bokeh.models.widgets import RangeSlider, CheckboxGroup, Button, Slider, Spinner
+from bokeh.models.widgets import RangeSlider, CheckboxGroup, Button, Spinner  # Slider
 from bokeh.models import CustomJS
 from bokeh.events import RangesUpdate
 
@@ -402,7 +402,7 @@ class BokehImageColor():
 
         low, high = self.img.current_minmax
         palette = cmaps.get_colormap('Greys')
-        self._lin_mapper: LinearColorMapper = GammaColorMapper(low=low, high=high)
+        self._lin_mapper: LinearColorMapper = LinearColorMapper(low=low, high=high)
         self._lin_mapper.palette = palette
         self._log_mapper: LogColorMapper = LogColorMapper(**self._log_norm_py(low, high))
         self._log_mapper.palette = palette
@@ -517,30 +517,30 @@ class BokehImageColor():
         )
         self._log_color_btn.param.watch(self._toggle_log_color, 'value')
 
-        self._gamma_slider = Slider(
-            title='Gamma',
-            start=-2.,
-            end=2.,
-            value=0.,
-            step=0.01,
-        )
-        self._gamma_slider.js_link('value_throttled', self._lin_mapper, 'gamma')
+        # self._gamma_slider = Slider(
+        #     title='Gamma',
+        #     start=-2.,
+        #     end=2.,
+        #     value=0.,
+        #     step=0.01,
+        # )
+        # self._gamma_slider.js_link('value_throttled', self._lin_mapper, 'gamma')
 
-        self._gamma_reset_btn = Button(
-            label="Reset gamma", button_type="default"
-        )
-        reset_gamma_callback = CustomJS(
-            args={
-                'gamma_slider': self._gamma_slider,
-                'lin_mapper': self._lin_mapper
-            },
-            code='''
-lin_mapper.gamma = 0.
-lin_mapper.change.emit()
-gamma_slider.value = 0.
-gamma_slider.change.emit()
-''')
-        self._gamma_reset_btn.js_on_event("button_click", reset_gamma_callback)
+        # self._gamma_reset_btn = Button(
+        #     label="Reset gamma", button_type="default"
+        # )
+#         reset_gamma_callback = CustomJS(
+#             args={
+#                 'gamma_slider': self._gamma_slider,
+#                 'lin_mapper': self._lin_mapper
+#             },
+#             code='''
+# lin_mapper.gamma = 0.
+# lin_mapper.change.emit()
+# gamma_slider.value = 0.
+# gamma_slider.change.emit()
+# ''')
+#         self._gamma_reset_btn.js_on_event("button_click", reset_gamma_callback)
         return self.cbar_slider
 
     def _toggle_log_color(self, e):
