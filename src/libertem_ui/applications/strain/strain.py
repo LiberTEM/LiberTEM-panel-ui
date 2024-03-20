@@ -227,7 +227,7 @@ class LatticeDefineWindow(StrainAppCompatMixin, PickUDFWindow, ui_type=WindowTyp
         self.toolbox.extend((
             pn.Row(
                 pn.widgets.StaticText(
-                    value='<b>Phase select:</b>',
+                    value='<b>Lattice select:</b>',
                     align='center',
                 ),
                 self._prev_btn,
@@ -242,7 +242,7 @@ class LatticeDefineWindow(StrainAppCompatMixin, PickUDFWindow, ui_type=WindowTyp
 
         self.link_image_plot('Sig', self.sig_plot, ('sig',))
         self._standard_layout(
-            right_after=(self._slider, self._is_amorph_cbox)
+            right_after=(self._slider,)
         )
         return self
 
@@ -738,6 +738,9 @@ class StrainAnalysisWindow(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
                 'mod_b': ('b', lambda buffer: np.abs(self._to_complex(buffer).squeeze())),
                 'angle_a': ('a', lambda buffer: np.angle(self._to_complex(buffer).squeeze())),
                 'angle_b': ('b', lambda buffer: np.angle(self._to_complex(buffer).squeeze())),
+                'zero_x': ('zero', lambda buffer: buffer.squeeze()[..., 1]),
+                'zero_y': ('zero', lambda buffer: buffer.squeeze()[..., 0]),
+                'error': ('error', lambda buffer: buffer.squeeze()),
             },
             title='Lattice vectors',
         )
@@ -814,7 +817,7 @@ class StrainAnalysisWindow(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
             pn.Column(
                 pn.Row(
                     pn.widgets.StaticText(
-                        value='Show phase + ref',
+                        value='Show ref',
                         align='center',
                         margin=(3, 3),
                     ),
@@ -920,7 +923,7 @@ class StrainAnalysisWindow(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
 
     def _update_phase_options(self, phase_map: PhaseMap):
         phase_entries = {
-            f'Phase {i}{" - " + p.label if p.label else ""}': i
+            f'Lattice {i}{" - " + p.label if p.label else ""}': i
             for i, p in enumerate(phase_map.phases)
         }
         self._show_phase_select_mapping: dict[str, int | None] = {
