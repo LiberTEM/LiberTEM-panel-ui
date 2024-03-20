@@ -1056,7 +1056,6 @@ class StrainAnalysisWindow(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
         g2f = g2f[..., 1] + g2f[..., 0] * 1j
         phase_map = job.params['phase_map']
         phase_map: PhaseMap
-        self.logger.info(phase_map)
         self.strain_app.new_fit(phase_map, g1f, g2f)
         self.st_component_select.param.trigger('value')
         self._update_phase_options(phase_map)
