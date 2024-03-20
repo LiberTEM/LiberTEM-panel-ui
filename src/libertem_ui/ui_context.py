@@ -160,7 +160,7 @@ class UIContext(UIContextBase):
         self._layout = pn.Column(
             self._button_row,
             self._tools.pbar,
-            self._logger.as_collapsible(),
+            self._logger.widget,
             self._windows_area,
             min_width=700,
         )
@@ -309,7 +309,7 @@ class UIContext(UIContextBase):
         window_id = self._unique_windows.get(name)
         return self._windows.get(window_id, None)
 
-    def _register_unique_window_names(self) -> TypedDict[str, WindowIdent | None]:
+    def _register_unique_window_names(self) -> dict[str, WindowIdent | None]:
         raise NotImplementedError
 
     def _remove_window(self, window: UIWindow):

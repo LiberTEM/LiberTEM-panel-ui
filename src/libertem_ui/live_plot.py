@@ -19,7 +19,7 @@ from .display.image_db import BokehImage
 from .display.display_base import Rectangles, DisplayBase, Polygons
 from .display.icons import options_icon, options_icon_blue
 
-pn.extension('floatpanel')
+# pn.extension('floatpanel')
 
 if TYPE_CHECKING:
     from .results.results_manager import ResultRow
