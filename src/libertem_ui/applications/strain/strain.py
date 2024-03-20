@@ -461,15 +461,14 @@ class LatticeFitterWindow(StrainAppMixin, PickUDFWindow, ui_type=STRAINAPP):
     def initialize(self, dataset: DataSet):
         super().initialize(dataset, with_layout=False)
 
-        # g1, c0, g2, r = get_initial_lattice(dataset.meta.shape.sig)
-        # self._lattice_set = LatticeOverlay.new().from_lattice_vectors(
-        #     c0, g1, g2, r
-        # ).with_labels(
-        #     'g0', 'g1', 'g2'
-        # ).on(
-        #     self.sig_plot.fig
-        # )
-        # self._lattice_set.clear()
+        g1, c0, g2, r = get_initial_lattice(dataset.meta.shape.sig)
+        self._lattice_set = LatticeOverlay.new().from_lattice_vectors(
+            c0, g1, g2, r
+        ).with_labels(
+            'z', 'a', 'b'
+        ).on(
+            self.sig_plot.fig
+        )
         # Could display the phase information under the toolbox
         self._template_dropdown = pn.widgets.Select(
             name="Template type",
@@ -691,30 +690,26 @@ target.disabled = !source.active
             # Case when no phases defined or no phase map
             self.sig_plot.push()
             return tuple()
-        # FIXME Should get this via job params!
-        ds_shape = job_results.run_row.ds_shape
-        if ds_shape is None:
-            raise RuntimeError('Need dataset shape to reconstruct phase map')
-        # phase_map = self.strain_app.get_phase_map(ds_shape)
-        # try:
-        #     cx, cy = job.params['cx'], job.params['cy']
-        #     phase_idx = phase_map.idx_map[cy, cx]
-        #     phase = self.strain_app.lattice_definer._saved_phases[phase_idx]
-            # ddict = self._lattice_set.cds.from_df(phase.df)
-            # ddict = {
-            #     k: v.tolist() for k, v in ddict.items()
-            #     if k in self._lattice_set.cds.data.keys()
-            # }
-            # self._lattice_set.cds.data.update(**ddict)
-        # except (ValueError, IndexError, TypeError, KeyError):
-            # Better to show nothing than have a crash
-            # self._lattice_set.clear()
         # Update points
         strain_results = job_results.udf_results[1]
         pos_fit = strain_results['refineds'].raw_data[0]
         self._fitted_points.update(
             x=pos_fit[:, 1], y=pos_fit[:, 0],
         )
+        try:
+            zero = strain_results['zero'].raw_data[0]
+            apos = zero + strain_results['a'].raw_data[0]
+            bpos = zero + strain_results['b'].raw_data[0]
+            radius = job.udfs[1].get_pattern().radius
+            ddict = {
+                'cx': [apos[1], zero[1], bpos[1]],
+                'cy': [apos[0], zero[0], bpos[0]],
+                'radius': [radius, radius, radius],
+            }
+            self._lattice_set.cds.data.update(**ddict)
+        except (ValueError, IndexError, TypeError, KeyError):
+            # Better to do nothing than have a crash
+            self.logger.error('Cannot update lattice display')
         self.sig_plot.push()
         return tuple()
 
