@@ -1,6 +1,6 @@
 from __future__ import annotations
 import warnings
-from typing import Tuple, NamedTuple
+from typing import NamedTuple
 from dataclasses import dataclass
 import numpy as np
 
@@ -77,6 +77,7 @@ def get_search_grid(
 class Phase:
     g1: complex
     g2: complex
+    radius: float
     ref_idx: int | None = None
     centre: complex | None = None
     label: str | None = None
