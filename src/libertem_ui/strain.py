@@ -30,7 +30,6 @@ from libertem_blobfinder.udf.refinement import (
 
 
 from .phase import Phase, PhaseMap, AmorphousPhase
-# from .udf import MultiPhaseAutoCorrUDF, FilterUDF, PhaseMapUDF
 
 if TYPE_CHECKING:
     import pandas as pd
