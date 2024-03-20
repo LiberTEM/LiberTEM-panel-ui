@@ -975,7 +975,7 @@ class StrainAnalysisWindow(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
 
         rectangles: Rectangles = self.strain_plot._mask_elements[0]
         phase_idx = self._show_phase_select_mapping[selected]
-        phase = phase_map.phases[phase_idx]
+        phase: Phase = phase_map.phases[phase_idx]
         if rectangles.data_length == 0:
             had_ref_region = phase.ref_region is not None
             phase.set_ref_region(None)
@@ -1163,6 +1163,7 @@ class StrainApplication:
 
     def recompute_from_fit(self):
         if self._fit is None:
+            self.strain_mapper.logger.info("Cannot recompute, no result")
             return
         phase_map, g1f, g2f = self._fit
         self._strain_aa = phase_map.compute_strain(
