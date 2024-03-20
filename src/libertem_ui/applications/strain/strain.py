@@ -4,16 +4,16 @@ from typing import TYPE_CHECKING, NamedTuple, Literal
 import numpy as np
 import panel as pn
 
-from .base import UIState, JobResults
-from .windows.base import (
+from ...base import UIState, JobResults
+from ...windows.base import (
     WindowType, UDFWindowJob, UIWindow,
     WindowProperties, WindowPropertiesTDict,
 )
-from .live_plot import AperturePlot
-from .windows.pick import PickUDFWindow
-from .display.display_base import PointSet, Rectangles
-from .display.lattice import LatticeOverlay
-from .utils.panel_components import button_divider
+from ...live_plot import AperturePlot
+from ...windows.pick import PickUDFWindow
+from ...display.display_base import PointSet, Rectangles
+from ...display.lattice import LatticeOverlay
+from ...utils.panel_components import button_divider
 
 from libertem.udf.sumsigudf import SumSigUDF
 from libertem.utils import frame_peaks
@@ -37,9 +37,9 @@ if TYPE_CHECKING:
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.common.shape import Shape
     from .strain_decomposition import StrainResult
-    from .utils import PointYX
-    from .results.results_manager import ResultRow
-    from .base import UIContextBase
+    from ...utils import PointYX
+    from ...results.results_manager import ResultRow
+    from ...base import UIContextBase
 
 
 # classes requiring the strain_app interface to load
