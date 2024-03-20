@@ -160,7 +160,7 @@ class UIContext(UIContextBase):
         self._layout = pn.Column(
             self._button_row,
             self._tools.pbar,
-            self._logger.widget,
+            self._logger.as_collapsible(collapsed=False),
             self._windows_area,
             min_width=700,
         )
