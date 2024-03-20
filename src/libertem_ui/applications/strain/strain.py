@@ -6,7 +6,7 @@ import panel as pn
 
 from ...base import UIState, JobResults
 from ...windows.base import (
-    WindowType, UDFWindowJob, UIWindow,
+    UDFWindowJob, UIWindow,
     WindowProperties, WindowPropertiesTDict,
 )
 from ...live_plot import AperturePlot
@@ -142,7 +142,7 @@ class StrainAppMixin:
         return self._window_data
 
 
-class LatticeDefineWindow(StrainAppCompatMixin, PickUDFWindow, ui_type=WindowType.STANDALONE):
+class LatticeDefineWindow(StrainAppCompatMixin, PickUDFWindow, ui_type=STRAINAPP):
     @classmethod
     def default_properties(cls):
         return super().default_properties().with_other(
