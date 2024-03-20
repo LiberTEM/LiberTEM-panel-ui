@@ -1061,6 +1061,8 @@ class StrainApplication:
 
     @classmethod
     def construct(self, ui_context: UIContextBase):
+        ui_context._tools.set_title("Strain Mapping")
+
         application = StrainApplication()
         window_props = WindowPropertiesTDict(
             header_remove=False,
