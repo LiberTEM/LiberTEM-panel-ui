@@ -160,7 +160,7 @@ class LatticeDefineWindow(StrainAppCompatMixin, PickUDFWindow, ui_type=WindowTyp
         self._lattice_set = LatticeOverlay.new().from_lattice_vectors(
             c0, g1, g2, r
         ).with_labels(
-            'g0', 'g1', 'g2'
+            'z', 'a', 'b'
         ).on(
             self.sig_plot.fig
         ).editable()
@@ -259,7 +259,7 @@ class LatticeDefineWindow(StrainAppCompatMixin, PickUDFWindow, ui_type=WindowTyp
             new_data = {
                 k: [v for v, label
                     in zip(old_data[k], old_data['label'])
-                    if 'g0' in label]
+                    if 'z' in label]
                 for k in old_data.keys()
             }
             self._lattice_set.raw_update(**new_data)
@@ -734,10 +734,10 @@ class StrainAnalysisWindow(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
             dataset,
             FakeRefineUDF(peaks=[0, 1]),
             channel={
-                'mod_g1': ('a', lambda buffer: np.abs(self._to_complex(buffer).squeeze())),
-                'mod_g2': ('b', lambda buffer: np.abs(self._to_complex(buffer).squeeze())),
-                'angle_g1': ('a', lambda buffer: np.angle(self._to_complex(buffer).squeeze())),
-                'angle_g2': ('b', lambda buffer: np.angle(self._to_complex(buffer).squeeze())),
+                'mod_a': ('a', lambda buffer: np.abs(self._to_complex(buffer).squeeze())),
+                'mod_b': ('b', lambda buffer: np.abs(self._to_complex(buffer).squeeze())),
+                'angle_a': ('a', lambda buffer: np.angle(self._to_complex(buffer).squeeze())),
+                'angle_b': ('b', lambda buffer: np.angle(self._to_complex(buffer).squeeze())),
             },
             title='Lattice vectors',
         )
@@ -769,10 +769,10 @@ class StrainAnalysisWindow(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
         )
         self.rot_slider.param.watch(self._rotate_strain, 'value_throttled')
         self.rot_options = {
-            '∥ (g1)': 'g1',
-            '∥ (g2)': 'g2',
-            '∥ (g1 + g2)': 'g1 + g2',
-            '∥ (g1 - g2)': 'g1 - g2',
+            '∥ a': 'a',
+            '∥ b': 'b',
+            '∥ a + b': 'a + b',
+            '∥ a - b': 'a - b',
             'Manual': 'Manual',
         }
         options = [*self.rot_options.keys()]
@@ -783,14 +783,6 @@ class StrainAnalysisWindow(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
             margin=(3, 3),
         )
         self.rotation_option_select.param.watch(self._rotate_strain, 'value')
-        self.rotation_phase_select = pn.widgets.Select(
-            name='g-ref phase',
-            margin=(3, 3),
-            value='None',
-            options=['None'],
-            width=150,
-        )
-        self.rotation_phase_select.param.watch(self._rotate_strain, 'value')
 
         self.show_phase_select = pn.widgets.Select(
             value='None',
@@ -839,7 +831,6 @@ class StrainAnalysisWindow(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
                     self.rotation_option_select,
                 ),
                 pn.Row(
-                    self.rotation_phase_select,
                     self.rot_slider,
                 ),
             ),
@@ -902,30 +893,27 @@ class StrainAnalysisWindow(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
     def _toggle_rotation_controls(self):
         is_manual = self.rotation_option_select.value == 'Manual'
         self.rot_slider.disabled = not is_manual
-        self.rotation_phase_select.disabled = is_manual
 
     def _get_current_rotation(self):
         option = self.rot_options[self.rotation_option_select.value]
         if option == 'Manual':
             return self.rot_slider.value
-        phase_idx = self._show_phase_select_mapping.get(
-            self.rotation_phase_select.value,
-            None,
-        )
-        if phase_idx is None:
-            return
         phase_map = self.strain_app.get_res_phasemap()
+        if phase_map is None or len(phase_map.phases) == 0:
+            return
+        else:
+            phase_idx = 0
         phase = phase_map.phases[phase_idx]
         # Here using the hand-defined g1/g2 not the
         # g1/g2 from the results (+ref_region)
         # this is possible just even more plumbing!!!
-        if option == 'g1':
+        if option == 'a':
             return phase.g1
-        elif option == 'g2':
+        elif option == 'b':
             return phase.g2
-        elif option == 'g1 + g2':
+        elif option == 'a + b':
             return phase.g1 + phase.g2
-        elif option == 'g1 - g2':
+        elif option == 'a - b':
             return phase.g1 - phase.g2
         else:
             raise KeyError(f'Option {option} not found.')
@@ -940,7 +928,6 @@ class StrainAnalysisWindow(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
             **phase_entries,
         }
         self.show_phase_select.options = [*self._show_phase_select_mapping.keys()]
-        self.rotation_phase_select.options = [*phase_entries.keys()]
 
     def _show_phase_ref(self, e):
         phase_map = self.strain_app.get_res_phasemap()
