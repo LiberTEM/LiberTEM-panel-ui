@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING, NamedTuple, Literal
 
 import numpy as np
 import panel as pn
@@ -15,8 +15,19 @@ from .display.display_base import PointSet, Rectangles
 from .display.lattice import LatticeOverlay
 from .utils.panel_components import button_divider
 
-from libertem.udf.raw import PickUDF
 from libertem.udf.sumsigudf import SumSigUDF
+from libertem.utils import frame_peaks
+import libertem.analysis.gridmatching as grm
+from libertem_blobfinder.common.patterns import (
+    MatchPattern, Circular, RadialGradient
+)
+from libertem_blobfinder.udf.correlation import (
+    FastCorrelationUDF, SparseCorrelationUDF, FullFrameCorrelationUDF
+)
+from libertem_blobfinder.udf.refinement import (
+    AffineMixin, FastmatchMixin
+)
+
 
 from .phase import Phase, PhaseMap, AmorphousPhase
 # from .udf import MultiPhaseAutoCorrUDF, FilterUDF, PhaseMapUDF
@@ -26,7 +37,6 @@ if TYPE_CHECKING:
     from libertem.api import DataSet
     from libertem_live.detectors.base.acquisition import AcquisitionProtocol
     from libertem.common.shape import Shape
-    from libertem.udf.base import UDFResultDict
     from .strain_decomposition import StrainResult
     from .utils import PointYX
     from .results.results_manager import ResultRow
@@ -87,13 +97,13 @@ class PhaseDef(NamedTuple):
         ny, nx = self.ref_yx
         (ref_idx,) = np.ravel_multi_index(([ny], [nx]), nav_shape)
         cls = AmorphousPhase if self.amorphous else Phase
-        return cls.from_shape_ref(
-            sig_shape,
+        return cls(
             g1=self.g1,
             g2=self.g2,
             centre=self.g0,
             ref_idx=ref_idx,
             label=self.label,
+            radius=self.radius,
         )
 
 
@@ -441,70 +451,220 @@ class LatticeDefineWindow(StrainAppCompatMixin, PickUDFWindow, ui_type=WindowTyp
         return results
 
 
-class FilterViewer(StrainAppCompatMixin, PickUDFWindow, ui_type=WindowType.STANDALONE):
-    pick_cls = FilterUDF
-
+class LatticeFitterWindow(StrainAppMixin, PickUDFWindow, ui_type=STRAINAPP):
     @classmethod
     def default_properties(cls):
         return super().default_properties().with_other(
-            name='filter_viewer',
-            title_md='Filter Viewer',
+            name='lattice_fitter',
+            title_md='Lattice Fitter',
         )
 
-    def initialize(
-        self,
-        dataset: DataSet,
-        with_layout: bool = True,
-    ):
+    def initialize(self, dataset: DataSet):
         super().initialize(dataset, with_layout=False)
 
-        channel_map = {
-            'Autocorrelation': 'autocorr',
-            'Filtered': 'filtered',
-            'Pick': 'intensity',
-        }
-        self.sig_plot._channel_map = channel_map
-        self._channel_select = self.sig_plot.get_channel_select(
-            selected='Pick',
-            update_title=False,
+        # g1, c0, g2, r = get_initial_lattice(dataset.meta.shape.sig)
+        # self._lattice_set = LatticeOverlay.new().from_lattice_vectors(
+        #     c0, g1, g2, r
+        # ).with_labels(
+        #     'g0', 'g1', 'g2'
+        # ).on(
+        #     self.sig_plot.fig
+        # )
+        # self._lattice_set.clear()
+        # Could display the phase information under the toolbox
+        self._template_dropdown = pn.widgets.Select(
+            name="Template type",
+            options=[
+                "Circular",
+                "Radial Gradient",
+            ],
+            value="Circular",
+            width=200,
         )
-        self._channel_select.param.watch(lambda _: self.reset_title(), 'value')
-
-        # Move this into toolbar ??
-        self.filter_choice = pn.widgets.Select(
-            name='Filter type',
-            value=5,
-            options=[3, 4, 5, 6],
+        self._template_radius_factor_entry = pn.widgets.FloatInput(
+            name="Radius factor",
+            value=1.,
+            step=0.1,
+            width=100,
         )
-        self.toolbox.append(self.filter_choice)
-        if with_layout:
-            self._standard_layout()
+        self._template_search_cbox = pn.widgets.Checkbox(
+            name="Custom search",
+            value=False,
+            align="center",
+        )
+        self._template_search_entry = pn.widgets.FloatInput(
+            value=2.0,
+            step=0.1,
+            disabled=True,
+            width=100,
+        )
+        disable_code = """
+target.disabled = !source.active
+"""
+        self._template_search_cbox.jslink(
+            self._template_search_entry,
+            code={'value': disable_code},
+        )
+        self._custom_grid_cbox = pn.widgets.Checkbox(
+            name="Custom grid",
+            value=False,
+            align="center",
+        )
+        self._max_grid_input_1 = pn.widgets.IntInput(
+            name="N1",
+            value=2,
+            start=1,
+            end=10,
+            step=1,
+            width=100,
+            disabled=True,
+        )
+        self._max_grid_input_2 = pn.widgets.IntInput(
+            name="N2",
+            value=2,
+            start=1,
+            end=10,
+            step=1,
+            width=100,
+            disabled=True,
+        )
+        self._custom_grid_cbox.jslink(
+            self._max_grid_input_1,
+            code={'value': disable_code},
+        )
+        self._custom_grid_cbox.jslink(
+            self._max_grid_input_2,
+            code={'value': disable_code},
+        )
 
-    def _pick_title(self, cyx: tuple[int, int] | None = None, suffix: str | None = None):
-        try:
-            stub = self._channel_select.value
-        except AttributeError:
-            stub = 'Pick'
-        return super()._pick_title(
-            cyx,
-            suffix=suffix,
-            title_stub=f'{stub} frame',
+        self._fitted_points = PointSet.new().empty().on(self.sig_plot.fig)
+        self._standard_layout(
+            left_after=(
+                pn.Row(
+                    self._template_dropdown,
+                    self._template_radius_factor_entry,
+                ),
+                pn.Row(
+                    self._template_search_cbox,
+                    self._template_search_entry,
+                ),
+                pn.Row(
+                    self._custom_grid_cbox,
+                    self._max_grid_input_1,
+                    self._max_grid_input_2,
+                )
+            )
+        )
+
+    @staticmethod
+    def _build_blobfinder(
+        dataset: DataSet,
+        zero,
+        a,
+        b,
+        match_pattern: MatchPattern,
+        correlation_method: Literal['fast', 'full', 'sparse'],
+        match_method: Literal['affine', 'fast'],
+        grid_max: tuple[int, int] = None,
+    ):
+        if grid_max is None:
+            n1, n2 = (10, 10)
+        else:
+            n1, n2 = grid_max
+        indices = np.mgrid[-n1: n1 + 1, -n2: n2 + 1]
+
+        (fy, fx) = tuple(dataset.shape.sig)
+
+        indices, peaks = frame_peaks(
+            fy=fy, fx=fx, zero=zero, a=a, b=b,
+            r=match_pattern.search, indices=indices
+        )
+        peaks = peaks.astype('int')
+
+        if correlation_method == 'fast':
+            method = FastCorrelationUDF
+        elif correlation_method == 'sparse':
+            method = SparseCorrelationUDF
+        elif correlation_method == 'fullframe':
+            method = FullFrameCorrelationUDF
+        else:
+            raise ValueError(
+                f"Unknown correlation method {correlation_method}. Supported are "
+                "fast' and 'sparse'"
+            )
+
+        if match_method == 'affine':
+            mixin = AffineMixin
+        elif match_method == 'fast':
+            mixin = FastmatchMixin
+        else:
+            raise ValueError(
+                f"Unknown match method {match_method}. Supported are 'fast' and 'affine'"
+            )
+
+        # The inheritance order matters: FIRST the mixin, which calls
+        # the super class methods.
+        class MyUDF(mixin, method):
+            pass
+
+        return MyUDF(
+            peaks=peaks,
+            indices=indices,
+            start_zero=zero,
+            start_a=a,
+            start_b=b,
+            match_pattern=match_pattern,
+            matcher=grm.Matcher(),
+            steps=5,
+            # zero_shift=zero_shift,
+        )
+
+    def _get_pattern(self, radius) -> MatchPattern:
+        pattern_type = self._template_dropdown.value
+        pattern_cls = {
+            'Circular': Circular,
+            'Radial Gradient': RadialGradient
+        }[pattern_type]
+        search = None
+        if self._template_search_cbox.value:
+            search = self._template_search_entry.value
+        return pattern_cls(
+            radius * self._template_radius_factor_entry.value,
+            search=search,
         )
 
     def _get_udfs(self, dataset: DataSet):
-        if self.filter_choice.value is None:
-            raise RuntimeError('Select box has None value for filter flag')
-        self._udf_pick = self.pick_cls(
-            **self.get_current_args(),
+        phase_map = self.strain_app.get_phase_map(dataset.shape)
+        if phase_map is None:
+            if self.strain_app.num_phases == 0:
+                self.logger.warning('Need at least one phase defined to fit lattice')
+            else:
+                self.logger.warning('Need to compute phase map before fitting lattice')
+            self._fitted_points.clear()
+            return []
+        elif all(isinstance(p, AmorphousPhase) for p in phase_map.phases):
+            self.logger.warning('Cannot fit amorphous-only lattice definitions')
+            self._fitted_points.clear()
+            return []
+        phase = phase_map.phases[0]
+        grid_max = None
+        if self._custom_grid_cbox.value:
+            grid_max = (
+                self._max_grid_input_1.value,
+                self._max_grid_input_2.value,
+            )
+        kwargs = dict(
+            dataset=dataset,
+            zero=np.asarray([phase.centre.imag, phase.centre.real]),
+            a=np.asarray([phase.g1.imag, phase.g1.real]),
+            b=np.asarray([phase.g2.imag, phase.g2.real]),
+            match_pattern=self._get_pattern(phase.radius),
+            correlation_method='fast',
+            match_method='affine',
+            grid_max=grid_max,
         )
-        self.sig_plot.udf = self._udf_pick
-        return [self._udf_pick]
-
-    def get_current_args(self):
-        return dict(
-            filter_flag=self.filter_choice.value,
-            opt=False,
-        )
+        lattice_udf = self._build_blobfinder(**kwargs)
+        return [lattice_udf]
 
     def _cds_pick_job(
         self,
@@ -519,74 +679,8 @@ class FilterViewer(StrainAppCompatMixin, PickUDFWindow, ui_type=WindowType.STAND
             dataset,
             roi,
             quiet=quiet,
-            with_udfs=udfs,
+            with_udfs=[self._udf_pick] + udfs,
         )
-
-
-class LatticeFitterWindow(StrainAppMixin, FilterViewer, ui_type=STRAINAPP):
-    @classmethod
-    def default_properties(cls):
-        return super().default_properties().with_other(
-            name='lattice_fitter',
-            title_md='Lattice Fitter',
-        )
-
-    def initialize(self, dataset: DataSet):
-        super().initialize(dataset, with_layout=False)
-
-        g1, c0, g2, r = get_initial_lattice(dataset.meta.shape.sig)
-        self._lattice_set = LatticeOverlay.new().from_lattice_vectors(
-            c0, g1, g2, r
-        ).with_labels(
-            'g0', 'g1', 'g2'
-        ).on(
-            self.sig_plot.fig
-        ).editable()
-        self._lattice_set.clear()
-        # Could display the phase information under the toolbox
-        self._annotation_visible_cbox = pn.widgets.Checkbox(
-            name='Show annotation',
-            value=False,
-            align='center',
-        )
-        self._autocorr_points = PointSet.new().empty().on(self.sig_plot.fig).set_visible(False)
-        self._channel_select.param.watch(self._toggle_annotation, 'value')
-        self._annotation_visible_cbox.param.watch(self._toggle_annotation, 'value')
-        self.sig_plot._toolbar.insert(2, self._annotation_visible_cbox)
-        self._toggle_annotation(None)
-        self._standard_layout()
-
-    def _toggle_annotation(self, e):
-        global_visible = self._annotation_visible_cbox.value
-        selected_channel = self._channel_select.value
-
-        self._autocorr_points.set_visible(
-            (selected_channel == 'Autocorrelation') and global_visible
-        )
-        lattice_vis = (selected_channel != 'Autocorrelation') and global_visible
-        self._lattice_set.set_visible(lattice_vis)
-
-    def _get_udfs(self, dataset: DataSet):
-        udfs = super()._get_udfs(dataset)
-        phase_map = self.strain_app.get_phase_map(dataset.shape)
-        if phase_map is None:
-            if self.strain_app.num_phases == 0:
-                self.logger.warning('Need at least one phase defined to fit lattice')
-            else:
-                self.logger.warning('Need to compute phase map before fitting lattice')
-            self._autocorr_points.clear()
-            self._lattice_set.clear()
-            return udfs
-        elif all(isinstance(p, AmorphousPhase) for p in phase_map.phases):
-            self.logger.warning('Cannot fit amorphous-only lattice definitions')
-            self._autocorr_points.clear()
-            return udfs
-        strain_udf = MultiPhaseAutoCorrUDF.from_phase_map(
-            phase_map,
-            return_pos=True,
-            **self.strain_app.get_filter_kwargs()
-        )
-        return udfs + [strain_udf]
 
     def _complete_cds_pick_job(
         self,
@@ -602,223 +696,31 @@ class LatticeFitterWindow(StrainAppMixin, FilterViewer, ui_type=STRAINAPP):
         ds_shape = job_results.run_row.ds_shape
         if ds_shape is None:
             raise RuntimeError('Need dataset shape to reconstruct phase map')
-        phase_map = self.strain_app.get_phase_map(ds_shape)
-        try:
-            cx, cy = job.params['cx'], job.params['cy']
-            phase_idx = phase_map.idx_map[cy, cx]
-            phase = self.strain_app.lattice_definer._saved_phases[phase_idx]
-            ddict = self._lattice_set.cds.from_df(phase.df)
-            ddict = {
-                k: v.tolist() for k, v in ddict.items()
-                if k in self._lattice_set.cds.data.keys()
-            }
-            self._lattice_set.cds.data.update(**ddict)
-        except (ValueError, IndexError, TypeError, KeyError):
+        # phase_map = self.strain_app.get_phase_map(ds_shape)
+        # try:
+        #     cx, cy = job.params['cx'], job.params['cy']
+        #     phase_idx = phase_map.idx_map[cy, cx]
+        #     phase = self.strain_app.lattice_definer._saved_phases[phase_idx]
+            # ddict = self._lattice_set.cds.from_df(phase.df)
+            # ddict = {
+            #     k: v.tolist() for k, v in ddict.items()
+            #     if k in self._lattice_set.cds.data.keys()
+            # }
+            # self._lattice_set.cds.data.update(**ddict)
+        # except (ValueError, IndexError, TypeError, KeyError):
             # Better to show nothing than have a crash
-            self._lattice_set.clear()
-        # Update autocorr points
+            # self._lattice_set.clear()
+        # Update points
         strain_results = job_results.udf_results[1]
-        pos_fit = strain_results['pos'].raw_data[0]
-        run_row = self.results_manager.get_run(job_results.run_row.run_id)
-        if run_row is not None:
-            sy, sx = run_row.params['shape']['sig']
-            pos_fit += ((sx / 2.) + (sy / 2.) * 1j)
-            py = pos_fit.imag.tolist()
-            px = pos_fit.real.tolist()
-            self._autocorr_points.update(
-                x=px, y=py,
-            )
+        pos_fit = strain_results['refineds'].raw_data[0]
+        self._fitted_points.update(
+            x=pos_fit[:, 1], y=pos_fit[:, 0],
+        )
         self.sig_plot.push()
         return tuple()
 
 
-class PhaseMapWindow(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
-    @staticmethod
-    def default_properties():
-        return WindowProperties(
-            name='phase_mapper',
-            title_md='Phase Mapper',
-            # In principle self_run_only implies header_activate=False
-            # but leave it as an option for unforseen cases
-            header_activate=False,
-            self_run_only=True,
-        )
-
-    def initialize(self, dataset: DataSet):
-        self._phase_idx_mapping: dict[str, int] = {}
-        self._display_select = pn.widgets.Select(
-            name='Display phase',
-            options=['Max'],
-            value='Max',
-            width=200,
-        )
-        self._display_select.param.watch(self._update_for_phase, 'value')
-
-        self.nav_plot = AperturePlot.new(
-            dataset,
-            PhaseMapUDF(ref_images=(None,)),
-            channel={
-                'index': ('max_val', self._get_index),
-                'corr_score': ('max_val', self._get_score),
-                'shift_magnitude': self._get_shift,
-            },
-            title='Phase Map',
-        )
-        self.nav_plot.add_mask_tools()
-        self._channel_select = self.nav_plot.get_channel_select(
-            selected='corr_score'
-        )
-        self.inner_layout.extend((
-            pn.Column(
-                self._display_select,
-                min_width=300,
-            ),
-            self.nav_plot.layout,
-        ))
-
-    def _update_for_phase(self, e):
-        self.nav_plot.change_channel(self._channel_select.value)
-
-    def _get_index(self, buffer: np.ndarray) -> np.ndarray:
-        selected = self._display_select.value
-        amax = np.argmax(buffer, axis=-1)
-        if selected == 'Max':
-            # This will give a zero index for NaN values
-            # i.e. for incomplete buffers!
-            return amax.astype(np.float32)
-        else:
-            phase_idx = self._phase_idx_mapping.get(selected, None)
-            if phase_idx is None:
-                return np.full(buffer.shape[:2], np.nan, dtype=np.float32)
-            return (amax == phase_idx).astype(np.float32)
-
-    def _get_score(self, buffer: np.ndarray) -> np.ndarray:
-        selected = self._display_select.value
-        if selected == 'Max':
-            # This gives np.nan for incomplete buffer positions
-            return np.max(buffer, axis=-1).astype(np.float32)
-        else:
-            phase_idx = self._phase_idx_mapping.get(selected, None)
-            if phase_idx is None:
-                return np.full(buffer.shape[:2], np.nan, dtype=np.float32)
-            return buffer[..., phase_idx].astype(np.float32)
-
-    def _get_shift(self, udf_results: UDFResultDict, damage: np.ndarray | bool) -> np.ndarray:
-        selected = self._display_select.value
-        max_val = udf_results['max_val'].data
-        max_shift = udf_results['max_shift'].data
-        shift_mag = np.abs(max_shift)
-        if selected == 'Max':
-            # Same zero index for NaN as above
-            amax = np.argmax(max_val, axis=-1)
-            max_shifts = np.take_along_axis(shift_mag, amax[..., np.newaxis], -1).squeeze(axis=-1)
-            return (
-                np.abs(max_shifts).astype(np.float32),
-                damage
-            )
-        else:
-            phase_idx = self._phase_idx_mapping.get(selected, None)
-            if phase_idx is None:
-                return np.full(shift_mag.shape[:2], np.nan, dtype=np.float32), damage
-            return shift_mag[..., phase_idx].astype(np.float32), damage
-
-    def _get_frame_job(
-        self,
-        state: UIState,
-        dataset: DataSet | AcquisitionProtocol,
-        roi: np.ndarray | None,
-    ):
-        if self.strain_app.num_phases == 0:
-            self.logger.info('Need at least one phase defined before mapping')
-            return None
-
-        udf_phases = self.strain_app.get_phases_for_run(dataset.shape)
-        roi = np.zeros(dataset.shape.nav, dtype=bool)
-        for p in udf_phases:
-            roi.flat[p.ref_idx] = True
-        order = np.argsort([p.ref_idx for p in udf_phases])
-
-        return UDFWindowJob(
-            self,
-            [PickUDF()],
-            [],
-            self._complete_get_frame_job,
-            params={'order': order, 'phases': udf_phases},
-            roi=roi,
-        )
-
-    def _complete_get_frame_job(
-        self,
-        job: UDFWindowJob,
-        job_results: JobResults,
-    ) -> tuple[ResultRow, ...]:
-        pick_res = job_results.udf_results[0]['intensity'].data
-        pick_res = pick_res[job.params['order'], ...]
-        self._phase_refs = (np.conjugate(np.fft.fft2(pick_res)), job.params['phases'])
-        return tuple()
-
-    def _get_map_job(
-        self,
-        state: UIState,
-        dataset: DataSet | AcquisitionProtocol,
-        roi: np.ndarray | None,
-    ):
-        if self._phase_refs is None:
-            self.logger.error('Phase map job launched without phase references, stopping')
-            return None
-        self._phase_refs: tuple[np.ndarray, list[Phase]]
-        phase_refs, phases = self._phase_refs
-        self._phase_idx_mapping: dict[str, int] = {
-            f'Phase {i}: {p.label}': i for i, p in enumerate(phases)
-        }
-        self._display_select.param.update(
-            options=['Max', *self._phase_idx_mapping.keys()],
-            value='Max',
-        )
-        udf = PhaseMapUDF(
-            ref_images=phase_refs,
-            phase_centres=np.asarray([p.centre for p in phases]),
-        )
-        self.nav_plot.udf = udf
-        return UDFWindowJob(
-            self,
-            [udf],
-            [self.nav_plot],
-            params={'phases': phases},
-            result_handler=self._complete_get_map_job,
-            roi=self.nav_plot.get_mask(dataset.shape.nav),
-        )
-
-    def _complete_get_map_job(
-        self,
-        job: UDFWindowJob,
-        job_results: JobResults,
-    ) -> tuple[ResultRow, ...]:
-        try:
-            phase_map = PhaseMap(
-                job_results.udf_results[0]['max_val'].data.argmax(axis=-1),
-                job.params['phases'],
-                max_val=job_results.udf_results[0]['max_val'].data,
-                max_pos=job_results.udf_results[0]['max_pos'].data,
-            )
-            self.strain_app.new_phase_map(phase_map)
-        except Exception as e:
-            self.logger.log_from_exception(e)
-        return tuple()
-
-    async def run_from_btn(self, *e):
-        self._header_ns._run_btn.disabled = True
-        self._phase_refs = None
-        try:
-            await self.run_this(run_from=self._get_frame_job)
-            if self._phase_refs is not None:
-                await self.run_this(run_from=self._get_map_job)
-        finally:
-            self._header_ns._run_btn.disabled = False
-            self._phase_refs = None
-
-
-class StrainAnalysis(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
+class StrainAnalysisWindow(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
     @staticmethod
     def default_properties():
         return WindowProperties(
@@ -826,15 +728,22 @@ class StrainAnalysis(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
             title_md='Strain Analysis',
         )
 
+    @staticmethod
+    def _to_complex(array):
+        return array[..., 0] * 1j + array[..., 1]
+
     def initialize(self, dataset: DataSet):
+        class FakeRefineUDF(FastmatchMixin, SumSigUDF):
+            ...
+
         self.live_plot = AperturePlot.new(
             dataset,
-            MultiPhaseAutoCorrUDF(),
+            FakeRefineUDF(peaks=[0, 1]),
             channel={
-                'mod_g1': ('g1', lambda buffer: np.abs(buffer.squeeze())),
-                'mod_g2': ('g2', lambda buffer: np.abs(buffer.squeeze())),
-                'angle_g1': ('g1', lambda buffer: np.angle(buffer.squeeze())),
-                'angle_g2': ('g2', lambda buffer: np.angle(buffer.squeeze())),
+                'mod_g1': ('a', lambda buffer: np.abs(self._to_complex(buffer).squeeze())),
+                'mod_g2': ('b', lambda buffer: np.abs(self._to_complex(buffer).squeeze())),
+                'angle_g1': ('a', lambda buffer: np.angle(self._to_complex(buffer).squeeze())),
+                'angle_g2': ('b', lambda buffer: np.angle(self._to_complex(buffer).squeeze())),
             },
             title='Lattice vectors',
         )
@@ -949,14 +858,17 @@ class StrainAnalysis(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
             assert isinstance(e, str)
             component = e
         array = self._get_strain_comp(component, self.rot_slider.value)
+        if array is None:
+            return
         self.strain_plot.im.update(array)
         self.strain_plot.fig.title.text = component
         self.strain_plot.push()
 
     def _get_strain_comp(self, component: str, rotation: float | complex) -> np.ndarray | None:
         if (strain_aa := self.strain_app.get_strain_aa()) is None:
+            self.logger.info('No strain data to get')
             return
-        if isinstance(rotation, float):
+        if isinstance(rotation, (np.floating, float, int)):
             strain_rot = strain_aa.rotate_deg(rotation)
         else:
             strain_rot = strain_aa.to_vector(rotation)
@@ -988,6 +900,8 @@ class StrainAnalysis(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
             assert isinstance(e, (np.floating, float, int))
             rotation = e
         array = self._get_strain_comp(self.st_component_select.value, rotation)
+        if array is None:
+            return
         self.strain_plot.im.update(array)
         self.strain_plot.push()
 
@@ -1122,15 +1036,14 @@ class StrainAnalysis(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
             self.logger.info('Need to run phase identification before strain analysis')
             return None
 
-        strain_udf = MultiPhaseAutoCorrUDF.from_phase_map(
-            phase_map,
-            **self.strain_app.get_filter_kwargs(),
-            return_pos=False,
-        )
-        self.live_plot.udf = strain_udf
+        strain_udf_list = self.strain_app.fitter._get_udfs(dataset)
+        if len(strain_udf_list) == 0:
+            self.logger.info("Nothing to run")
+            return
+        self.live_plot.udf = strain_udf_list[0]
         return UDFWindowJob(
             self,
-            [strain_udf],
+            strain_udf_list,
             [self.live_plot],
             result_handler=self.complete_job,
             params={'phase_map': phase_map},
@@ -1143,10 +1056,13 @@ class StrainAnalysis(StrainAppMixin, UIWindow, ui_type=STRAINAPP):
         job_results: JobResults,
     ) -> tuple[ResultRow, ...]:
         buffers = job_results.udf_results[0]
-        g1f = buffers['g1'].data
-        g2f = buffers['g2'].data
+        g1f = buffers['a'].data
+        g2f = buffers['b'].data
+        g1f = g1f[..., 1] + g1f[..., 0] * 1j
+        g2f = g2f[..., 1] + g2f[..., 0] * 1j
         phase_map = job.params['phase_map']
         phase_map: PhaseMap
+        self.logger.info(phase_map)
         self.strain_app.new_fit(phase_map, g1f, g2f)
         self.st_component_select.param.trigger('value')
         self._update_phase_options(phase_map)
@@ -1182,24 +1098,16 @@ class StrainApplication:
             window_props=window_props,
             window_data=application,
         )
-        application.phase_mapper = ui_context._add(
-            PhaseMapWindow,
-            window_props=WindowPropertiesTDict(
-                **window_props,
-                **collapsed_props,
-            ),
-            window_data=application,
-        )
         application.fitter = ui_context._add(
             LatticeFitterWindow,
             window_props=WindowPropertiesTDict(
                 **window_props,
-                **collapsed_props,
+                # **collapsed_props,
             ),
             window_data=application,
         )
         application.strain_mapper = ui_context._add(
-            StrainAnalysis,
+            StrainAnalysisWindow,
             window_props=window_props,
             window_data=application,
         )
@@ -1214,14 +1122,6 @@ class StrainApplication:
         self._lattice_window = window
 
     @property
-    def phase_mapper(self) -> PhaseMapWindow:
-        return self._phase_mapper_window
-
-    @phase_mapper.setter
-    def phase_mapper(self, window: PhaseMapWindow):
-        self._phase_mapper_window = window
-
-    @property
     def fitter(self) -> LatticeFitterWindow:
         return self._fitter_window
 
@@ -1230,11 +1130,11 @@ class StrainApplication:
         self._fitter_window = window
 
     @property
-    def strain_mapper(self) -> StrainAnalysis:
+    def strain_mapper(self) -> StrainAnalysisWindow:
         return self._strain_mapper_window
 
     @strain_mapper.setter
-    def strain_mapper(self, window: StrainAnalysis):
+    def strain_mapper(self, window: StrainAnalysisWindow):
         self._strain_mapper_window = window
 
     @property
