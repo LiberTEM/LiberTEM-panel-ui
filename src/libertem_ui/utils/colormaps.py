@@ -43,8 +43,9 @@ def _default_colormaps():
 
 
 @functools.lru_cache(10)
-def get_colormap(name, inverted=False):
-    cmap = _default_colormaps()[name]
+def get_colormap(name: str, inverted: bool = False):
+    cmaps_lower = {k.lower(): v for k, v in _default_colormaps().items()}
+    cmap = cmaps_lower[name.lower()]
     if inverted:
         cmap = [*reversed(cmap)]
     return cmap
