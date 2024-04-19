@@ -12,11 +12,11 @@ from libertem_ui.display.display_base import DiskSet, Rectangles
 from libertem_ui.windows.base import UIWindow, WindowType, WindowProperties
 
 from libertem_holo.base.reconstr import (
-    reconstruct_frame,
     get_slice_fft,
     estimate_sideband_size,
     estimate_sideband_position,
 )
+from libertem_holo.base.filters import phase_unwrap
 from libertem_holo.base.mask import disk_aperture
 
 
@@ -87,7 +87,7 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
         # stored as shifted, real
         data_fft = np.fft.fft2(
             self._data,
-        ).real
+        ).real / np.prod(sig_shape)
         data_fft[:, 0, 0] = np.nan  # for display
         self._data_fft = np.fft.fftshift(
             data_fft
@@ -160,6 +160,12 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
             value="Upper",
         )
         self._estimate_sb_button.on_click(self._estimate_sb)
+
+        self._unwrap_button = pn.widgets.Button(
+            name="Unwrap",
+            disabled=self._result_view_option.value != OutputStates.RECON,
+        )
+        self._unwrap_button.on_click(self._unwrap_output)
 
         self._aperture_type_choice = pn.widgets.Select(
             options=[
@@ -271,6 +277,7 @@ cds.change.emit();
         self._stack_fig._toolbar.insert(0, self._stack_view_option)
         self._output_fig._toolbar.insert(0, self._result_view_option)
         self._output_fig._toolbar.insert(1, self._recon_view_option)
+        self._output_fig._toolbar.insert(2, self._unwrap_button)
 
         self._disk_radius_slider.width = 200
         self._window_size_slider.width = 200
@@ -425,23 +432,17 @@ cds.change.emit();
         aperture = self._get_aperture()
         slice_fft = get_slice_fft(aperture.shape, fft.shape)
         rolled = np.roll(fft, (-y, -x), axis=(0, 1))
-        return np.fft.fftshift(rolled)[slice_fft] * np.fft.fftshift(aperture)
+        return np.fft.fftshift(np.fft.fftshift(rolled)[slice_fft]) * aperture
 
     def _update_crop(self, *e):
         crop = self._get_crop()
-        self._output_fig.im.update(crop)
+        self._output_fig.im.update(
+            np.fft.fftshift(crop)
+        )
 
     def _get_recon(self):
-        frame = self._current_frame()
-        y, x, _ = map(int, map(np.round, self._disk_info()))
-        aperture = self._get_aperture()
-        slice_fft = get_slice_fft(aperture.shape, frame.shape)
-        return reconstruct_frame(
-            frame,
-            (y, x),
-            aperture,
-            slice_fft,
-        )
+        crop = self._get_crop()
+        return np.fft.ifft2(crop) * np.prod(self._current_frame().shape)
 
     def _update_recon(self, *e):
         wave = self._get_recon()
@@ -454,6 +455,7 @@ cds.change.emit();
     def _update_output(self, *e):
         state = self._result_view_option.value
         self._recon_view_option.disabled = (state != OutputStates.RECON)
+        self._unwrap_button.disabled = (state != OutputStates.RECON)
 
         title = state
         if state == OutputStates.APERTURE:
@@ -469,3 +471,15 @@ cds.change.emit();
 
     def _update_output_bk(self, attr, old, new):
         self._update_output()
+
+    def _unwrap_output(self, *e):
+        if (
+            self._result_view_option.value != OutputStates.RECON
+            or self._recon_view_option.value != WaveViewStates.PHASE
+        ):
+            return
+        data = self._output_fig.im.array
+        self._output_fig.im.update(
+            phase_unwrap(data)
+        )
+        self._output_fig.push()
