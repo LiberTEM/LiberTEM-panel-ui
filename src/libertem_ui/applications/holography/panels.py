@@ -59,6 +59,8 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
         return WindowProperties(
             'aperture_builder',
             'Aperture Builder',
+            header_run=False,
+            header_stop=False,
             self_run_only=True,
             header_activate=False,
         )
@@ -81,8 +83,19 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
 
     def initialize(self, dataset: 'MemoryDataSet', state: Optional[ApertureConfig] = None) -> Self:
         sig_shape = dataset.meta.shape.sig
+        self._data = dataset.data
+        # stored as shifted, real
+        data_fft = np.fft.fft2(
+            self._data,
+        ).real
+        data_fft[:, 0, 0] = np.nan  # for display
+        self._data_fft = np.fft.fftshift(
+            data_fft
+        )
+
         if state is None:
             state = self.default_state()
+
         self._stack_view_option = pn.widgets.RadioButtonGroup(
             name="View mode",
             options=[
@@ -162,16 +175,6 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
             end=16,
             width=100,
             disabled=self._aperture_type_choice.value != ApertureTypes.BUT,
-        )
-
-        self._data = dataset.data
-        # stored as shifted, real
-        data_fft = np.fft.fft2(
-            self._data,
-        ).real
-        data_fft[:, 0, 0] = np.nan  # for display
-        self._data_fft = np.fft.fftshift(
-            data_fft
         )
 
         self._stack_fig = ApertureFigure.new(
@@ -415,10 +418,13 @@ cds.change.emit();
 
     def _get_crop(self):
         fft = self._current_fft_data()
-        y, x, _ = map(int, map(np.round, self._disk_info()))
+        y, x, _ = map(int, np.round(self._disk_info()))
+        h, w = fft.shape
+        y -= h
+        x -= w
         aperture = self._get_aperture()
         slice_fft = get_slice_fft(aperture.shape, fft.shape)
-        rolled = np.roll(fft, (y, x), axis=(0, 1))
+        rolled = np.roll(fft, (-y, -x), axis=(0, 1))
         return np.fft.fftshift(rolled)[slice_fft] * np.fft.fftshift(aperture)
 
     def _update_crop(self, *e):
