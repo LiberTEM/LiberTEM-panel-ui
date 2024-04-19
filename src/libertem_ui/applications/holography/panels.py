@@ -1,4 +1,4 @@
-from typing import Self, TYPE_CHECKING
+from typing import Self, TYPE_CHECKING, NamedTuple, Optional
 
 import numpy as np
 import panel as pn
@@ -39,6 +39,12 @@ class WaveViewStates(StrEnum):
     PHASE = "Phase"
 
 
+class ApertureConfig(NamedTuple):
+    sb_pos: tuple[float, float]
+    radius: float
+    window_size: tuple[int, int]
+
+
 class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
     @staticmethod
     def default_properties():
@@ -49,7 +55,25 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
             header_activate=False,
         )
 
-    def initialize(self, dataset: 'MemoryDataSet') -> Self:
+    def default_state(self):
+        return ApertureConfig(
+            sb_pos=(32, 32),
+            radius=4,
+            window_size=(16, 16),
+        )
+
+    @property
+    def state(self):
+        cy, cx, radius = self._disk_info()
+        return ApertureConfig(
+            sb_pos=(cy, cx),
+            radius=radius,
+            window_size=self._recon_shape(),
+        )
+
+    def initialize(self, dataset: 'MemoryDataSet', state: Optional[ApertureConfig] = None) -> Self:
+        if state is None:
+            state = self.default_state()
         self._stack_view_option = pn.widgets.RadioButtonGroup(
             name="View mode",
             options=[
@@ -88,7 +112,7 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
         )
         self._window_size_slider = pn.widgets.IntSlider(
             name="Window Size",
-            value=16,
+            value=min(state.window_size),
             start=2,
             end=64,
             step=2,
@@ -133,7 +157,11 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
         self._disk_annot = (
             DiskSet
             .new()
-            .from_vectors([32], [32], 4)
+            .from_vectors(
+                x=[state.sb_pos[1]],
+                y=[state.sb_pos[0]],
+                radius=state.radius
+            )
             .on(self._stack_fig.fig)
             .editable(add=False)
             .set_visible(self._stack_view_option.value == ViewStates.FFT)
@@ -144,7 +172,7 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
             label="Aperture Radius"
         )
 
-        self._disk_annot.cds.add([16], name="window_size")
+        self._disk_annot.cds.add([self._window_size_slider.value], name="window_size")
         self._box_annot = (
             Rectangles(
                 self._disk_annot.cds,
