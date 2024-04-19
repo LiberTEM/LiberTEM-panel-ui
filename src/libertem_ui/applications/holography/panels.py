@@ -29,6 +29,11 @@ class OutputStates(StrEnum):
     RECON = "Reconstruction"
 
 
+class WaveViewStates(StrEnum):
+    AMP = "Amplitude"
+    PHASE = "Phase"
+
+
 class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
     @staticmethod
     def default_properties():
@@ -65,10 +70,10 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
         )
         self._recon_view_option = pn.widgets.RadioButtonGroup(
             options=[
-                "Amplitude",
-                "Phase",
+                WaveViewStates.AMP,
+                WaveViewStates.PHASE,
             ],
-            value="Phase",
+            value=WaveViewStates.PHASE,
             button_type="default",
             disabled=self._result_view_option.value != OutputStates.RECON,
         )
@@ -237,7 +242,9 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
     def _update_recon(self, *e):
         wave = self._get_recon()
         self._output_fig.im.update(
-            np.angle(wave) if self._recon_view_option.value == "Phase" else np.abs(wave)
+            np.angle(wave)
+            if self._recon_view_option.value == WaveViewStates.PHASE
+            else np.abs(wave)
         )
 
     def _update_output(self, *e):
