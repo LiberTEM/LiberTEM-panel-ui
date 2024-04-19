@@ -3,6 +3,7 @@ from typing import Self, TYPE_CHECKING, NamedTuple, Optional
 import numpy as np
 import panel as pn
 from strenum import StrEnum
+from skimage.filters._fft_based import _get_nd_butterworth_filter
 
 from libertem_ui.ui_context import UIContext  # noqa
 from libertem_ui.live_plot import ApertureFigure
@@ -39,10 +40,17 @@ class WaveViewStates(StrEnum):
     PHASE = "Phase"
 
 
+class ApertureTypes(StrEnum):
+    BUT = "Butterworth"
+    HARD = "Hard"
+
+
 class ApertureConfig(NamedTuple):
     sb_pos: tuple[float, float]
     radius: float
     window_size: tuple[int, int]
+    ap_type: ApertureTypes = ApertureTypes.BUT
+    ap_but_order: int = 4
 
 
 class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
@@ -140,6 +148,22 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
         )
         self._estimate_sb_button.on_click(self._estimate_sb)
 
+        self._aperture_type_choice = pn.widgets.Select(
+            options=[
+                ApertureTypes.BUT,
+                ApertureTypes.HARD,
+            ],
+            value=state.ap_type,
+            width=150,
+        )
+        self._aperture_but_order_int = pn.widgets.IntInput(
+            value=state.ap_but_order,
+            start=1,
+            end=16,
+            width=100,
+            disabled=self._aperture_type_choice.value != ApertureTypes.BUT,
+        )
+
         self._data = dataset.data
         # stored as shifted, real
         data_fft = np.fft.fft2(
@@ -235,6 +259,9 @@ cds.change.emit();
         self._disk_annot.cds.on_change('data', self._update_output_bk)
         self._disk_radius_slider.param.watch(self._update_output, 'value_throttled')
         self._stack_fig._channel_select.param.watch(self._update_output, 'value_throttled')
+        self._aperture_type_choice.param.watch(self._update_output, 'value')
+        self._aperture_but_order_int.param.watch(self._update_output, 'value')
+        self._aperture_type_choice.param.watch(self._update_aperture_type, 'value')
         # self._line_annot.cds.on_change('data', _update_output)
         self._update_output()
 
@@ -245,6 +272,10 @@ cds.change.emit();
         self._disk_radius_slider.width = 200
         self._window_size_slider.width = 200
 
+        label_kwargs = dict(
+            align="center",
+            margin=(5, 5),
+        )
         self.inner_layout.extend((
             pn.Column(
                 self._stack_fig.layout,
@@ -255,7 +286,7 @@ cds.change.emit();
                 pn.Row(
                     self._estimate_sb_button,
                     self._estimate_sb_choice,
-                    pn.widgets.StaticText(value="Sampling"),
+                    pn.widgets.StaticText(value="Sampling", **label_kwargs),
                     self._sampling_val,
                 ),
                 pn.Row(
@@ -265,6 +296,12 @@ cds.change.emit();
             ),
             pn.Column(
                 self._output_fig.layout,
+                pn.Row(
+                    pn.widgets.StaticText(value="Aperture type:", **label_kwargs),
+                    self._aperture_type_choice,
+                    pn.widgets.StaticText(value="Order", **label_kwargs),
+                    self._aperture_but_order_int,
+                ),
             )
         ))
 
@@ -273,6 +310,10 @@ cds.change.emit();
     def _update_window_size(self, e):
         self._box_annot.update(width=e.new, height=e.new)
         self._update_output()
+
+    def _update_aperture_type(self, e):
+        is_but = e.new == ApertureTypes.BUT
+        self._aperture_but_order_int.disabled = not is_but
 
     def _estimate_sb(self, *e):
         im = self._current_frame()
@@ -338,14 +379,33 @@ cds.change.emit();
         size = int(np.round(self._box_annot.cds.data["window_size"]))
         return (size, size)
 
+    def _aperture_type(self):
+        return self._aperture_type_choice.value
+
+    def _aperture_but_order(self):
+        return self._aperture_but_order_int.value
+
     def _get_aperture(self):
         # as fft-shifted
-        recon_shape = self._recon_shape()
         _, _, radius = self._disk_info()
-        return disk_aperture(
-            recon_shape,
-            int(np.round(radius)),
-        )
+        radius = int(np.round(radius))
+        recon_shape = self._recon_shape()
+        if self._aperture_type() == ApertureTypes.BUT:
+            aperture = _get_nd_butterworth_filter(
+                shape=recon_shape,
+                factor=radius / min(recon_shape),
+                order=self._aperture_but_order(),
+                high_pass=False,
+                real=False,
+                dtype=np.float32,
+                squared_butterworth=True,
+            )
+        else:
+            aperture = disk_aperture(
+                recon_shape,
+                radius,
+            )
+        return aperture
 
     def _update_aperture(self):
         aperture = self._get_aperture()
@@ -358,7 +418,6 @@ cds.change.emit();
         y, x, _ = map(int, map(np.round, self._disk_info()))
         aperture = self._get_aperture()
         slice_fft = get_slice_fft(aperture.shape, fft.shape)
-
         rolled = np.roll(fft, (y, x), axis=(0, 1))
         return np.fft.fftshift(rolled)[slice_fft] * np.fft.fftshift(aperture)
 
