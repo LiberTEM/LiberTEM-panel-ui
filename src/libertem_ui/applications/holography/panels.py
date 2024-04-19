@@ -72,6 +72,7 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
         )
 
     def initialize(self, dataset: 'MemoryDataSet', state: Optional[ApertureConfig] = None) -> Self:
+        sig_shape = dataset.meta.shape.sig
         if state is None:
             state = self.default_state()
         self._stack_view_option = pn.widgets.RadioButtonGroup(
@@ -114,7 +115,7 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
             name="Window Size",
             value=min(state.window_size),
             start=2,
-            end=64,
+            end=int(max(sig_shape) * 0.75),
             step=2,
         )
 
@@ -153,6 +154,7 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
             self._data,
             title='Stack',
             channel_dimension=0,
+            downsampling=False,
         )
         self._disk_annot = (
             DiskSet
@@ -168,7 +170,7 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
         )
         self._stack_fig.fig.toolbar.active_drag = self._stack_fig.fig.tools[-1]
         self._disk_radius_slider = self._disk_annot.get_radius_slider(
-            max_r=32,
+            max_r=int(max(sig_shape) * 0.75),
             label="Aperture Radius"
         )
 
@@ -214,6 +216,7 @@ cds.change.emit();
         self._output_fig = ApertureFigure.new(
             np.random.uniform(size=out_shape),
             title='Output',
+            downsampling=False,
         )
 
         self._stack_view_option.param.watch(
@@ -373,7 +376,6 @@ cds.change.emit();
             (y, x),
             aperture,
             slice_fft,
-            precision=False,
         )
 
     def _update_recon(self, *e):
