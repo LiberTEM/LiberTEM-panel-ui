@@ -6,7 +6,7 @@ from strenum import StrEnum
 
 from libertem_ui.ui_context import UIContext  # noqa
 from libertem_ui.live_plot import ApertureFigure
-from libertem_ui.display.display_base import DiskSet
+from libertem_ui.display.display_base import DiskSet, Rectangles
 from libertem_ui.display.vectors import MultiLine
 from libertem_ui.windows.base import UIWindow, WindowType, WindowProperties
 
@@ -81,6 +81,13 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
             name="Per-image sideband",
             value=False,
         )
+        self._window_size_slider = pn.widgets.IntSlider(
+            name="Window Size",
+            value=16,
+            start=2,
+            end=64,
+            step=2,
+        )
 
         self._data = dataset.data
         # stored as shifted, real
@@ -103,10 +110,37 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
             .from_vectors([32], [32], 4)
             .on(self._stack_fig.fig)
             .editable(add=False)
-            .set_visible(False)
+            .set_visible(self._stack_view_option.value == ViewStates.FFT)
         )
         self._stack_fig.fig.toolbar.active_drag = self._stack_fig.fig.tools[-1]
-        self._disk_radius_slider = self._disk_annot.get_radius_slider(max_r=32)
+        self._disk_radius_slider = self._disk_annot.get_radius_slider(
+            max_r=32,
+            label="Aperture Radius"
+        )
+
+        self._disk_annot.cds.add([16], name="window_size")
+        self._box_annot = (
+            Rectangles(
+                self._disk_annot.cds,
+                width="window_size",
+                height="window_size",
+            )
+            .on(self._stack_fig.fig)
+            .set_visible(any(self._disk_annot.visible))
+        )
+        self._box_annot.rectangles.fill_color = None
+
+        self._window_size_slider.param.watch(self._update_window_size, 'value_throttled')
+        self._window_size_slider.jscallback(
+            value="""
+cds.data[glyph.width.field].fill(cb_obj.value);
+cds.change.emit();
+""",
+            args={
+                'cds': self._box_annot.cds,
+                'glyph': self._box_annot.rectangles,
+            },
+        )
 
         self._line_annot = (
             MultiLine
@@ -153,11 +187,12 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
         self.inner_layout.extend((
             pn.Column(
                 self._stack_fig.layout,
-                pn.Row(
-                    self._per_image_sb_check,
-                    self._stack_filtered_check,
-                ),
+                # pn.Row(
+                #     self._per_image_sb_check,
+                #     self._stack_filtered_check,
+                # ),
                 self._disk_radius_slider,
+                self._window_size_slider,
             ),
             pn.Column(
                 self._output_fig.layout,
@@ -166,18 +201,23 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
 
         return self
 
+    def _update_window_size(self, e):
+        self._box_annot.update(width=e.new, height=e.new)
+        self._update_output()
+
     def _stack_view_cb(self, e):
-        if e.new == ViewStates.FFT:
-            self._line_annot.set_visible(True)
-            self._disk_annot.set_visible(True)
+        state = e.new
+        if state == ViewStates.FFT:
             self._stack_fig._setup_multichannel(self._data_fft, dim=0)
-        elif e.new == ViewStates.IMAGE:
-            self._line_annot.set_visible(False)
-            self._disk_annot.set_visible(False)
+        elif state == ViewStates.IMAGE:
             self._stack_fig._setup_multichannel(self._data, dim=0)
         else:
             raise
-        self._stack_fig.channel_prefix = e.new
+        is_fft = state == ViewStates.FFT
+        self._line_annot.set_visible(is_fft)
+        self._disk_annot.set_visible(is_fft)
+        self._box_annot.set_visible(is_fft)
+        self._stack_fig.channel_prefix = state
         self._stack_fig.change_channel(None)
 
     def _current_frame(self):
@@ -194,7 +234,8 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
         return (y, x, radius)
 
     def _recon_shape(self):
-        return (32, 32)
+        size = int(np.round(self._box_annot.cds.data["window_size"]))
+        return (size, size)
 
     def _get_aperture(self):
         # as fft-shifted
