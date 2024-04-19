@@ -10,7 +10,12 @@ from libertem_ui.display.display_base import DiskSet, Rectangles
 from libertem_ui.display.vectors import MultiLine
 from libertem_ui.windows.base import UIWindow, WindowType, WindowProperties
 
-from libertem_holo.base.reconstr import reconstruct_frame, get_slice_fft
+from libertem_holo.base.reconstr import (
+    reconstruct_frame,
+    get_slice_fft,
+    estimate_sideband_size,
+    estimate_sideband_position,
+)
 from libertem_holo.base.mask import disk_aperture
 
 
@@ -88,6 +93,27 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
             end=64,
             step=2,
         )
+
+        self._estimate_sb_button = pn.widgets.Button(
+            name="Estimate SB",
+            button_type="primary",
+            disabled=self._stack_view_option.value != ViewStates.FFT,
+        )
+        self._sampling_val = pn.widgets.FloatInput(
+            value=1.,
+            start=0.1,
+            end=128.,
+            step=0.1,
+            width=100,
+        )
+        self._estimate_sb_choice = pn.widgets.RadioButtonGroup(
+            options=[
+                "Upper",
+                "Lower",
+            ],
+            value="Upper",
+        )
+        self._estimate_sb_button.on_click(self._estimate_sb)
 
         self._data = dataset.data
         # stored as shifted, real
@@ -179,10 +205,14 @@ cds.change.emit();
         self._disk_radius_slider.param.watch(self._update_output, 'value_throttled')
         self._stack_fig._channel_select.param.watch(self._update_output, 'value_throttled')
         # self._line_annot.cds.on_change('data', _update_output)
+        self._update_output()
 
         self._stack_fig._toolbar.insert(0, self._stack_view_option)
         self._output_fig._toolbar.insert(0, self._result_view_option)
         self._output_fig._toolbar.insert(1, self._recon_view_option)
+
+        self._disk_radius_slider.width = 200
+        self._window_size_slider.width = 200
 
         self.inner_layout.extend((
             pn.Column(
@@ -191,8 +221,16 @@ cds.change.emit();
                 #     self._per_image_sb_check,
                 #     self._stack_filtered_check,
                 # ),
-                self._disk_radius_slider,
-                self._window_size_slider,
+                pn.Row(
+                    self._estimate_sb_button,
+                    self._estimate_sb_choice,
+                    pn.widgets.StaticText(value="Sampling"),
+                    self._sampling_val,
+                ),
+                pn.Row(
+                    self._disk_radius_slider,
+                    self._window_size_slider,
+                ),
             ),
             pn.Column(
                 self._output_fig.layout,
@@ -205,6 +243,35 @@ cds.change.emit();
         self._box_annot.update(width=e.new, height=e.new)
         self._update_output()
 
+    def _estimate_sb(self, *e):
+        im = self._current_frame()
+        sb = self._estimate_sb_choice.value.lower()
+        sampling = self._sampling_val.value
+        sb_pos = estimate_sideband_position(
+            im,
+            (sampling, sampling),
+            sb=sb,
+        )
+        window_size = estimate_sideband_size(
+            sb_pos, im.shape,
+        )
+        h, w = im.shape
+        cy, cx = sb_pos
+        cy += (h // 2)
+        cy %= h
+        cx += (w // 2)
+        cx %= w
+        self._disk_annot.raw_update(
+            cx=[cx],
+            cy=[cy],
+            radius=[window_size],
+            window_size=[window_size],
+        )
+        self._disk_radius_slider.value = window_size / 2
+        self._window_size_slider.value = int(np.round(window_size))
+        self._update_output()
+        self._output_fig.push()
+
     def _stack_view_cb(self, e):
         state = e.new
         if state == ViewStates.FFT:
@@ -214,6 +281,7 @@ cds.change.emit();
         else:
             raise
         is_fft = state == ViewStates.FFT
+        self._estimate_sb_button.disabled = not is_fft
         self._line_annot.set_visible(is_fft)
         self._disk_annot.set_visible(is_fft)
         self._box_annot.set_visible(is_fft)
