@@ -145,13 +145,13 @@ class UIWindow:
         )
 
     @classmethod
-    def using(cls: type[W], ctx: Context, dataset: DataSet) -> W:
+    def using(cls: type[W], ctx: Context, dataset: DataSet, **init_kwargs) -> W:
         from .standalone import StandaloneContext
         ui_context = StandaloneContext(ctx, dataset)
-        return cls._using(ui_context)
+        return cls._using(ui_context, **init_kwargs)
 
     @classmethod
-    def _using(cls: type[W], ui_context: StandaloneContext) -> W:
+    def _using(cls: type[W], ui_context: StandaloneContext, **init_kwargs) -> W:
         default_properties = cls.default_properties()
         window = cls(
             ui_context,
@@ -164,7 +164,7 @@ class UIWindow:
                 'init_collapsed': False,
             }
         )
-        window.initialize(ui_context._resources.init_with())
+        window.initialize(ui_context._resources.init_with(), **init_kwargs)
         ui_context._register_window(window)
         if window.properties.header_run:
             ui_context._add_progress_bar(window)
