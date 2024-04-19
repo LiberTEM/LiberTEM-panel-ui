@@ -87,11 +87,11 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
         # stored as shifted, real
         data_fft = np.fft.fft2(
             self._data,
-        ).real / np.prod(sig_shape)
-        data_fft[:, 0, 0] = np.nan  # for display
+        ) / np.prod(sig_shape)
         self._data_fft = np.fft.fftshift(
             data_fft
         )
+        self._data_fft_disp = np.abs(self._data_fft)
 
         if state is None:
             state = self.default_state()
@@ -359,7 +359,7 @@ cds.change.emit();
     def _stack_view_cb(self, e):
         state = e.new
         if state == ViewStates.FFT:
-            self._stack_fig._setup_multichannel(self._data_fft, dim=0)
+            self._stack_fig._setup_multichannel(self._data_fft_disp, dim=0)
         elif state == ViewStates.IMAGE:
             self._stack_fig._setup_multichannel(self._data, dim=0)
         else:
@@ -375,8 +375,11 @@ cds.change.emit();
     def _current_frame(self):
         return self._data[self._stack_fig._channel_select.value]
 
-    def _current_fft_data(self):
-        return self._data_fft[self._stack_fig._channel_select.value]
+    def _current_fft_data(self, complex=False):
+        if complex:
+            return self._data_fft[self._stack_fig._channel_select.value]
+        else:
+            return self._data_fft_disp[self._stack_fig._channel_select.value]
 
     def _disk_info(self):
         cds = self._disk_annot.cds.data
@@ -423,8 +426,8 @@ cds.change.emit();
             np.fft.ifftshift(aperture)
         )
 
-    def _get_crop(self):
-        fft = self._current_fft_data()
+    def _get_crop(self, complex=False):
+        fft = self._current_fft_data(complex=complex)
         y, x, _ = map(int, np.round(self._disk_info()))
         h, w = fft.shape
         y -= h
@@ -441,8 +444,8 @@ cds.change.emit();
         )
 
     def _get_recon(self):
-        crop = self._get_crop()
-        return np.fft.ifft2(crop) * np.prod(self._current_frame().shape)
+        crop = self._get_crop(complex=True)
+        return np.fft.ifft2(crop + 0j) * np.prod(self._current_frame().shape)
 
     def _update_recon(self, *e):
         wave = self._get_recon()
