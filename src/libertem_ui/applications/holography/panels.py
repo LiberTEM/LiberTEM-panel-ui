@@ -7,7 +7,7 @@ from strenum import StrEnum
 from libertem_ui.ui_context import UIContext  # noqa
 from libertem_ui.live_plot import ApertureFigure
 from libertem_ui.display.display_base import DiskSet, Rectangles
-from libertem_ui.display.vectors import MultiLine
+# from libertem_ui.display.vectors import MultiLine
 from libertem_ui.windows.base import UIWindow, WindowType, WindowProperties
 
 from libertem_holo.base.reconstr import (
@@ -168,18 +168,18 @@ cds.change.emit();
             },
         )
 
-        self._line_annot = (
-            MultiLine
-            .new()
-            .from_vectors(xs=[[16, 48]], ys=[[48, 16]])
-            .on(self._stack_fig.fig)
-            .editable()
-            .set_visible(False)
-        )
-        self._line_annot.lines.line_width = 4
-        self._line_annot.vertices.points.line_color = 'cyan'
-        self._line_annot.lines.line_color = 'cyan'
-        self._line_annot.vertices.points.fill_color = 'cyan'
+        # self._line_annot = (
+        #     MultiLine
+        #     .new()
+        #     .from_vectors(xs=[[16, 48]], ys=[[48, 16]])
+        #     .on(self._stack_fig.fig)
+        #     .editable()
+        #     .set_visible(False)
+        # )
+        # self._line_annot.lines.line_width = 4
+        # self._line_annot.vertices.points.line_color = 'cyan'
+        # self._line_annot.lines.line_color = 'cyan'
+        # self._line_annot.vertices.points.fill_color = 'cyan'
 
         out_shape = dataset.shape.sig
 
@@ -282,7 +282,7 @@ cds.change.emit();
             raise
         is_fft = state == ViewStates.FFT
         self._estimate_sb_button.disabled = not is_fft
-        self._line_annot.set_visible(is_fft)
+        # self._line_annot.set_visible(is_fft)
         self._disk_annot.set_visible(is_fft)
         self._box_annot.set_visible(is_fft)
         self._stack_fig.channel_prefix = state
