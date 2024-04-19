@@ -6,7 +6,7 @@ import numpy as np
 import itertools
 import pandas as pd
 import panel as pn
-from typing import TYPE_CHECKING, Sequence, NamedTuple, Callable, TypeVar
+from typing import TYPE_CHECKING, Sequence, NamedTuple, Callable, TypeVar, Generator
 from typing_extensions import Self
 import colorcet as cc
 from skimage.draw import polygon as draw_polygon
@@ -190,6 +190,14 @@ class DisplayBase(abc.ABC):
                 for child in _children:
                     child.set_visible(visible, children=children)
         return self
+
+    @property
+    def visible(self) -> Generator[bool, None, None]:
+        for wrappers in self._glyphs.values():
+            wrappers: list[GlyphOnWrapper]
+            for wrapper in wrappers:
+                for glyph_on in wrapper.on:
+                    yield glyph_on.renderer.visible
 
     @property
     def data_length(self):
