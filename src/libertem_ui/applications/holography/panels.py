@@ -261,6 +261,8 @@ cds.change.emit();
         cy %= h
         cx += (w // 2)
         cx %= w
+        window_size = int(np.round(window_size))
+        window_size += (window_size % 2)
         self._disk_annot.raw_update(
             cx=[cx],
             cy=[cy],
@@ -268,7 +270,7 @@ cds.change.emit();
             window_size=[window_size],
         )
         self._disk_radius_slider.value = window_size / 2
-        self._window_size_slider.value = int(np.round(window_size))
+        self._window_size_slider.value = window_size
         self._update_output()
         self._output_fig.push()
 
