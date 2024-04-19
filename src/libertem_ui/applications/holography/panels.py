@@ -212,15 +212,13 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
         )
 
     def _get_crop(self):
-        im = self._current_fft_data()
+        fft = self._current_fft_data()
         y, x, _ = map(int, map(np.round, self._disk_info()))
         aperture = self._get_aperture()
-        slice_fft = get_slice_fft(aperture.shape, im.shape)
+        slice_fft = get_slice_fft(aperture.shape, fft.shape)
 
-        rolled = np.roll(np.fft.fftshift(im), (y, x), axis=(0, 1))
-        return np.fft.fftshift(
-            np.fft.fftshift(rolled)[slice_fft] * aperture
-        )
+        rolled = np.roll(fft, (y, x), axis=(0, 1))
+        return np.fft.fftshift(rolled)[slice_fft] * np.fft.fftshift(aperture)
 
     def _update_crop(self, *e):
         crop = self._get_crop()
