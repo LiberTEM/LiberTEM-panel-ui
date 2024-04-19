@@ -87,6 +87,7 @@ class ApertureFigure:
         self._clear_btn: pn.widgets.Button | None = None
         self._floatpanel: pn.layout.FloatPanel | None = None
 
+        self._channel_prefix = "Channel"
         self._channel_select: pn.widgets.Select | pn.widgets.IntSlider | None = None
         self._channel_data: np.ndarray | dict[str, np.ndarray] | Sequence[np.ndarray] = None
         self._channel_map: Literal['SEQUENCE', 'DICT'] | tuple[int, ...] | None = None
@@ -470,18 +471,28 @@ action.callback.execute(action)
     def _switch_channel_cb(self, e, update_title=True):
         return self.change_channel(e.new, update_title=update_title)
 
+    @property
+    def channel_prefix(self) -> str:
+        return self._channel_prefix
+
+    @channel_prefix.setter
+    def channel_prefix(self, val: str):
+        self._channel_prefix = val
+
     def change_channel(
         self,
-        channel: str | int,
+        channel: str | int | None,
         push_update: bool = True,
         update_title: bool = True,
     ):
+        if channel is None:
+            channel = self._channel_select.value
         if isinstance(self._channel_data, dict):
             data = self._channel_data[channel]
             title = channel
         elif self._channel_map == 'SEQUENCE':
             data = self._channel_data[channel]
-            title = f"Channel: {channel}"
+            title = f"{self.channel_prefix}: {channel}"
         else:
             # The following relies on having sorted, normalised, unique self._channel_map
             partial_shape = tuple(
@@ -497,7 +508,7 @@ action.callback.execute(action)
             )
             data = self._channel_data[slices]
             slice_as_str = ', '.join(':' if s == slice(None) else str(s) for s in slices)
-            title = f"Channel [{slice_as_str}]"
+            title = f"{self.channel_prefix} [{slice_as_str}]"
         self.im.update(data)
         if update_title:
             self.fig.title.text = title
