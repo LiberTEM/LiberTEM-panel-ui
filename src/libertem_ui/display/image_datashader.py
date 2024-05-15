@@ -30,11 +30,10 @@ class DatashadeHelper:
         # but could be relaxed if there is ever a need
         self._fig = fig
         self._im = im
+        self._dimension = dimension
+        self._setup_canvas(self.im.array)
 
-        # The rest of this init could be called again to
-        # re-initialize the class on a new image size
-        # though safer to re-create the instance probably
-        array = self.im.array
+    def _setup_canvas(self, array: np.ndarray):
         h, w = array.shape
         ys = np.arange(h).astype(float)
         xs = np.arange(w).astype(float)
@@ -44,7 +43,6 @@ class DatashadeHelper:
         )
         self._array_da_minimum: np.ndarray | None = None
 
-        self._dimension = dimension
         height, width = self._determine_canvas(
             self.array.shape,
             self._dimension,
@@ -53,10 +51,18 @@ class DatashadeHelper:
             plot_width=width,
             plot_height=height,
         )
-        if h <= height * 1.2 and w <= width * 1.2:
+        self._check_enable()
+
+    def _check_enable(self):
+        h, w = self.im.array.shape
+        canvas_height = self._canvas.plot_height
+        canvas_width = self._canvas.plot_width
+        if h <= canvas_height * 1.2 and w <= canvas_width * 1.2:
             # When the image is actually smaller than the canvas size
             # we gain nothing, so we disable the downsampler
             self.disable()
+        else:
+            self.enable()
 
     @property
     def fig(self):
@@ -353,7 +359,7 @@ class DatashadeHelper:
         # unless their image resampling is faster than scikit-image
         """
 
-        if not self.active:
+        if not force and not self.active:
             # If disabled, assume nothing to do
             if VERBOSE:
                 print('Inactive, skipping')
@@ -361,7 +367,7 @@ class DatashadeHelper:
 
         # Need to thorougly test this function for off-by-one errors...
         is_visible, new_cds_coords, viewport_wh = self.unpack_event(event)
-        if not is_visible:
+        if not force and not is_visible:
             # Do nothing
             if VERBOSE:
                 print('Out of bounds, skipping')
@@ -609,10 +615,11 @@ class DatashadeHelper:
 
     def _update_array(self, array: np.ndarray):
         if self.array.shape != array.shape:
-            raise NotImplementedError('No support for changing array size')
-        # Replace the data
-        self._array_da[:] = array
-        self._array_da_minimum = None
+            self._setup_canvas(array)
+        else:
+            # Replace the data
+            self._array_da[:] = array
+            self._array_da_minimum = None
 
     def compute_update(self, array: np.ndarray) -> dict[str, list[float | np.ndarray]]:
         if not self.active:
