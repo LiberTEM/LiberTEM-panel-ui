@@ -437,7 +437,7 @@ class BokehImageColor():
         return self.cbar_slider is not None
 
     def get_cmap_slider(self,
-                        title: str = 'Colormap range',
+                        title: str = 'Range',
                         init_range: tuple[float, float] | None = None,
                         nstep: int = 300,
                         **kwargs) -> RangeSlider:
@@ -467,7 +467,7 @@ class BokehImageColor():
         if not init_range:
             init_range = self.img.current_minmax
 
-        self._cbar_freeze = CheckboxGroup(labels=['Freeze color limits'], active=[])
+        self._cbar_freeze = CheckboxGroup(labels=['Freeze limits'], active=[])
         self._full_scale_btn = Button(label="Full scale", button_type="default")
 
         self._cbar_slider = RangeSlider(title=title,
@@ -749,7 +749,7 @@ clim_slider.step = (high - low) / nstep;
         except AttributeError:
             return None
 
-    def get_cmap_invert(self, name='Invert colormap', **kwargs):
+    def get_cmap_invert(self, name='Invert', **kwargs):
         if self.invert_cmap_box is not None:
             return self.invert_cmap_box
         self._invert_cmap_box = pn.widgets.Checkbox(name=name, value=False, **kwargs)
