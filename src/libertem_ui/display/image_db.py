@@ -627,15 +627,15 @@ log_mapper.high = high;
     def _clim_freeze_toggle_js():
         return '''
 if (cb_obj.active.length == 1){
-    clim_slider.disabled = true
-    full_btn.disabled = true
-    autorange_btn.disabled = true
+    // clim_slider.disabled = true
+    // full_btn.disabled = true
+    // autorange_btn.disabled = true
     return
 }
 
-clim_slider.disabled = false
-full_btn.disabled = false
-autorange_btn.disabled = false
+// clim_slider.disabled = false
+// full_btn.disabled = false
+// autorange_btn.disabled = false
 
 var low = cds.data.val_low[0]
 var high = cds.data.val_high[0]
@@ -652,9 +652,9 @@ clim_slider.step = (high - low) / nstep;
     @staticmethod
     def _clim_full_scale_js():
         return '''
-if (freeze.active.length == 1){
-    return
-}
+// if (freeze.active.length == 1){
+//     return
+// }
 
 
 const low = cds.data.val_low[0]
@@ -838,9 +838,9 @@ clim_slider.step = (high - low) / nstep;
     @staticmethod
     def _clim_autorange_js():
         return """
-if (freeze.active.length == 1){
-    return
-}
+// if (freeze.active.length == 1){
+//     return
+// }
 
 const data = cds.data.image[0]
 var non_nan = Math.max(data.length, 1)
