@@ -84,3 +84,11 @@ def options_icon_blue(as_b64: bool = False):
     if as_b64:
         return load_as_b64(path)
     return imread(path)
+
+
+@functools.lru_cache(2)
+def sigma_icon(as_b64: bool = False):
+    path = _file_location / 'sigma.png'
+    if as_b64:
+        return load_as_b64(path)
+    return imread(path)
