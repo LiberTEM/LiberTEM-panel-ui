@@ -1,4 +1,5 @@
-from typing import Self, TYPE_CHECKING, NamedTuple, Optional
+from __future__ import annotations
+from typing import Self, TYPE_CHECKING, NamedTuple
 
 import numpy as np
 import panel as pn
@@ -11,6 +12,8 @@ from libertem_ui.display.display_base import DiskSet, Rectangles
 # from libertem_ui.display.vectors import MultiLine
 from libertem_ui.windows.base import UIWindow, WindowType, WindowProperties
 
+from libertem.api import Context
+from libertem.io.dataset.memory import MemoryDataSet
 from libertem_holo.base.reconstr import (
     get_slice_fft,
     estimate_sideband_size,
@@ -21,7 +24,7 @@ from libertem_holo.base.mask import disk_aperture
 
 
 if TYPE_CHECKING:
-    from libertem.io.dataset.memory import MemoryDataSet
+    from libertem.io.dataset.base import DataSet
 
 
 class ViewStates(StrEnum):
@@ -53,7 +56,64 @@ class ApertureConfig(NamedTuple):
     ap_but_order: int = 4
 
 
+class StackDataHandler:
+    def __init__(
+        self,
+        stack: DataSet | np.ndarray,
+        ref: DataSet | np.ndarray | None = None,
+    ):
+        if ref is not None:
+            raise NotImplementedError
+        self._data = stack
+
+    @property
+    def stack_len(self) -> int:
+        try:
+            return self._data.meta.shape.nav.to_tuple()[0]
+        except AttributeError:
+            return self._data.shape[0]
+
+    @property
+    def sig_shape(self) -> tuple[int, ...]:
+        try:
+            return self._data.meta.shape.sig.to_tuple()
+        except AttributeError:
+            return self._data.shape[1:]
+
+    def get_fft(self, idx, shifted=False, abs=False) -> np.ndarray:
+        frame = self.get_frame(idx)
+        frame_fft = np.fft.fft2(frame)
+        if shifted:
+            frame_fft = np.fft.fftshift(frame_fft)
+        if abs:
+            frame_fft = np.abs(frame_fft)
+        return frame_fft
+
+    def get_frame(self, idx) -> np.ndarray:
+        try:
+            return self._data[idx]
+        except TypeError:
+            return self._data.data[idx]
+
+
 class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
+    @classmethod
+    def using(
+        cls,
+        dataset: DataSet | np.ndarray,
+        ctx: Context | None = None,
+        **init_kwargs,
+    ):
+        if ctx is None:
+            ctx = Context.make_with('inline')
+        if isinstance(dataset, np.ndarray):
+            if dataset.ndim == 2:
+                dataset = dataset[np.newaxis, ...]
+            assert dataset.ndim == 3, 'Must be 3D stack with nav dim first'
+            dataset = MemoryDataSet(data=dataset, sig_dims=2)
+            dataset.initialize(ctx.executor)
+        return super().using(ctx, dataset, **init_kwargs)
+
     @staticmethod
     def default_properties():
         return WindowProperties(
@@ -81,17 +141,9 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
             window_size=self._recon_shape(),
         )
 
-    def initialize(self, dataset: 'MemoryDataSet', state: Optional[ApertureConfig] = None) -> Self:
-        sig_shape = dataset.meta.shape.sig
-        self._data = dataset.data
-        # stored as shifted, real
-        data_fft = np.fft.fft2(
-            self._data,
-        ) / np.prod(sig_shape)
-        self._data_fft = np.fft.fftshift(
-            data_fft
-        )
-        self._data_fft_disp = np.abs(self._data_fft)
+    def initialize(self, dataset: MemoryDataSet, state: ApertureConfig | None = None) -> Self:
+        self._data = StackDataHandler(dataset)
+        sig_shape = self._data.sig_shape
 
         if state is None:
             state = self.default_state()
@@ -184,10 +236,9 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
         )
 
         self._stack_fig = ApertureFigure.new(
-            self._data,
+            self._get_stack_image,
             title='Stack',
-            channel_dimension=0,
-            downsampling=False,
+            channel_dimension=tuple(range(self._data.stack_len))
         )
         self._disk_annot = (
             DiskSet
@@ -244,10 +295,8 @@ cds.change.emit();
         # self._line_annot.lines.line_color = 'cyan'
         # self._line_annot.vertices.points.fill_color = 'cyan'
 
-        out_shape = dataset.shape.sig
-
         self._output_fig = ApertureFigure.new(
-            np.random.uniform(size=out_shape),
+            np.random.uniform(size=sig_shape),
             title='Output',
             downsampling=False,
         )
@@ -356,14 +405,17 @@ cds.change.emit();
         self._update_output()
         self._output_fig.push()
 
+    def _get_stack_image(self, idx: int) -> tuple[np.ndarray, str]:
+        state = self._stack_view_option.value
+        title = f"{state} - {idx}"
+        if state == ViewStates.FFT:
+            frame = self._data.get_fft(idx, shifted=True, abs=True)
+        else:
+            frame = self._current_frame(idx=idx)
+        return frame, title
+
     def _stack_view_cb(self, e):
         state = e.new
-        if state == ViewStates.FFT:
-            self._stack_fig._setup_multichannel(self._data_fft_disp, dim=0)
-        elif state == ViewStates.IMAGE:
-            self._stack_fig._setup_multichannel(self._data, dim=0)
-        else:
-            raise
         is_fft = state == ViewStates.FFT
         self._estimate_sb_button.disabled = not is_fft
         # self._line_annot.set_visible(is_fft)
@@ -372,14 +424,18 @@ cds.change.emit();
         self._stack_fig.channel_prefix = state
         self._stack_fig.change_channel(None)
 
-    def _current_frame(self):
-        return self._data[self._stack_fig._channel_select.value]
+    def _current_frame(self, idx=None):
+        if idx is None:
+            idx = self._stack_fig._channel_select.value
+        return self._data.get_frame(idx)
 
-    def _current_fft_data(self, complex=False):
+    def _current_fft_data(self, complex=False, shifted=False, idx=None):
+        if idx is None:
+            idx = self._stack_fig._channel_select.value
         if complex:
-            return self._data_fft[self._stack_fig._channel_select.value]
+            return self._data.get_fft(idx, shifted=shifted, abs=False)
         else:
-            return self._data_fft_disp[self._stack_fig._channel_select.value]
+            return self._data.get_fft(idx, shifted=shifted, abs=True)
 
     def _disk_info(self):
         cds = self._disk_annot.cds.data
@@ -427,7 +483,7 @@ cds.change.emit();
         )
 
     def _get_crop(self, complex=False):
-        fft = self._current_fft_data(complex=complex)
+        fft = self._current_fft_data(complex=complex, shifted=True)
         y, x, _ = map(int, np.round(self._disk_info()))
         h, w = fft.shape
         y -= h
