@@ -21,6 +21,18 @@ from .display.icons import options_icon, options_icon_blue
 
 # pn.extension('floatpanel')
 
+PlotDataT = (
+    np.ndarray
+    | dict[str, np.ndarray]
+    | Sequence[np.ndarray]
+    | Callable[[int | str], tuple[np.ndarray, str]]
+)
+ChannelMapT = (
+    Literal['SEQUENCE', 'DICT']
+    | tuple[int, ...]
+    | tuple[str, ...]
+)
+
 if TYPE_CHECKING:
     from .results.results_manager import ResultRow
     from libertem.udf.base import UDFResultDict
@@ -89,8 +101,8 @@ class ApertureFigure:
 
         self._channel_prefix = "Channel"
         self._channel_select: pn.widgets.Select | pn.widgets.IntSlider | None = None
-        self._channel_data: np.ndarray | dict[str, np.ndarray] | Sequence[np.ndarray] = None
-        self._channel_map: Literal['SEQUENCE', 'DICT'] | tuple[int, ...] | None = None
+        self._channel_data: PlotDataT | None = None
+        self._channel_map: ChannelMapT | None = None
 
     def set_plot(
         self,
@@ -114,7 +126,7 @@ class ApertureFigure:
     @classmethod
     def new(
         cls,
-        data: np.ndarray | dict[str, np.ndarray] | Sequence[np.ndarray],
+        data: PlotDataT,
         *,
         maxdim: int = 450,
         # If mindim is None, plot aspect ratio is always preserved
@@ -122,17 +134,17 @@ class ApertureFigure:
         mindim: int | None = 100,
         title: str = '',
         downsampling: bool = True,
-        channel_dimension: int | tuple[int, ...] = -1,
+        channel_dimension: int | tuple[int, ...] | tuple[str, ...] = -1,
     ):
         plot = cls()
-        data = plot._setup_multichannel(data, dim=channel_dimension)
+        image = plot._setup_multichannel(data, dim=channel_dimension)
         # Bokeh needs a string title, however, so gets the default ''
         fig = figure(title=title)
-        im = BokehImage.new().from_numpy(data).on(fig)
+        im = BokehImage.new().from_numpy(image).on(fig)
         if downsampling:
             im.enable_downsampling()
         plot.set_plot(fig=fig, im=im)
-        adapt_figure(fig, data.shape, maxdim=maxdim, mindim=mindim)
+        adapt_figure(fig, image.shape, maxdim=maxdim, mindim=mindim)
         plot._setup()
         return plot
 
@@ -148,10 +160,18 @@ class ApertureFigure:
 
     def _setup_multichannel(
         self,
-        data: np.ndarray | dict[str, np.ndarray] | Sequence[np.ndarray],
-        dim: int | tuple[int, ...] = -1,
+        data: PlotDataT,
+        dim: int | tuple[int, ...] | tuple[str, ...] = -1,
     ):
-        if isinstance(data, np.ndarray):
+        if callable(data):
+            try:
+                first_element = dim[0]
+            except TypeError:
+                raise TypeError("With callable data, channel_dimension must be a sequence")
+            out_data, _ = data(first_element)
+            self._channel_map = dim
+            self._channel_data = data
+        elif isinstance(data, np.ndarray):
             if data.ndim == 2:
                 return data
             elif data.ndim > 2:
@@ -422,8 +442,14 @@ action.callback.execute(action)
         elif self._channel_map is None:
             raise RuntimeError('Cannot select channels if a channel map '
                                'was not provided')
-        elif self._channel_map == 'DICT':
-            channel_names = list(self._channel_data.keys())
+        elif (
+            self._channel_map == 'DICT'
+            or (callable(self._channel_data) and isinstance(self._channel_map[0], str))
+        ):
+            if callable(self._channel_data):
+                channel_names = self._channel_map
+            else:
+                channel_names = list(self._channel_data.keys())
             if selected is None:
                 selected = channel_names[0]
             self._channel_select = pn.widgets.Select(
@@ -432,9 +458,15 @@ action.callback.execute(action)
                 width=200,
                 margin=(5, 5),
             )
-        elif self._channel_map == 'SEQUENCE' or isinstance(self._channel_map, tuple):
+        elif (
+            self._channel_map == 'SEQUENCE'
+            or (callable(self._channel_data) and isinstance(self._channel_map[0], int))
+            or isinstance(self._channel_map, tuple)
+        ):
             if self._channel_map == 'SEQUENCE':
                 sequence_length = len(self._channel_data)
+            elif callable(self._channel_data):
+                sequence_length = len(self._channel_map)
             else:
                 dims = tuple(self._channel_data.shape[i] for i in self._channel_map)
                 sequence_length = int(np.prod(dims))
@@ -487,7 +519,9 @@ action.callback.execute(action)
     ):
         if channel is None:
             channel = self._channel_select.value
-        if isinstance(self._channel_data, dict):
+        if callable(self._channel_data):
+            data, title = self._channel_data(channel)
+        elif isinstance(self._channel_data, dict):
             data = self._channel_data[channel]
             title = channel
         elif self._channel_map == 'SEQUENCE':
