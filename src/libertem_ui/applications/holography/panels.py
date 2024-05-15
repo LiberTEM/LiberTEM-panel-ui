@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Self, TYPE_CHECKING, NamedTuple
+from typing import Self, TYPE_CHECKING, NamedTuple, Literal
 
 import numpy as np
 import panel as pn
@@ -80,7 +80,7 @@ class StackDataHandler:
         except AttributeError:
             return self._data.shape[1:]
 
-    def get_fft(self, idx, shifted=False, abs=False) -> np.ndarray:
+    def get_fft(self, idx: int, shifted=False, abs=False) -> np.ndarray:
         frame = self.get_frame(idx)
         frame_fft = np.fft.fft2(frame)
         if shifted:
@@ -89,11 +89,50 @@ class StackDataHandler:
             frame_fft = np.abs(frame_fft)
         return frame_fft
 
-    def get_frame(self, idx) -> np.ndarray:
+    def get_frame(self, idx: int) -> np.ndarray:
         try:
             return self._data[idx]
         except TypeError:
             return self._data.data[idx]
+
+    def get_crop(self, idx: int, y: float, x: float, aperture: np.ndarray):
+        fft = self.get_fft(idx, abs=False, shifted=True)
+        y, x = int(np.round(y)), int(np.round(x))
+        h, w = fft.shape
+        y -= h
+        x -= w
+        slice_fft = get_slice_fft(aperture.shape, fft.shape)
+        rolled = np.roll(fft, (-y, -x), axis=(0, 1))
+        return np.fft.fftshift(np.fft.fftshift(rolled)[slice_fft]) * aperture
+
+    def get_recon(self, idx: int, y: float, x: float, aperture: np.ndarray):
+        crop = self.get_crop(idx, y, x, aperture)
+        return np.fft.ifft2(crop + 0j) * np.prod(self.sig_shape)
+
+    def estimate_sideband_params(
+        self,
+        idx: int,
+        sb_choice: Literal['upper', 'lower'],
+        sampling: float = 1.
+    ):
+        im = self.get_frame(idx)
+        sb_pos = estimate_sideband_position(
+            im,
+            (sampling, sampling),
+            sb=sb_choice.lower(),
+        )
+        window_size = estimate_sideband_size(
+            sb_pos, im.shape,
+        )
+        h, w = im.shape
+        cy, cx = sb_pos
+        cy += (h // 2)
+        cy %= h
+        cx += (w // 2)
+        cx %= w
+        window_size = int(np.round(window_size))
+        window_size += (window_size % 2)
+        return cx, cy, window_size
 
 
 class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
@@ -211,7 +250,7 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
             ],
             value="Upper",
         )
-        self._estimate_sb_button.on_click(self._estimate_sb)
+        self._estimate_sb_button.on_click(self._estimate_sb_cb)
 
         self._unwrap_button = pn.widgets.Button(
             name="Unwrap",
@@ -374,26 +413,12 @@ cds.change.emit();
         is_but = e.new == ApertureTypes.BUT
         self._aperture_but_order_int.disabled = not is_but
 
-    def _estimate_sb(self, *e):
-        im = self._current_frame()
-        sb = self._estimate_sb_choice.value.lower()
-        sampling = self._sampling_val.value
-        sb_pos = estimate_sideband_position(
-            im,
-            (sampling, sampling),
-            sb=sb,
+    def _estimate_sb_cb(self, *e):
+        cx, cy, window_size = self._data.estimate_sideband_params(
+            self._current_idx(),
+            sb_choice=self._estimate_sb_choice.value,
+            sampling=self._sampling_val.value,
         )
-        window_size = estimate_sideband_size(
-            sb_pos, im.shape,
-        )
-        h, w = im.shape
-        cy, cx = sb_pos
-        cy += (h // 2)
-        cy %= h
-        cx += (w // 2)
-        cx %= w
-        window_size = int(np.round(window_size))
-        window_size += (window_size % 2)
         self._disk_annot.raw_update(
             cx=[cx],
             cy=[cy],
@@ -411,7 +436,7 @@ cds.change.emit();
         if state == ViewStates.FFT:
             frame = self._data.get_fft(idx, shifted=True, abs=True)
         else:
-            frame = self._current_frame(idx=idx)
+            frame = self._data.get_frame(idx)
         return frame, title
 
     def _stack_view_cb(self, e):
@@ -424,18 +449,8 @@ cds.change.emit();
         self._stack_fig.channel_prefix = state
         self._stack_fig.change_channel(None)
 
-    def _current_frame(self, idx=None):
-        if idx is None:
-            idx = self._stack_fig._channel_select.value
-        return self._data.get_frame(idx)
-
-    def _current_fft_data(self, complex=False, shifted=False, idx=None):
-        if idx is None:
-            idx = self._stack_fig._channel_select.value
-        if complex:
-            return self._data.get_fft(idx, shifted=shifted, abs=False)
-        else:
-            return self._data.get_fft(idx, shifted=shifted, abs=True)
+    def _current_idx(self):
+        return self._stack_fig._channel_select.value
 
     def _disk_info(self):
         cds = self._disk_annot.cds.data
@@ -482,29 +497,24 @@ cds.change.emit();
             np.fft.ifftshift(aperture)
         )
 
-    def _get_crop(self, complex=False):
-        fft = self._current_fft_data(complex=complex, shifted=True)
-        y, x, _ = map(int, np.round(self._disk_info()))
-        h, w = fft.shape
-        y -= h
-        x -= w
-        aperture = self._get_aperture()
-        slice_fft = get_slice_fft(aperture.shape, fft.shape)
-        rolled = np.roll(fft, (-y, -x), axis=(0, 1))
-        return np.fft.fftshift(np.fft.fftshift(rolled)[slice_fft]) * aperture
-
     def _update_crop(self, *e):
-        crop = self._get_crop()
+        idx = self._current_idx()
+        aperture = self._get_aperture()
+        y, x, _ = self._disk_info()
+        crop = self._data.get_crop(
+            idx, y, x, aperture,
+        )
         self._output_fig.im.update(
-            np.fft.fftshift(crop)
+            np.fft.fftshift(np.abs(crop))
         )
 
-    def _get_recon(self):
-        crop = self._get_crop(complex=True)
-        return np.fft.ifft2(crop + 0j) * np.prod(self._current_frame().shape)
-
     def _update_recon(self, *e):
-        wave = self._get_recon()
+        idx = self._current_idx()
+        aperture = self._get_aperture()
+        y, x, _ = self._disk_info()
+        wave = self._data.get_recon(
+            idx, y, x, aperture,
+        )
         self._output_fig.im.update(
             np.angle(wave)
             if self._recon_view_option.value == WaveViewStates.PHASE
