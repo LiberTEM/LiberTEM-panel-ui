@@ -17,7 +17,7 @@ from libertem.viz.base import Live2DPlot
 
 from .display.image_db import BokehImage
 from .display.display_base import Rectangles, DisplayBase, Polygons
-from .display.icons import options_icon, options_icon_blue
+from .display.icons import options_icon, options_icon_blue, sigma_icon
 
 # pn.extension('floatpanel')
 
@@ -333,6 +333,13 @@ action.callback.execute(action)
 '''
             )
         )
+
+        autorange_action = CustomAction(
+            icon=sigma_icon(),
+            callback=self.im.color._clip_outliers_btn.js_event_callbacks['button_click'][0],
+            description='Autorange color',
+        )
+        self.fig.add_tools(autorange_action)
 
         self._toolbar.extend((
             open_btn,
