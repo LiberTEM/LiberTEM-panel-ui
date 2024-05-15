@@ -256,23 +256,27 @@ class ApertureFigure:
         close_btn = Button(
             label='✖',
             button_type='light',
+            align='start',
         )
 
         self._floatpanel = pn.layout.FloatPanel(
             pn.Row(
-                self.im.color.get_cmap_select(width=200),
-                pn.layout.HSpacer(width=50),
+                self.im.color.get_cmap_select(width=150),
+                self.im.color.get_cmap_invert(
+                    align='center',
+                    margin=(25, 5, 5, 5),
+                ),
+                pn.layout.HSpacer(width=35),
                 close_btn,
             ),
-            self.im.color.get_cmap_invert(),
             self.im.color.get_cmap_slider(),
             # self.im.color._gamma_slider,
-            self.im.color._cbar_freeze,
             pn.Row(
                 self.im.color._full_scale_btn,
                 self.im.color.clip_outliers_btn,
                 self.im.color.clip_outliers_sigma_spinner,
             ),
+            self.im.color._cbar_freeze,
             name=name,
             config={
                 "headerControls": {
