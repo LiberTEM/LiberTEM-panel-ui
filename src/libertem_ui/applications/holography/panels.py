@@ -704,19 +704,36 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         )
 
     def align_all_cb(self, *e):
-        ...
+        shifts_y = []
+        shifts_x = []
+        static_idx = self.current_static_idx()
+        for moving_idx in range(self._data.stack_len):
+            if moving_idx == static_idx:
+                shifts_y.append(0.)
+                shifts_x.append(0.)
+                continue
+            shift_y, shift_x = self._data.align_pair(
+                static_idx,
+                moving_idx,
+            )
+            shifts_y.append(shift_y)
+            shifts_x.append(shift_x)
+        self._drifts_scatter.update(
+            shifts_x, shifts_y
+        )
+        self._drifts_fig.push()
 
     def align_pair_cb(self, *e):
         moving_idx = self.current_moving_idx()
-        (shift_y, shift_x) = self._data.align_pair(
+        shift_y, shift_x = self._data.align_pair(
             self.current_static_idx(),
             moving_idx,
         )
         # Need to build patch API
         self._drifts_scatter.cds.patch(
             {
-                "cx": [(moving_idx, shift_x)],
-                "cy": [(moving_idx, shift_y)],
+                self._drifts_scatter.points.x: [(moving_idx, shift_x)],
+                self._drifts_scatter.points.y: [(moving_idx, shift_y)],
             }
         )
         self._drifts_fig.push()
