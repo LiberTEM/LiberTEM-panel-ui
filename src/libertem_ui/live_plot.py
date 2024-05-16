@@ -71,6 +71,36 @@ def adapt_figure(fig: figure, shape, maxdim: int | None = 450, mindim: int | Non
         pass
 
 
+class BokehFigure:
+    def __init__(self, title="", **kwargs):
+        self._fig = figure(title=title, **kwargs)
+        self._pane = pn.pane.Bokeh(self._fig)
+        self._toolbar = pn.Row(
+            height=40,
+            margin=(0, 0)
+        )
+        self._layout = pn.Column(
+            self._toolbar,
+            self._pane,
+            margin=(0, 0),
+        )
+
+    @property
+    def pane(self) -> pn.pane.Bokeh:
+        return self._pane
+
+    @property
+    def fig(self) -> figure:
+        return self._fig
+
+    @property
+    def layout(self) -> pn.Column:
+        return self._layout
+
+    def push(self, *others: ApertureFigure | BokehFigure):
+        pn.io.notebook.push_notebook(self.pane, *(o.pane for o in others))
+
+
 class ApertureFigure:
     def __init__(self):
         """
@@ -234,7 +264,7 @@ class ApertureFigure:
     def layout(self) -> pn.Column:
         return self._layout
 
-    def push(self, *others: ApertureFigure):
+    def push(self, *others: ApertureFigure | BokehFigure):
         pn.io.notebook.push_notebook(self.pane, *(o.pane for o in others))
 
     def add_control_panel(
