@@ -5,10 +5,12 @@ import numpy as np
 import panel as pn
 from strenum import StrEnum
 from skimage.filters._fft_based import _get_nd_butterworth_filter
+from skimage.registration import phase_cross_correlation
 
 from libertem_ui.ui_context import UIContext  # noqa
-from libertem_ui.live_plot import ApertureFigure
-from libertem_ui.display.display_base import DiskSet, Rectangles
+from libertem_ui.live_plot import ApertureFigure, BokehFigure
+from libertem_ui.display.display_base import DiskSet, Rectangles, PointSet
+from libertem_ui.display.image_db import BokehImage
 # from libertem_ui.display.vectors import MultiLine
 from libertem_ui.windows.base import UIWindow, WindowType, WindowProperties
 
@@ -157,8 +159,24 @@ class StackDataHandler:
             )
         return aperture
 
+    def align_pair(
+        self,
+        static_idx: int,
+        moving_idx: int,
+        upsample: int = 20
+    ) -> tuple[float, float]:
+        static = self.get_frame(static_idx)
+        moving = self.get_frame(moving_idx)
+        shift, _, _ = phase_cross_correlation(
+            static,
+            moving,
+            upsample_factor=upsample,
+            normalization=None,
+        )
+        return tuple(shift)
 
-class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
+
+class StackDSWindow(UIWindow):
     @classmethod
     def using(
         cls,
@@ -176,6 +194,8 @@ class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
             dataset.initialize(ctx.executor)
         return super().using(ctx, dataset, **init_kwargs)
 
+
+class ApertureBuilder(StackDSWindow, ui_type=WindowType.STANDALONE):
     @staticmethod
     def default_properties():
         return WindowProperties(
@@ -562,3 +582,141 @@ cds.change.emit();
             phase_unwrap(data)
         )
         self._output_fig.push()
+
+
+class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
+    @staticmethod
+    def default_properties():
+        return WindowProperties(
+            'stack_align',
+            'Stack Aligner',
+            header_run=False,
+            header_stop=False,
+            self_run_only=True,
+            header_activate=False,
+        )
+
+    # @property
+    # def state(self):
+    #     cy, cx, radius = self._disk_info()
+    #     return ApertureConfig(
+    #         sb_pos=(cy, cx),
+    #         radius=radius,
+    #         window_size=self._recon_shape(),
+    #     )
+
+    def current_static_idx(self):
+        return int(self._static_choice.value)
+
+    def current_moving_idx(self):
+        return self._moving_slider.value
+
+    def initialize(self, dataset: MemoryDataSet) -> Self:
+        self._data = StackDataHandler(dataset)
+
+        self._static_choice = pn.widgets.Select(
+            name="Static image",
+            value="0",
+            options=[str(i) for i in range(self._data.stack_len)],
+            width=100,
+        )
+        self._moving_slider = pn.widgets.IntSlider(
+            name="Moving image",
+            value=1,
+            start=0,
+            end=self._data.stack_len - 1,
+            width=250,
+        )
+        static_image = self._data.get_frame(self.current_static_idx())
+        moving_image = self._data.get_frame(self.current_moving_idx())
+
+        self._image_fig = ApertureFigure.new(
+            static_image,
+            title='Stack',
+        )
+        self._image_fig.add_mask_tools()
+        self._moving_im = (
+            BokehImage
+            .new()
+            .from_numpy(moving_image)
+            .on(self._image_fig.fig)
+        )
+        self.set_image_title()
+        # self._moving_im.get_alpha_slider()
+
+        self._image_fig._toolbar.insert(0, self._moving_slider)
+        self._image_fig._toolbar.insert(0, self._static_choice)
+        self._image_fig._toolbar.height = 60
+        self._static_choice.param.watch(self.update_static_cb, 'value')
+        self._moving_slider.param.watch(self.update_moving_cb, 'value_throttled')
+
+        self._drifts_fig = BokehFigure(title="Drift")
+        self._drifts_fig.fig.frame_height = 400
+        self._drifts_fig.fig.frame_width = 400
+        self._drifts_scatter = (
+            PointSet
+            .new()
+            .from_vectors(
+                x=np.zeros(self._data.stack_len),
+                y=np.zeros(self._data.stack_len),
+            )
+            .on(self._drifts_fig.fig)
+            .editable(add=False)
+        )
+
+        align_all_btn = pn.widgets.Button(
+            name="Auto-Align all",
+            button_type="primary",
+        )
+        align_pair_btn = pn.widgets.Button(
+            name="Auto-Align pair",
+            button_type="primary",
+        )
+        align_all_btn.on_click(self.align_all_cb)
+        align_pair_btn.on_click(self.align_pair_cb)
+
+        self.inner_layout.extend((
+            pn.Column(
+                self._image_fig.layout,
+            ),
+            pn.Column(
+                self._drifts_fig.layout,
+                pn.Row(
+                    align_all_btn,
+                    align_pair_btn,
+                )
+            )
+        ))
+
+    def update_static_cb(self, *e):
+        frame = self._data.get_frame(self.current_static_idx())
+        self._image_fig.im.update(frame)
+        self.set_image_title()
+
+    def update_moving_cb(self, e):
+        frame = self._data.get_frame(self.current_moving_idx())
+        self._moving_im.update(frame)
+        self.set_image_title()
+
+    def set_image_title(self):
+        self._image_fig.fig.title.text = (
+            f'Static {self.current_static_idx()} -  Moving {self.current_moving_idx()}'
+        )
+
+    def align_all_cb(self, *e):
+        ...
+
+    def align_pair_cb(self, *e):
+        moving_idx = self.current_moving_idx()
+        (shift_y, shift_x) = self._data.align_pair(
+            self.current_static_idx(),
+            moving_idx,
+        )
+        # Need to build patch API
+        self._drifts_scatter.cds.patch(
+            {
+                "cx": [(moving_idx, shift_x)],
+                "cy": [(moving_idx, shift_y)],
+            }
+        )
+        self._drifts_fig.push()
