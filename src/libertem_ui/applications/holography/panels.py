@@ -134,6 +134,29 @@ class StackDataHandler:
         window_size += (window_size % 2)
         return cx, cy, window_size
 
+    @staticmethod
+    def get_aperture(
+        ap_type: ApertureTypes, radius: int, window: tuple[int, int], order: int = 1
+    ):
+        # as fft-shifted
+        radius = int(np.round(radius))
+        if ap_type == ApertureTypes.BUT:
+            aperture = _get_nd_butterworth_filter(
+                shape=window,
+                factor=radius / min(window),
+                order=order,
+                high_pass=False,
+                real=False,
+                dtype=np.float32,
+                squared_butterworth=True,
+            )
+        else:
+            aperture = disk_aperture(
+                window,
+                radius,
+            )
+        return aperture
+
 
 class ApertureBuilder(UIWindow, ui_type=WindowType.STANDALONE):
     @classmethod
@@ -463,33 +486,20 @@ cds.change.emit();
         size = int(np.round(self._box_annot.cds.data["window_size"]))
         return (size, size)
 
-    def _aperture_type(self):
+    def _aperture_type(self) -> ApertureTypes:
         return self._aperture_type_choice.value
 
-    def _aperture_but_order(self):
+    def _aperture_but_order(self) -> int:
         return self._aperture_but_order_int.value
 
     def _get_aperture(self):
-        # as fft-shifted
         _, _, radius = self._disk_info()
-        radius = int(np.round(radius))
-        recon_shape = self._recon_shape()
-        if self._aperture_type() == ApertureTypes.BUT:
-            aperture = _get_nd_butterworth_filter(
-                shape=recon_shape,
-                factor=radius / min(recon_shape),
-                order=self._aperture_but_order(),
-                high_pass=False,
-                real=False,
-                dtype=np.float32,
-                squared_butterworth=True,
-            )
-        else:
-            aperture = disk_aperture(
-                recon_shape,
-                radius,
-            )
-        return aperture
+        return self._data.get_aperture(
+            self._aperture_type(),
+            radius,
+            self._recon_shape(),
+            order=self._aperture_but_order(),
+        )
 
     def _update_aperture(self):
         aperture = self._get_aperture()
