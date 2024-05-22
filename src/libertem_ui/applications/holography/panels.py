@@ -605,10 +605,10 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
     #         window_size=self._recon_shape(),
     #     )
 
-    def current_static_idx(self):
+    def current_static_idx(self) -> int:
         return int(self._static_choice.value)
 
-    def current_moving_idx(self):
+    def current_moving_idx(self) -> int:
         return self._moving_slider.value
 
     def initialize(self, dataset: MemoryDataSet) -> Self:
@@ -654,6 +654,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         self._drifts_fig = BokehFigure(title="Drift")
         self._drifts_fig.fig.frame_height = 400
         self._drifts_fig.fig.frame_width = 400
+        self._drifts_fig.fig.y_range.flipped = True
         self._drifts_scatter = (
             PointSet
             .new()
@@ -696,7 +697,12 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         self.set_image_title()
 
     def update_moving_cb(self, e):
-        frame = self._data.get_frame(self.current_moving_idx())
+        m_idx = self.current_moving_idx()
+        frame = self._data.get_frame(m_idx)
+        self._moving_im.set_anchor(
+            x=self._drifts_scatter.cds.data['cx'][m_idx],
+            y=self._drifts_scatter.cds.data['cy'][m_idx],
+        )
         self._moving_im.update(frame)
         self.set_image_title()
 
@@ -723,7 +729,12 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         self._drifts_scatter.update(
             shifts_x, shifts_y
         )
-        self._drifts_fig.push()
+        m_idx = self.current_moving_idx()
+        self._moving_im.set_anchor(
+            x=shifts_x[m_idx],
+            y=shifts_y[m_idx],
+        )
+        self._drifts_fig.push(self._image_fig)
 
     def align_pair_cb(self, *e):
         moving_idx = self.current_moving_idx()
@@ -738,4 +749,5 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
                 self._drifts_scatter.points.y: [(moving_idx, shift_y)],
             }
         )
-        self._drifts_fig.push()
+        self._moving_im.set_anchor(x=shift_x, y=shift_y)
+        self._drifts_fig.push(self._image_fig)
