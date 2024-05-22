@@ -642,7 +642,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             .on(self._image_fig.fig)
         )
         self.set_image_title()
-        # self._moving_im.get_alpha_slider()
+        m_alpha_slider = self._moving_im.color.get_alpha_slider(name="Moving Alpha")
 
         self._image_fig._toolbar.insert(0, self._moving_slider)
         self._image_fig._toolbar.insert(0, self._static_choice)
@@ -678,6 +678,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         self.inner_layout.extend((
             pn.Column(
                 self._image_fig.layout,
+                m_alpha_slider,
             ),
             pn.Column(
                 self._drifts_fig.layout,

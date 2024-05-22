@@ -12,7 +12,7 @@ from bokeh.models.annotations import ColorBar
 from .display_base import DisplayBase, PointSet
 # from .gamma_mapper import GammaColorMapper
 from ..utils import colormaps as cmaps
-from bokeh.models.widgets import RangeSlider, CheckboxGroup, Button, Spinner  # Slider
+from bokeh.models.widgets import RangeSlider, CheckboxGroup, Button, Spinner, Slider
 from bokeh.models import CustomJS
 from bokeh.events import RangesUpdate
 
@@ -872,4 +872,67 @@ clim_slider.value = [low, high]
 clim_slider.start = bar_low
 clim_slider.end = bar_high
 clim_slider.step = (bar_high - bar_low) / nstep;
+"""
+
+    def current_alpha(self) -> float:
+        """
+        Get the current image glyph alpha value
+
+        Returns
+        -------
+        float
+            The alpha value
+        """
+        return self.img.im.global_alpha
+
+    @property
+    def alpha_slider(self) -> Slider | None:
+        try:
+            return self._alpha_slider
+        except AttributeError:
+            return None
+
+    def _make_alpha_slider(self, *, name='Alpha', **kwargs):
+        return Slider(
+            title=name,
+            start=0.,
+            end=1.,
+            value=self.current_alpha(),
+            step=0.01,
+            **kwargs
+        )
+
+    def get_alpha_slider(
+        self,
+        name: str = 'Alpha',
+        **kwargs
+    ) -> Slider:
+        """
+        Get a slider allowing setting the image alpha value interactively
+
+        Parameters
+        ----------
+        alpha : Optional[float], optional
+            An initial alpha value, by default None in which case 1.0
+        name : str, optional
+            A label to apply  to the slider, by default 'Alpha'
+        **kwargs : dict, optional
+            Optional :code:`kwargs` passed to the Slider constructor, which
+            can be used to set style and other options.
+
+        Returns
+        -------
+        Slider
+            The alpha slider
+        """
+        if not self.alpha_slider:
+            self._alpha_slider = self._make_alpha_slider(name=name, **kwargs)
+            callback = CustomJS(args={'glyph': self.img.im}, code=self._set_alpha_js())
+            self._alpha_slider.js_on_change('value', callback)
+        return self.alpha_slider
+
+    @staticmethod
+    def _set_alpha_js():
+        return """
+glyph.global_alpha = cb_obj.value;
 """
