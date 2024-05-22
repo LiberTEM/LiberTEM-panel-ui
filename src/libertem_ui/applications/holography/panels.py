@@ -634,7 +634,6 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             static_image,
             title='Stack',
         )
-        self._image_fig.add_mask_tools()
         self._moving_im = (
             BokehImage
             .new()
@@ -642,8 +641,10 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             .on(self._image_fig.fig)
         )
         self.set_image_title()
+        self._moving_im.im.global_alpha = 0.5
         m_alpha_slider = self._moving_im.color.get_alpha_slider(name="Moving Alpha")
 
+        self._image_fig.add_mask_tools()
         self._image_fig._toolbar.insert(0, self._moving_slider)
         self._image_fig._toolbar.insert(0, self._static_choice)
         self._image_fig._toolbar.height = 60
