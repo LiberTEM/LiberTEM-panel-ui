@@ -665,7 +665,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             .on(self._drifts_fig.fig)
             .editable(add=False)
         )
-        self._drifts_scatter.cds.on_change("data", self._move_anchor_cb)
+        self._drifts_scatter.cds.on_change("data", self._move_anchor_scatter_cb)
 
         align_all_btn = pn.widgets.Button(
             name="Auto-Align all",
@@ -753,7 +753,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         self._moving_im.set_anchor(x=shift_x, y=shift_y)
         self._drifts_fig.push(self._image_fig)
 
-    def _move_anchor_cb(self, attr, old, new):
+    def _move_anchor_scatter_cb(self, attr, old, new):
         if attr != "data":
             return
         m_idx = self.current_moving_idx()
