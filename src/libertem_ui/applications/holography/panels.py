@@ -682,8 +682,13 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             name="Auto-Align pair",
             button_type="primary",
         )
+        reset_btn = pn.widgets.Button(
+            name="Reset moving",
+            button_type="primary",
+        )
         align_all_btn.on_click(self.align_all_cb)
         align_pair_btn.on_click(self.align_pair_cb)
+        reset_btn.on_click(self.reset_moving_cb)
 
         self.inner_layout.extend((
             pn.Column(
@@ -695,6 +700,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
                 pn.Row(
                     align_all_btn,
                     align_pair_btn,
+                    reset_btn,
                 )
             )
         ))
@@ -744,21 +750,31 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         )
         self._drifts_fig.push(self._image_fig)
 
-    def align_pair_cb(self, *e):
-        moving_idx = self.current_moving_idx()
-        shift_y, shift_x = self._data.align_pair(
-            self.current_static_idx(),
-            moving_idx,
-        )
+    def _update_one(self, y, x, idx: int | None = None, absolute: bool = True):
+        if idx is None:
+            idx = self.current_moving_idx()
+        if not absolute:
+            current_x = self._drifts_scatter.cds.data['cx'][idx]
+            current_y = self._drifts_scatter.cds.data['cy'][idx]
+            x = current_x + x
+            y = current_y + y
         # Need to build patch API
         self._drifts_scatter.cds.patch(
             {
-                self._drifts_scatter.points.x: [(moving_idx, shift_x)],
-                self._drifts_scatter.points.y: [(moving_idx, shift_y)],
+                self._drifts_scatter.points.x: [(idx, x)],
+                self._drifts_scatter.points.y: [(idx, y)],
             }
         )
-        self._moving_im.set_anchor(x=shift_x, y=shift_y)
+        self._moving_im.set_anchor(x=x, y=y)
         self._drifts_fig.push(self._image_fig)
+
+    def align_pair_cb(self, *e):
+        moving_idx = self.current_moving_idx()
+        new_y, new_x = self._data.align_pair(
+            self.current_static_idx(),
+            moving_idx,
+        )
+        self._update_one(new_y, new_x)
 
     def _move_anchor_scatter_cb(self, attr, old, new):
         if attr != "data":
@@ -767,11 +783,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         old_x, old_y = old['cx'][m_idx], old['cy'][m_idx]
         new_x, new_y = new['cx'][m_idx], new['cy'][m_idx]
         if old_x != new_x or old_y != new_y:
-            self._moving_im.set_anchor(
-                x=new_x,
-                y=new_y,
-            )
-            self._image_fig.push()
+            self._update_one(new_y, new_x)
 
     def _drag_moving_cb(self, event: SelectionGeometry):
         if not event.final or event.geometry["type"] != "poly":
@@ -785,21 +797,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         dx = xvals[-1] - xvals[0]
         dy = yvals[-1] - yvals[0]
 
-        m_idx = self.current_moving_idx()
-        current_x = self._drifts_scatter.cds.data['cx'][m_idx]
-        current_y = self._drifts_scatter.cds.data['cy'][m_idx]
+        self._update_one(dy, dx, absolute=False)
 
-        new_x = current_x + dx
-        new_y = current_y + dy
-        self._moving_im.set_anchor(
-            x=new_x,
-            y=new_y,
-        )
-
-        self._drifts_scatter.cds.patch(
-            {
-                self._drifts_scatter.points.x: [(m_idx, new_x)],
-                self._drifts_scatter.points.y: [(m_idx, new_y)],
-            }
-        )
-        self._drifts_fig.push(self._image_fig)
+    def reset_moving_cb(self, e):
+        self._update_one(0., 0.)
