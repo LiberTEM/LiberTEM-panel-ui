@@ -6,6 +6,7 @@ import panel as pn
 from strenum import StrEnum
 from skimage.filters._fft_based import _get_nd_butterworth_filter
 from skimage.registration import phase_cross_correlation
+from bokeh.models.tools import LassoSelectTool
 
 from libertem_ui.ui_context import UIContext  # noqa
 from libertem_ui.live_plot import ApertureFigure, BokehFigure
@@ -27,6 +28,7 @@ from libertem_holo.base.mask import disk_aperture
 
 if TYPE_CHECKING:
     from libertem.io.dataset.base import DataSet
+    from bokeh.events import SelectionGeometry
 
 
 class ViewStates(StrEnum):
@@ -651,6 +653,11 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         self._static_choice.param.watch(self.update_static_cb, 'value')
         self._moving_slider.param.watch(self.update_moving_cb, 'value_throttled')
 
+        drag_tool = LassoSelectTool(continuous=False)
+        drag_tool.overlay.fill_alpha = 0.
+        self._image_fig.fig.add_tools(drag_tool)
+        self._image_fig.fig.on_event("selectiongeometry", self._drag_moving_cb)
+
         self._drifts_fig = BokehFigure(title="Drift")
         self._drifts_fig.fig.frame_height = 400
         self._drifts_fig.fig.frame_width = 400
@@ -765,3 +772,34 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
                 y=new_y,
             )
             self._image_fig.push()
+
+    def _drag_moving_cb(self, event: SelectionGeometry):
+        if not event.final or event.geometry["type"] != "poly":
+            return
+        xvals = event.geometry["x"]
+        yvals = event.geometry["y"]
+
+        if len(xvals) < 2:
+            return
+
+        dx = xvals[-1] - xvals[0]
+        dy = yvals[-1] - yvals[0]
+
+        m_idx = self.current_moving_idx()
+        current_x = self._drifts_scatter.cds.data['cx'][m_idx]
+        current_y = self._drifts_scatter.cds.data['cy'][m_idx]
+
+        new_x = current_x + dx
+        new_y = current_y + dy
+        self._moving_im.set_anchor(
+            x=new_x,
+            y=new_y,
+        )
+
+        self._drifts_scatter.cds.patch(
+            {
+                self._drifts_scatter.points.x: [(m_idx, new_x)],
+                self._drifts_scatter.points.y: [(m_idx, new_y)],
+            }
+        )
+        self._drifts_fig.push(self._image_fig)
