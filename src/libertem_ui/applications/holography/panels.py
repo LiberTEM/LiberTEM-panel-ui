@@ -609,34 +609,31 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
     #     )
 
     def current_static_idx(self) -> int:
-        return int(self._static_choice.value)
+        return 0
+
+    def movable_keys(self) -> list[int]:
+        s_idx = self.current_static_idx()
+        return [
+            i for i in range(self._data.stack_len)
+            if i != s_idx
+        ]
 
     def current_moving_idx(self) -> int:
-        return self._moving_slider.value
+        return int(self._moving_slider.value)
 
     def _current_colors(self) -> list[str]:
-        m_idx = self.current_moving_idx()
-        return [
-            "blue"
-            if i == m_idx
-            else "red"
-            for i in range(self._drifts_scatter.data_length)
-        ]
+        s_idx = self.current_static_idx()
+        if s_idx != 0:
+            raise NotImplementedError()
+        return ["black"] + ["red"] * (self._static_scatter.data_length - 1)
 
     def initialize(self, dataset: MemoryDataSet) -> Self:
         self._data = StackDataHandler(dataset)
 
-        self._static_choice = pn.widgets.Select(
-            name="Static image",
-            value="0",
-            options=[str(i) for i in range(self._data.stack_len)],
-            width=100,
-        )
-        self._moving_slider = pn.widgets.IntSlider(
+        self._moving_slider = pn.widgets.DiscreteSlider(
             name="Moving image",
             value=1,
-            start=0,
-            end=self._data.stack_len - 1,
+            options=self.movable_keys(),
             width=250,
         )
         static_image = self._data.get_frame(self.current_static_idx())
@@ -658,9 +655,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
 
         self._image_fig.add_mask_tools()
         self._image_fig._toolbar.insert(0, self._moving_slider)
-        self._image_fig._toolbar.insert(0, self._static_choice)
         self._image_fig._toolbar.height = 60
-        self._static_choice.param.watch(self.update_static_cb, 'value')
         self._moving_slider.param.watch(self.update_moving_cb, 'value_throttled')
 
         drag_tool = LassoSelectTool(continuous=False)
@@ -690,45 +685,63 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             PointSet
             .new()
             .from_vectors(
+                x=np.zeros(self._data.stack_len - 1),
+                y=np.zeros(self._data.stack_len - 1),
+            )
+            .on(self._drifts_fig.fig)
+        )
+        self._static_scatter.raw_update(
+            pt_label=["0"] + [
+                f"{i}" for i in self.movable_keys() if i != self.current_moving_idx()
+            ],
+            pt_color=self._current_colors(),
+        )
+        self._static_scatter.points.fill_color = "pt_color"
+        self._static_scatter.points.line_color = "pt_color"
+        self._moving_scatter = (
+            PointSet
+            .new()
+            .from_vectors(
                 x=np.zeros((1,)),
                 y=np.zeros((1,)),
             )
             .on(self._drifts_fig.fig)
-        )
-        self._static_scatter.points.fill_color = "black"
-        self._static_scatter.points.line_color = "black"
-        self._static_scatter.raw_update(
-            pt_label=["static"]
-        )
-        self._drifts_scatter = (
-            PointSet
-            .new()
-            .from_vectors(
-                x=np.zeros(self._data.stack_len),
-                y=np.zeros(self._data.stack_len),
-            )
-            .on(self._drifts_fig.fig)
             .editable(add=False)
         )
-        self._drifts_scatter.raw_update(
-            pt_label=[f"{i}" for i in range(self._drifts_scatter.data_length)],
-            pt_color=self._current_colors(),
+        self._moving_scatter.raw_update(
+            pt_label=[f"{self.current_moving_idx()}"],
+            pt_color=["blue"],
         )
-        self._drifts_scatter.points.fill_color = "pt_color"
-        self._drifts_scatter.points.line_color = "pt_color"
-        self._drifts_scatter.cds.on_change("data", self._move_anchor_scatter_cb)
-        self._drifts_text = (
+        self._moving_scatter.points.fill_color = "pt_color"
+        self._moving_scatter.points.line_color = "pt_color"
+        self._moving_scatter.cds.on_change("data", self._move_anchor_scatter_cb)
+
+        self._static_text = (
             Text(
-                self._drifts_scatter.cds,
+                self._static_scatter.cds,
                 x='cx',
                 y='cy',
                 text='pt_label',
             )
             .on(self._drifts_fig.fig)
         )
-        self._drifts_text.glyph.text_color = 'pt_color'
-        self._drifts_text.glyph.x_offset = 8
-        self._drifts_text.glyph.y_offset = -10
+        text_options = dict(
+            text_color='pt_color',
+            x_offset=8,
+            y_offset=-10,
+        )
+        self._static_text.glyph.update(**text_options)
+
+        self._moving_text = (
+            Text(
+                self._moving_scatter.cds,
+                x='cx',
+                y='cy',
+                text='pt_label',
+            )
+            .on(self._drifts_fig.fig)
+        )
+        self._moving_text.glyph.update(**text_options)
 
         align_all_btn = pn.widgets.Button(
             name="Auto-Align all",
@@ -761,29 +774,45 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             )
         ))
 
-    def update_static_cb(self, *e):
-        frame = self._data.get_frame(self.current_static_idx())
-        self._image_fig.im.update(frame)
-        self.set_image_title()
-
     def update_moving_cb(self, e):
-        m_idx = self.current_moving_idx()
-        frame = self._data.get_frame(m_idx)
+        new_idx = self.current_moving_idx()
+        self._change_moving_scatter(new_idx)
         self._moving_im.set_anchor(
-            x=self._drifts_scatter.cds.data['cx'][m_idx],
-            y=self._drifts_scatter.cds.data['cy'][m_idx],
+            x=self._moving_scatter.cds.data['cx'][0],
+            y=self._moving_scatter.cds.data['cy'][0],
         )
-        self._moving_im.update(frame)
+        new_frame = self._data.get_frame(new_idx)
+        self._moving_im.update(new_frame)
         self.set_image_title()
-        self._sync_colors()
 
     def set_image_title(self):
         self._image_fig.fig.title.text = (
-            f'Static {self.current_static_idx()} -  Moving {self.current_moving_idx()}'
+            f'Moving {self.current_moving_idx()}'
         )
 
-    def _sync_colors(self):
-        self._drifts_scatter.raw_update(
+    def _change_moving_scatter(self, new_idx: str | int):
+        new_idx = int(new_idx)
+        old_idx = int(self._moving_scatter.cds.data['pt_label'][0])
+        old_x = self._moving_scatter.cds.data['cx'][0]
+        old_y = self._moving_scatter.cds.data['cy'][0]
+        idx_in_static = list(self._static_scatter.cds.data['pt_label']).index(str(new_idx))
+        new_x = self._static_scatter.cds.data['cx'][idx_in_static]
+        new_y = self._static_scatter.cds.data['cy'][idx_in_static]
+        self._static_scatter.cds.patch(
+            {
+                'cx': [(idx_in_static, old_x)],
+                'cy': [(idx_in_static, old_y)],
+                'pt_label': [(idx_in_static, str(old_idx))],
+            }
+        )
+        self._moving_scatter.cds.patch(
+            {
+                'cx': [(0, new_x)],
+                'cy': [(0, new_y)],
+                'pt_label': [(0, str(new_idx))],
+            }
+        )
+        self._static_scatter.raw_update(
             pt_color=self._current_colors(),
         )
         self._drifts_fig.push()
@@ -792,7 +821,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         shifts_y = []
         shifts_x = []
         static_idx = self.current_static_idx()
-        for moving_idx in range(self._data.stack_len):
+        for moving_idx in map(int, self._static_scatter.cds.data['pt_label']):
             if moving_idx == static_idx:
                 shifts_y.append(0.)
                 shifts_x.append(0.)
@@ -803,33 +832,27 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             )
             shifts_y.append(shift_y)
             shifts_x.append(shift_x)
-        self._drifts_scatter.update(
+        self._static_scatter.update(
             shifts_x, shifts_y
         )
-        m_idx = self.current_moving_idx()
-        self._moving_im.set_anchor(
-            x=shifts_x[m_idx],
-            y=shifts_y[m_idx],
-        )
-        self._drifts_fig.push(self._image_fig)
+        self.align_pair_cb()
 
-    def _update_one(self, y, x, idx: int | None = None, absolute: bool = True):
-        if idx is None:
-            idx = self.current_moving_idx()
+    def _update_one(self, y: float, x: float, absolute: bool = True, push: bool = True):
         if not absolute:
-            current_x = self._drifts_scatter.cds.data['cx'][idx]
-            current_y = self._drifts_scatter.cds.data['cy'][idx]
+            current_x = self._moving_scatter.cds.data['cx'][0]
+            current_y = self._moving_scatter.cds.data['cy'][0]
             x = current_x + x
             y = current_y + y
         # Need to build patch API
-        self._drifts_scatter.cds.patch(
+        self._moving_scatter.cds.patch(
             {
-                self._drifts_scatter.points.x: [(idx, x)],
-                self._drifts_scatter.points.y: [(idx, y)],
+                'cx': [(0, x)],
+                'cy': [(0, y)],
             }
         )
         self._moving_im.set_anchor(x=x, y=y)
-        self._drifts_fig.push(self._image_fig)
+        if push:
+            self._drifts_fig.push(self._image_fig)
 
     def align_pair_cb(self, *e):
         moving_idx = self.current_moving_idx()
@@ -842,9 +865,8 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
     def _move_anchor_scatter_cb(self, attr, old, new):
         if attr != "data":
             return
-        m_idx = self.current_moving_idx()
-        old_x, old_y = old['cx'][m_idx], old['cy'][m_idx]
-        new_x, new_y = new['cx'][m_idx], new['cy'][m_idx]
+        old_x, old_y = old['cx'][0], old['cy'][0]
+        new_x, new_y = new['cx'][0], new['cy'][0]
         if old_x != new_x or old_y != new_y:
             self._update_one(new_y, new_x)
 
