@@ -7,6 +7,7 @@ from strenum import StrEnum
 from skimage.filters._fft_based import _get_nd_butterworth_filter
 from skimage.registration import phase_cross_correlation
 from bokeh.models.tools import LassoSelectTool
+from bokeh.models import Span
 
 from libertem_ui.ui_context import UIContext  # noqa
 from libertem_ui.live_plot import ApertureFigure, BokehFigure
@@ -662,6 +663,18 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         self._drifts_fig.fig.frame_height = 400
         self._drifts_fig.fig.frame_width = 400
         self._drifts_fig.fig.y_range.flipped = True
+        ver_span = Span(
+            location=0.,
+            dimension='height',
+            line_alpha=0.5,
+        )
+        hor_span = Span(
+            location=0.,
+            dimension='width',
+            line_alpha=0.5,
+        )
+        self._drifts_fig.fig.add_layout(ver_span)
+        self._drifts_fig.fig.add_layout(hor_span)
         self._drifts_scatter = (
             PointSet
             .new()
@@ -673,6 +686,8 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             .editable(add=False)
         )
         self._drifts_scatter.cds.on_change("data", self._move_anchor_scatter_cb)
+        self._drifts_fig.fig.x_range.min_interval = 2.
+        self._drifts_fig.fig.y_range.min_interval = 2.
 
         align_all_btn = pn.widgets.Button(
             name="Auto-Align all",
