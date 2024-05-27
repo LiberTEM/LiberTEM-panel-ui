@@ -11,7 +11,7 @@ from bokeh.models import Span
 
 from libertem_ui.ui_context import UIContext  # noqa
 from libertem_ui.live_plot import ApertureFigure, BokehFigure
-from libertem_ui.display.display_base import DiskSet, Rectangles, PointSet
+from libertem_ui.display.display_base import DiskSet, Rectangles, PointSet, Text
 from libertem_ui.display.image_db import BokehImage
 # from libertem_ui.display.vectors import MultiLine
 from libertem_ui.windows.base import UIWindow, WindowType, WindowProperties
@@ -717,6 +717,18 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         self._drifts_scatter.points.fill_color = "pt_color"
         self._drifts_scatter.points.line_color = "pt_color"
         self._drifts_scatter.cds.on_change("data", self._move_anchor_scatter_cb)
+        self._drifts_text = (
+            Text(
+                self._drifts_scatter.cds,
+                x='cx',
+                y='cy',
+                text='pt_label',
+            )
+            .on(self._drifts_fig.fig)
+        )
+        self._drifts_text.glyph.text_color = 'pt_color'
+        self._drifts_text.glyph.x_offset = 8
+        self._drifts_text.glyph.y_offset = -10
 
         align_all_btn = pn.widgets.Button(
             name="Auto-Align all",
