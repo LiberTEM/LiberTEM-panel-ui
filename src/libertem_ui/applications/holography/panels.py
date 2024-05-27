@@ -614,6 +614,15 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
     def current_moving_idx(self) -> int:
         return self._moving_slider.value
 
+    def _current_colors(self) -> list[str]:
+        m_idx = self.current_moving_idx()
+        return [
+            "blue"
+            if i == m_idx
+            else "red"
+            for i in range(self._drifts_scatter.data_length)
+        ]
+
     def initialize(self, dataset: MemoryDataSet) -> Self:
         self._data = StackDataHandler(dataset)
 
@@ -675,6 +684,22 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         )
         self._drifts_fig.fig.add_layout(ver_span)
         self._drifts_fig.fig.add_layout(hor_span)
+        self._drifts_fig.fig.x_range.min_interval = 2.
+        self._drifts_fig.fig.y_range.min_interval = 2.
+        self._static_scatter = (
+            PointSet
+            .new()
+            .from_vectors(
+                x=np.zeros((1,)),
+                y=np.zeros((1,)),
+            )
+            .on(self._drifts_fig.fig)
+        )
+        self._static_scatter.points.fill_color = "black"
+        self._static_scatter.points.line_color = "black"
+        self._static_scatter.raw_update(
+            pt_label=["static"]
+        )
         self._drifts_scatter = (
             PointSet
             .new()
@@ -685,9 +710,13 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             .on(self._drifts_fig.fig)
             .editable(add=False)
         )
+        self._drifts_scatter.raw_update(
+            pt_label=[f"{i}" for i in range(self._drifts_scatter.data_length)],
+            pt_color=self._current_colors(),
+        )
+        self._drifts_scatter.points.fill_color = "pt_color"
+        self._drifts_scatter.points.line_color = "pt_color"
         self._drifts_scatter.cds.on_change("data", self._move_anchor_scatter_cb)
-        self._drifts_fig.fig.x_range.min_interval = 2.
-        self._drifts_fig.fig.y_range.min_interval = 2.
 
         align_all_btn = pn.widgets.Button(
             name="Auto-Align all",
@@ -734,11 +763,18 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         )
         self._moving_im.update(frame)
         self.set_image_title()
+        self._sync_colors()
 
     def set_image_title(self):
         self._image_fig.fig.title.text = (
             f'Static {self.current_static_idx()} -  Moving {self.current_moving_idx()}'
         )
+
+    def _sync_colors(self):
+        self._drifts_scatter.raw_update(
+            pt_color=self._current_colors(),
+        )
+        self._drifts_fig.push()
 
     def align_all_cb(self, *e):
         shifts_y = []
