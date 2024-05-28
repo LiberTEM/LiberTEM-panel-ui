@@ -166,7 +166,8 @@ class StackDataHandler:
         self,
         static_idx: int,
         moving_idx: int,
-        upsample: int = 20
+        upsample: int = 20,
+        mask: np.ndarray | None = None,
     ) -> tuple[float, float]:
         static = self.get_frame(static_idx)
         moving = self.get_frame(moving_idx)
@@ -175,6 +176,7 @@ class StackDataHandler:
             moving,
             upsample_factor=upsample,
             normalization=None,
+            reference_mask=mask,
         )
         return tuple(shift)
 
@@ -821,6 +823,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         shifts_y = []
         shifts_x = []
         static_idx = self.current_static_idx()
+        mask = self._image_fig.get_mask(self._data.sig_shape)
         for moving_idx in map(int, self._static_scatter.cds.data['pt_label']):
             if moving_idx == static_idx:
                 shifts_y.append(0.)
@@ -829,13 +832,14 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             shift_y, shift_x = self._data.align_pair(
                 static_idx,
                 moving_idx,
+                mask=mask,
             )
             shifts_y.append(shift_y)
             shifts_x.append(shift_x)
         self._static_scatter.update(
             shifts_x, shifts_y
         )
-        self.align_pair_cb()
+        self.align_pair_cb(mask=mask)
 
     def _update_one(self, y: float, x: float, absolute: bool = True, push: bool = True):
         if not absolute:
@@ -854,11 +858,14 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         if push:
             self._drifts_fig.push(self._image_fig)
 
-    def align_pair_cb(self, *e):
+    def align_pair_cb(self, *e, mask: np.ndarray | None = None):
+        if mask is None:
+            mask = self._image_fig.get_mask(self._data.sig_shape)
         moving_idx = self.current_moving_idx()
         new_y, new_x = self._data.align_pair(
             self.current_static_idx(),
             moving_idx,
+            mask=mask,
         )
         self._update_one(new_y, new_x)
 
