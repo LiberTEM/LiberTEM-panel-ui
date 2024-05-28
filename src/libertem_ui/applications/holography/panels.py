@@ -665,7 +665,10 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         self._image_fig.fig.add_tools(drag_tool)
         self._image_fig.fig.on_event("selectiongeometry", self._drag_moving_cb)
 
-        self._drifts_fig = BokehFigure(title="Drift")
+        self._drifts_fig = BokehFigure(
+            title="Drift",
+            match_aspect=True,
+        )
         self._drifts_fig.fig.frame_height = 400
         self._drifts_fig.fig.frame_width = 400
         self._drifts_fig.fig.y_range.flipped = True
