@@ -652,8 +652,16 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             .on(self._image_fig.fig)
         )
         self.set_image_title()
+        self._image_fig.im.im.global_alpha = 0.5
+        s_alpha_slider = self._image_fig.im.color.get_alpha_slider(
+            name="Static Alpha",
+            width=200,
+        )
         self._moving_im.im.global_alpha = 0.5
-        m_alpha_slider = self._moving_im.color.get_alpha_slider(name="Moving Alpha")
+        m_alpha_slider = self._moving_im.color.get_alpha_slider(
+            name="Moving Alpha",
+            width=200,
+        )
 
         self._image_fig.add_mask_tools()
         self._image_fig._toolbar.insert(0, self._moving_slider)
@@ -666,7 +674,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         self._image_fig.fig.on_event("selectiongeometry", self._drag_moving_cb)
 
         self._drifts_fig = BokehFigure(
-            title="Drift",
+            title="Shift",
             match_aspect=True,
         )
         self._drifts_fig.fig.frame_height = 400
@@ -764,10 +772,38 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         align_pair_btn.on_click(self.align_pair_cb)
         reset_btn.on_click(self.reset_moving_cb)
 
+        self._align_choice = pn.widgets.Select(
+            name="Align option",
+            options=[
+                "Whole image",
+                "Subregion",
+                "Arb. Mask",
+            ],
+            value="Whole image",
+            width=150,
+        )
+        self._upsample_choice = pn.widgets.Checkbox(
+            name="Subpixel",
+            value=True,
+            align="end",
+        )
+        self._overlap_ratio_float = pn.widgets.FloatInput(
+            name="Overlap ratio",
+            value=0.3,
+            start=0.05,
+            step=0.05,
+            end=1.,
+            width=75,
+            disabled=True,
+        )
+
         self.inner_layout.extend((
             pn.Column(
                 self._image_fig.layout,
-                m_alpha_slider,
+                pn.Row(
+                    s_alpha_slider,
+                    m_alpha_slider,
+                ),
             ),
             pn.Column(
                 self._drifts_fig.layout,
@@ -775,7 +811,12 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
                     align_all_btn,
                     align_pair_btn,
                     reset_btn,
-                )
+                ),
+                pn.Row(
+                    self._align_choice,
+                    self._upsample_choice,
+                    self._overlap_ratio_float,
+                ),
             )
         ))
 
