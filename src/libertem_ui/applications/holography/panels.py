@@ -737,6 +737,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             .on(self._drifts_fig.fig)
             .editable(add=False)
         )
+        self._drifts_fig.fig.toolbar.active_drag = self._drifts_fig.fig.tools[-1]
         self._moving_scatter.raw_update(
             pt_label=[f"{self.current_moving_idx()}"],
             pt_color=["blue"],
