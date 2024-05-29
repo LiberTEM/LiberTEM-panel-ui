@@ -53,6 +53,12 @@ class ApertureTypes(StrEnum):
     HARD = "Hard"
 
 
+class AlignOption(StrEnum):
+    ALL = "Whole image"
+    SUB = "Subregion"
+    MASK = "Arb. Mask"
+
+
 class ApertureConfig(NamedTuple):
     sb_pos: tuple[float, float]
     radius: float
@@ -167,16 +173,25 @@ class StackDataHandler:
         static_idx: int,
         moving_idx: int,
         upsample: int = 20,
-        mask: np.ndarray | None = None,
+        overlap_ratio: float = 0.3,
+        roi: tuple[slice, slice] | np.ndarray | None = None,
     ) -> tuple[float, float]:
-        static = self.get_frame(static_idx)
-        moving = self.get_frame(moving_idx)
+        if roi is None or isinstance(roi, np.ndarray):
+            mask = roi
+            slices = np.s_[:, :]
+        else:
+            # must be slices
+            mask = None
+            slices = roi
+        static = self.get_frame(static_idx)[slices]
+        moving = self.get_frame(moving_idx)[slices]
         shift, _, _ = phase_cross_correlation(
             static,
             moving,
             upsample_factor=upsample,
             normalization=None,
             reference_mask=mask,
+            overlap_ratio=overlap_ratio,
         )
         return tuple(shift)
 
@@ -775,13 +790,14 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         self._align_choice = pn.widgets.Select(
             name="Align option",
             options=[
-                "Whole image",
-                "Subregion",
-                "Arb. Mask",
+                AlignOption.ALL,
+                AlignOption.SUB,
+                AlignOption.MASK,
             ],
-            value="Whole image",
+            value=AlignOption.ALL,
             width=150,
         )
+        self._align_choice.param.watch(self._align_choice_cb, "value")
         self._upsample_choice = pn.widgets.Checkbox(
             name="Subpixel",
             value=True,
@@ -820,6 +836,17 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             )
         ))
 
+    def _align_choice_cb(self, e):
+        mode = e.new
+        if mode in (AlignOption.ALL, AlignOption.SUB):
+            self._upsample_choice.disabled = False
+            self._overlap_ratio_float.disabled = True
+        elif mode == AlignOption.MASK:
+            self._upsample_choice.disabled = True
+            self._overlap_ratio_float.disabled = False
+        else:
+            raise ValueError("Unrecognized option")
+
     def update_moving_cb(self, e):
         new_idx = self.current_moving_idx()
         self._change_moving_scatter(new_idx)
@@ -833,7 +860,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
 
     def set_image_title(self):
         self._image_fig.fig.title.text = (
-            f'Moving {self.current_moving_idx()}'
+            f'Stack image: {self.current_moving_idx()}'
         )
 
     def _change_moving_scatter(self, new_idx: str | int):
@@ -863,11 +890,32 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         )
         self._drifts_fig.push()
 
+    def current_upsampling(self) -> int:
+        return 20 if self._upsample_choice.value else 1
+
+    def current_overlap_r(self) -> float:
+        return self._overlap_ratio_float.value
+
+    def get_align_roi(self) -> tuple[slice, slice] | np.ndarray | None:
+        mode = self._align_choice.value
+        if mode == AlignOption.ALL:
+            return None
+        elif mode == AlignOption.MASK:
+            return self._image_fig.get_mask(self._data.sig_shape)
+        elif mode == AlignOption.SUB:
+            slices = self._image_fig.get_mask_rect_as_slices(self._data.sig_shape)
+            if not slices:
+                return None
+            # FIXME need a way to hide any extra rectangles / polys in this mode
+            return slices[0]
+        else:
+            raise ValueError("Unrecognized option")
+
     def align_all_cb(self, *e):
         shifts_y = []
         shifts_x = []
         static_idx = self.current_static_idx()
-        mask = self._image_fig.get_mask(self._data.sig_shape)
+        roi = self.get_align_roi()
         for moving_idx in map(int, self._static_scatter.cds.data['pt_label']):
             if moving_idx == static_idx:
                 shifts_y.append(0.)
@@ -876,14 +924,16 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             shift_y, shift_x = self._data.align_pair(
                 static_idx,
                 moving_idx,
-                mask=mask,
+                roi=roi,
+                upsample=self.current_upsampling(),
+                overlap_ratio=self.current_overlap_r(),
             )
             shifts_y.append(shift_y)
             shifts_x.append(shift_x)
         self._static_scatter.update(
             shifts_x, shifts_y
         )
-        self.align_pair_cb(mask=mask)
+        self.align_pair_cb(roi=roi)
 
     def _update_one(self, y: float, x: float, absolute: bool = True, push: bool = True):
         if not absolute:
@@ -902,14 +952,16 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         if push:
             self._drifts_fig.push(self._image_fig)
 
-    def align_pair_cb(self, *e, mask: np.ndarray | None = None):
-        if mask is None:
-            mask = self._image_fig.get_mask(self._data.sig_shape)
+    def align_pair_cb(self, *e, roi: tuple[slice, slice] | np.ndarray | None = None):
+        if roi is None:
+            roi = self.get_align_roi()
         moving_idx = self.current_moving_idx()
         new_y, new_x = self._data.align_pair(
             self.current_static_idx(),
             moving_idx,
-            mask=mask,
+            roi=roi,
+            upsample=self.current_upsampling(),
+            overlap_ratio=self.current_overlap_r(),
         )
         self._update_one(new_y, new_x)
 
