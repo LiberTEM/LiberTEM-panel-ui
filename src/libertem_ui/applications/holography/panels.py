@@ -679,6 +679,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         )
 
         self._image_fig.add_mask_tools()
+        self._image_fig.set_mask_visiblity(rectangles=False, polygons=False)
         self._image_fig._toolbar.insert(0, self._moving_slider)
         self._image_fig._toolbar.height = 60
         self._moving_slider.param.watch(self.update_moving_cb, 'value_throttled')
@@ -846,14 +847,23 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
 
     def _align_choice_cb(self, e):
         mode = e.new
+        rect_vis = poly_vis = True
         if mode in (AlignOption.ALL, AlignOption.SUB):
             self._upsample_choice.disabled = False
             self._overlap_ratio_float.disabled = True
+            if mode == AlignOption.ALL:
+                rect_vis = poly_vis = False
+            else:
+                poly_vis = False
         elif mode == AlignOption.MASK:
             self._upsample_choice.disabled = True
             self._overlap_ratio_float.disabled = False
         else:
             raise ValueError("Unrecognized option")
+        self._image_fig.set_mask_visiblity(
+            rectangles=rect_vis,
+            polygons=poly_vis,
+        )
 
     def update_moving_cb(self, *e, new_idx=None):
         if new_idx is None:
