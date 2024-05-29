@@ -1062,17 +1062,32 @@ class Rectangles(DisplayBase):
             )
         return mask
 
+    def as_slices(self, shape: tuple[int, int]) -> list[tuple[slice, slice]]:
+        slices = []
+        for _, row in self.cds.to_df().iterrows():
+            slices.append(rectangle_to_slice(
+                cx=row[self.rectangles.x],
+                cy=row[self.rectangles.y],
+                w=abs(row[self.rectangles.width]),
+                h=abs(row[self.rectangles.height]),
+                shape=shape
+            ))
+        return slices
 
-def rectangle_to_mask(*, cx, cy, w, h, mask, fill_value: bool = True):
+
+def rectangle_to_slice(*, cx, cy, w, h, shape):
     lefttop = cx - w / 2, cy - h / 2
     rightbottom = cx + w / 2, cy + h / 2
-    lefttop, _ = clip_posxy_array(lefttop, mask.shape, round=True, to_int=True)
-    rightbottom, _ = clip_posxy_array(rightbottom, mask.shape, round=True, to_int=True)
-    if (lefttop[0] == rightbottom[0]) or (lefttop[1] == rightbottom[1]):
-        return mask
+    lefttop, _ = clip_posxy_array(lefttop, shape, round=True, to_int=True)
+    rightbottom, _ = clip_posxy_array(rightbottom, shape, round=True, to_int=True)
     slice_y = slice(lefttop[1], rightbottom[1] + 1)
     slice_x = slice(lefttop[0], rightbottom[0] + 1)
-    mask[slice_y, slice_x] = fill_value
+    return slice_y, slice_x
+
+
+def rectangle_to_mask(*, cx, cy, w, h, mask, fill_value: bool = True):
+    slices = rectangle_to_slice(cx=cx, cy=cy, w=w, h=h, shape=mask.shape)
+    mask[slices] = fill_value
     return mask
 
 

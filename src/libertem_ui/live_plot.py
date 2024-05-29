@@ -454,6 +454,14 @@ action.callback.execute(action)
                     mask = np.logical_or(mask, _mask)
         return mask
 
+    def get_mask_rect_as_slices(self, shape: tuple[int, int]) -> list[tuple[slice, slice]]:
+        slices = []
+        for element in self._mask_elements:
+            if not isinstance(element, Rectangles):
+                continue
+            slices.extend(element.as_slices(shape))
+        return slices
+
     def clear_mask(self, *e):
         for element in self._mask_elements:
             element.clear()
