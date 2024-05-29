@@ -716,6 +716,9 @@ m_alpha_slider.value = 0.5
 """
         )
 
+        self._image_fig.fig.x_range.bounds = (0, static_image.shape[1] - 1)
+        self._image_fig.fig.y_range.bounds = (0, static_image.shape[0] - 1)
+
         self._image_fig.add_mask_tools()
         self._image_fig.set_mask_visiblity(rectangles=False, polygons=False)
         self._image_fig._toolbar.insert(0, self._moving_slider)
