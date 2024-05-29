@@ -670,12 +670,50 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         self._image_fig.im.im.global_alpha = 0.5
         s_alpha_slider = self._image_fig.im.color.get_alpha_slider(
             name="Static Alpha",
-            width=200,
+            width=150,
         )
         self._moving_im.im.global_alpha = 0.5
         m_alpha_slider = self._moving_im.color.get_alpha_slider(
             name="Moving Alpha",
-            width=200,
+            width=150,
+        )
+        toggle_alpha_btn = pn.widgets.Button(
+            name="Toggle alpha",
+            button_type="default",
+            width=60,
+        )
+        toggle_alpha_btn.js_on_click(
+            dict(
+                s_alpha_slider=s_alpha_slider,
+                m_alpha_slider=m_alpha_slider,
+            ),
+            code="""
+let s_a = s_alpha_slider.value
+let m_a = m_alpha_slider.value
+if (m_a >= s_a) {
+    s_alpha_slider.value = 1.
+    m_alpha_slider.value = 0.
+} else {
+    s_alpha_slider.value = 0.
+    m_alpha_slider.value = 1.
+}
+"""
+        )
+
+        equal_alpha_btn = pn.widgets.Button(
+            name="Equal alpha",
+            button_type="default",
+            width=60,
+        )
+        equal_alpha_btn.js_on_click(
+            dict(
+                s_alpha_slider=s_alpha_slider,
+                m_alpha_slider=m_alpha_slider,
+            ),
+            code="""
+s_alpha_slider.value = 0.5
+m_alpha_slider.value = 0.5
+"""
         )
 
         self._image_fig.add_mask_tools()
@@ -828,6 +866,8 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
                 pn.Row(
                     s_alpha_slider,
                     m_alpha_slider,
+                    toggle_alpha_btn,
+                    equal_alpha_btn,
                 ),
             ),
             pn.Column(
