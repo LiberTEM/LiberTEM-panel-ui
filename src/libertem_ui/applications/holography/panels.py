@@ -29,7 +29,7 @@ from libertem_holo.base.mask import disk_aperture
 
 if TYPE_CHECKING:
     from libertem.io.dataset.base import DataSet
-    from bokeh.events import SelectionGeometry
+    from bokeh.events import SelectionGeometry, DoubleTap
 
 
 class ViewStates(StrEnum):
@@ -818,6 +818,8 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             disabled=True,
         )
 
+        self._drifts_fig.fig.on_event('doubletap', self._shifts_tap_cb)
+
         self.inner_layout.extend((
             pn.Column(
                 self._image_fig.layout,
@@ -853,8 +855,9 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         else:
             raise ValueError("Unrecognized option")
 
-    def update_moving_cb(self, e):
-        new_idx = self.current_moving_idx()
+    def update_moving_cb(self, *e, new_idx=None):
+        if new_idx is None:
+            new_idx = self.current_moving_idx()
         self._change_moving_scatter(new_idx)
         self._moving_im.set_anchor(
             x=self._moving_scatter.cds.data['cx'][0],
@@ -1004,3 +1007,26 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             cy=np.zeros((num,)),
         )
         self._image_fig.push(self._drifts_fig)
+
+    def _shifts_tap_cb(self, e: DoubleTap):
+        fig_height = self._drifts_fig.fig.inner_height
+        fig_width = self._drifts_fig.fig.inner_width
+        xrange = self._drifts_fig.fig.x_range
+        yrange = self._drifts_fig.fig.y_range
+        data_to_px_x = fig_width / abs(xrange.end - xrange.start)
+        data_to_px_y = fig_height / abs(yrange.end - yrange.start)
+        click_x, click_y = e.x, e.y
+        static_x = (np.asarray(self._static_scatter.cds.data["cx"]) - click_x) * data_to_px_x
+        static_y = (np.asarray(self._static_scatter.cds.data["cy"]) - click_y) * data_to_px_y
+        dist_2 = (static_x) ** 2 + (static_y) ** 2
+        closest = np.argmin(dist_2)
+        closest_dist = np.sqrt(dist_2[closest])
+        closest_stack_idx = int(self._static_scatter.cds.data["pt_label"][closest])
+        if closest_dist > 30:
+            # print(f"too far to {closest_stack_idx}: {closest_dist} px")
+            return
+        if closest_stack_idx == self.current_static_idx():
+            # print("Can't switch to static")
+            return
+        self._moving_slider.value = closest_stack_idx
+        self.update_moving_cb(new_idx=closest_stack_idx)
