@@ -850,6 +850,7 @@ m_alpha_slider.value = 0.5
             name="Subpixel",
             value=True,
             align="end",
+            disabled=True,
         )
         self._overlap_ratio_float = pn.widgets.FloatInput(
             name="Overlap ratio",
@@ -858,6 +859,12 @@ m_alpha_slider.value = 0.5
             step=0.05,
             end=1.,
             width=75,
+            disabled=True,
+        )
+        self._relative_mask_box = pn.widgets.Checkbox(
+            name="Relative ROI",
+            value=True,
+            align="end",
             disabled=True,
         )
 
@@ -883,6 +890,7 @@ m_alpha_slider.value = 0.5
                 ),
                 pn.Row(
                     self._align_choice,
+                    self._relative_mask_box,
                     self._upsample_choice,
                     self._overlap_ratio_float,
                 ),
@@ -892,6 +900,7 @@ m_alpha_slider.value = 0.5
     def _align_choice_cb(self, e):
         mode = e.new
         rect_vis = poly_vis = True
+        self._relative_mask_box.disabled = mode == AlignOption.ALL
         if mode in (AlignOption.ALL, AlignOption.SUB):
             self._upsample_choice.disabled = False
             self._overlap_ratio_float.disabled = True
