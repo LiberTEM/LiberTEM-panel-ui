@@ -983,6 +983,17 @@ m_alpha_slider.value = 0.5
         else:
             raise ValueError("Unrecognized option")
 
+    def current_shift(self, idx: int) -> tuple[float, float]:
+        cds = self._moving_scatter.cds.data
+        for k, pt_idx in enumerate(map(int, cds['pt_label'])):
+            if pt_idx == idx:
+                return cds["cy"][k], cds["cx"][k]
+        cds = self._static_scatter.cds.data
+        for k, pt_idx in enumerate(map(int, cds['pt_label'])):
+            if pt_idx == idx:
+                return cds["cy"][k], cds["cx"][k]
+        raise ValueError(f"Image {idx} not found")
+
     def align_all_cb(self, *e):
         shifts_y = []
         shifts_x = []
