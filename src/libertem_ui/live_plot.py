@@ -454,6 +454,15 @@ action.callback.execute(action)
                     mask = np.logical_or(mask, _mask)
         return mask
 
+    def set_mask_visiblity(self, *, rectangles: bool, polygons: bool):
+        visible = True
+        for element in self._mask_elements:
+            if isinstance(element, Rectangles):
+                visible = rectangles
+            if isinstance(element, Polygons):
+                visible = polygons
+            element.set_visible(visible)
+
     def get_mask_rect_as_slices(self, shape: tuple[int, int]) -> list[tuple[slice, slice]]:
         slices = []
         for element in self._mask_elements:
