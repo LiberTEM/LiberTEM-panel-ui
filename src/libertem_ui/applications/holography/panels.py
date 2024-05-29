@@ -781,11 +781,16 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         )
         reset_btn = pn.widgets.Button(
             name="Reset moving",
-            button_type="primary",
+            button_type="warning",
+        )
+        reset_all_btn = pn.widgets.Button(
+            name="Reset all",
+            button_type="warning",
         )
         align_all_btn.on_click(self.align_all_cb)
         align_pair_btn.on_click(self.align_pair_cb)
         reset_btn.on_click(self.reset_moving_cb)
+        reset_all_btn.on_click(self.reset_all_cb)
 
         self._align_choice = pn.widgets.Select(
             name="Align option",
@@ -827,6 +832,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
                     align_all_btn,
                     align_pair_btn,
                     reset_btn,
+                    reset_all_btn,
                 ),
                 pn.Row(
                     self._align_choice,
@@ -989,3 +995,12 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
 
     def reset_moving_cb(self, e):
         self._update_one(0., 0.)
+
+    def reset_all_cb(self, e):
+        self._update_one(0., 0., push=False)
+        num = self._static_scatter.data_length
+        self._static_scatter.raw_update(
+            cx=np.zeros((num,)),
+            cy=np.zeros((num,)),
+        )
+        self._image_fig.push(self._drifts_fig)
