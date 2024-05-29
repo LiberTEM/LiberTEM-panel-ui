@@ -175,24 +175,51 @@ class StackDataHandler:
         upsample: int = 20,
         overlap_ratio: float = 0.3,
         roi: tuple[slice, slice] | np.ndarray | None = None,
+        moving_roi_offset: tuple[float, float] | None = None,
     ) -> tuple[float, float]:
-        if roi is None or isinstance(roi, np.ndarray):
-            mask = roi
-            slices = np.s_[:, :]
-        else:
-            # must be slices
-            mask = None
-            slices = roi
-        static = self.get_frame(static_idx)[slices]
-        moving = self.get_frame(moving_idx)[slices]
+        reference_mask = None
+        moving_mask = None
+        static_slices = moving_slices = np.s_[:, :]
+        if isinstance(roi, np.ndarray):
+            reference_mask = roi
+            if moving_roi_offset is not None:
+                raise NotImplementedError("Misunderstanding about masked xcorr or bug")
+                sy, sx = map(int, moving_roi_offset)
+                moving_mask = np.roll(
+                    reference_mask,
+                    (-sy, -sx),
+                    axis=(0, 1),
+                )
+                # yslice = np.s_[:sy, :] if sy > 0 else np.s_[-sy:, :]
+                # moving_mask[yslice] = False
+                # xslice = np.s_[:, :sx] if sx > 0 else np.s_[:, -sx:]
+                # moving_mask[xslice] = False
+        elif roi is not None:
+            if len(roi) != 2 or (not isinstance(roi[0], slice)):
+                raise ValueError("Invalid roi format")
+            static_slices = moving_slices = roi
+            if moving_roi_offset is not None:
+                # moving_roi_offset is y, x
+                # FIXME bounds checking
+                moving_slices = tuple(
+                    slice(s.start - o, s.stop - o) for s, o in zip(
+                        moving_slices, map(int, moving_roi_offset)
+                    )
+                )
+
+        static = self.get_frame(static_idx)[static_slices]
+        moving = self.get_frame(moving_idx)[moving_slices]
         shift, _, _ = phase_cross_correlation(
             static,
             moving,
             upsample_factor=upsample,
             normalization=None,
-            reference_mask=mask,
+            reference_mask=reference_mask,
+            moving_mask=moving_mask,
             overlap_ratio=overlap_ratio,
         )
+        if moving_roi_offset is not None and moving_mask is not None:
+            shift = (a + int(b) for a, b in zip(shift, moving_roi_offset))
         return tuple(shift)
 
 
@@ -900,7 +927,7 @@ m_alpha_slider.value = 0.5
     def _align_choice_cb(self, e):
         mode = e.new
         rect_vis = poly_vis = True
-        self._relative_mask_box.disabled = mode == AlignOption.ALL
+        self._relative_mask_box.disabled = mode != AlignOption.SUB
         if mode in (AlignOption.ALL, AlignOption.SUB):
             self._upsample_choice.disabled = False
             self._overlap_ratio_float.disabled = True
@@ -983,6 +1010,16 @@ m_alpha_slider.value = 0.5
         else:
             raise ValueError("Unrecognized option")
 
+    def _get_align_roi_offset(self, idx: int | None = None) -> tuple[float, float] | None:
+        if not self._relative_mask_box.value or self._align_choice != AlignOption.SUB:
+            return None
+        if idx is None:
+            idx = self.current_moving_idx()
+        shift = self.current_shift(idx)
+        if np.allclose(shift, 0.):
+            return None
+        return shift
+
     def current_shift(self, idx: int) -> tuple[float, float]:
         cds = self._moving_scatter.cds.data
         for k, pt_idx in enumerate(map(int, cds['pt_label'])):
@@ -1010,6 +1047,7 @@ m_alpha_slider.value = 0.5
                 roi=roi,
                 upsample=self.current_upsampling(),
                 overlap_ratio=self.current_overlap_r(),
+                moving_roi_offset=self._get_align_roi_offset(moving_idx),
             )
             shifts_y.append(shift_y)
             shifts_x.append(shift_x)
@@ -1020,8 +1058,7 @@ m_alpha_slider.value = 0.5
 
     def _update_one(self, y: float, x: float, absolute: bool = True, push: bool = True):
         if not absolute:
-            current_x = self._moving_scatter.cds.data['cx'][0]
-            current_y = self._moving_scatter.cds.data['cy'][0]
+            current_y, current_x = self.current_shift(self.current_moving_idx())
             x = current_x + x
             y = current_y + y
         # Need to build patch API
@@ -1045,6 +1082,7 @@ m_alpha_slider.value = 0.5
             roi=roi,
             upsample=self.current_upsampling(),
             overlap_ratio=self.current_overlap_r(),
+            moving_roi_offset=self._get_align_roi_offset(),
         )
         self._update_one(new_y, new_x)
 
