@@ -36,7 +36,7 @@ dependencies = [
     "pandas",
     "scikit-image",
     "tifffile",
-    "bokeh>=3",
+    "bokeh>=3.4.0",
     "panel>=1",
     "xarray",
     "datashader",
