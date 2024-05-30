@@ -631,6 +631,22 @@ cds.change.emit();
         self._output_fig.push()
 
 
+class AlignState(NamedTuple):
+    static_idx: int
+    shifts_y: np.ndarray
+    shifts_x: np.ndarray
+    skip_frame: np.ndarray
+
+    @classmethod
+    def new(cls, stack_len: int, static_idx: int = 0):
+        return cls(
+            static_idx=static_idx,
+            shifts_y=np.zeros(stack_len).astype(float),
+            shifts_x=np.zeros(stack_len).astype(float),
+            skip_frame=np.zeros(stack_len).astype(bool),
+        )
+
+
 class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
     @staticmethod
     def default_properties():
@@ -643,14 +659,21 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             header_activate=False,
         )
 
-    # @property
-    # def state(self):
-    #     cy, cx, radius = self._disk_info()
-    #     return ApertureConfig(
-    #         sb_pos=(cy, cx),
-    #         radius=radius,
-    #         window_size=self._recon_shape(),
-    #     )
+    @property
+    def state(self) -> AlignState:
+        static_cds = self._static_scatter.cds.data
+        moving_cds = self._moving_scatter.cds.data
+        yvals = np.asarray(list(static_cds['cy']) + list(moving_cds['cy']))
+        xvals = np.asarray(list(static_cds['cx']) + list(moving_cds['cx']))
+        skip = np.asarray(list(static_cds['pt_skip']) + list(moving_cds['pt_skip']))
+        idx = tuple(map(int, list(static_cds['pt_label']) + list(moving_cds['pt_label'])))
+        sorter = np.argsort(idx)
+        return AlignState(
+            static_idx=self.current_static_idx(),
+            shifts_y=yvals[sorter].astype(float),
+            shifts_x=xvals[sorter].astype(float),
+            skip_frame=skip[sorter].astype(bool),
+        )
 
     def current_static_idx(self) -> int:
         return self._static_idx
@@ -673,9 +696,14 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         colors[static_cds_idx] = "black"
         return colors
 
-    def initialize(self, dataset: MemoryDataSet, static_idx=0) -> Self:
-        self._static_idx = static_idx
+    def initialize(
+        self, dataset: MemoryDataSet, state: AlignState | None = None, static_idx=0
+    ) -> Self:
+
         self._data = StackDataHandler(dataset)
+        if state is None:
+            state = AlignState.new(self._data.stack_len, static_idx=static_idx)
+        self._static_idx = state.static_idx
 
         self._moving_slider = pn.widgets.DiscreteSlider(
             name="Align image",
@@ -685,6 +713,11 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         )
         static_image = self._data.get_frame(self.current_static_idx())
         moving_image = self._data.get_frame(self.current_moving_idx())
+
+        static_mask = np.ones(self._data.stack_len).astype(bool)
+        static_mask[self.current_moving_idx()] = False
+        moving_mask = np.zeros(self._data.stack_len).astype(bool)
+        moving_mask[self.current_moving_idx()] = True
 
         next_button = pn.widgets.Button(
             name="Next",
@@ -711,7 +744,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             .from_numpy(moving_image)
             .on(self._image_fig.fig)
         )
-        self.set_image_title()
+        self.set_image_title(skipped=state.skip_frame[moving_mask][0])
         self._image_fig.im.im.global_alpha = 0.5
         s_alpha_slider = self._image_fig.im.color.get_alpha_slider(
             name="Static Alpha",
@@ -802,8 +835,8 @@ m_alpha_slider.value = 0.5
             PointSet
             .new()
             .from_vectors(
-                x=np.zeros(self._data.stack_len - 1),
-                y=np.zeros(self._data.stack_len - 1),
+                x=state.shifts_x[static_mask],
+                y=state.shifts_y[static_mask],
             )
             .on(self._drifts_fig.fig)
         )
@@ -811,20 +844,20 @@ m_alpha_slider.value = 0.5
             pt_label=[
                 str(i) for i in range(self._data.stack_len) if i != self.current_moving_idx()
             ],
-            pt_color=[
-                "red" if i != self.current_static_idx() else "black"
-                for i in range(self._data.stack_len) if i != self.current_moving_idx()
-            ],
-            pt_skip=[False] * (self._data.stack_len - 1)
+            pt_skip=state.skip_frame[static_mask].tolist()
         )
+        self._static_scatter.raw_update(
+            pt_color=self._current_colors()
+        )
+
         self._static_scatter.points.fill_color = "pt_color"
         self._static_scatter.points.line_color = "pt_color"
         self._moving_scatter = (
             PointSet
             .new()
             .from_vectors(
-                x=np.zeros((1,)),
-                y=np.zeros((1,)),
+                x=state.shifts_x[moving_mask],
+                y=state.shifts_y[moving_mask],
             )
             .on(self._drifts_fig.fig)
             .editable(add=False)
@@ -833,7 +866,7 @@ m_alpha_slider.value = 0.5
         self._moving_scatter.raw_update(
             pt_label=[f"{self.current_moving_idx()}"],
             pt_color=["blue"],
-            pt_skip=[False],
+            pt_skip=state.skip_frame[moving_mask].tolist(),
         )
         self._moving_scatter.points.fill_color = "pt_color"
         self._moving_scatter.points.line_color = "pt_color"
@@ -868,7 +901,7 @@ m_alpha_slider.value = 0.5
 
         self._skip_image_box = pn.widgets.Checkbox(
             name="Skip image",
-            value=False,
+            value=bool(state.skip_frame[moving_mask][0]),
         )
         self._drifts_fig._toolbar.insert(0, self._skip_image_box)
         self._skip_image_box.param.watch(self._set_validity_cb, "value")
