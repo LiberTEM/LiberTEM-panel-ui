@@ -653,7 +653,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
     #     )
 
     def current_static_idx(self) -> int:
-        return 0
+        return self._static_idx
 
     def movable_keys(self) -> list[int]:
         s_idx = self.current_static_idx()
@@ -666,17 +666,20 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         return int(self._moving_slider.value)
 
     def _current_colors(self) -> list[str]:
+        colors = ["red"] * self._static_scatter.data_length
         s_idx = self.current_static_idx()
-        if s_idx != 0:
-            raise NotImplementedError()
-        return ["black"] + ["red"] * (self._static_scatter.data_length - 1)
+        cds = self._static_scatter.cds.data
+        static_cds_idx = tuple(map(int, cds['pt_label'])).index(s_idx)
+        colors[static_cds_idx] = "black"
+        return colors
 
-    def initialize(self, dataset: MemoryDataSet) -> Self:
+    def initialize(self, dataset: MemoryDataSet, static_idx=0) -> Self:
+        self._static_idx = static_idx
         self._data = StackDataHandler(dataset)
 
         self._moving_slider = pn.widgets.DiscreteSlider(
             name="Align image",
-            value=1,
+            value=(self._static_idx + 1) % self._data.stack_len,
             options=self.movable_keys(),
             width=250,
         )
@@ -805,10 +808,13 @@ m_alpha_slider.value = 0.5
             .on(self._drifts_fig.fig)
         )
         self._static_scatter.raw_update(
-            pt_label=["0"] + [
-                f"{i}" for i in self.movable_keys() if i != self.current_moving_idx()
+            pt_label=[
+                str(i) for i in range(self._data.stack_len) if i != self.current_moving_idx()
             ],
-            pt_color=self._current_colors(),
+            pt_color=[
+                "red" if i != self.current_static_idx() else "black"
+                for i in range(self._data.stack_len) if i != self.current_moving_idx()
+            ]
         )
         self._static_scatter.points.fill_color = "pt_color"
         self._static_scatter.points.line_color = "pt_color"
