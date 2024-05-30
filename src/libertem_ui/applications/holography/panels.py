@@ -1158,7 +1158,7 @@ m_alpha_slider.value = 0.5
         )
         self._image_fig.push(self._drifts_fig)
 
-    def _shifts_tap_cb(self, e: DoubleTap):
+    def _shifts_tap_cb(self, e: DoubleTap, radius_px: int = 30):
         fig_height = self._drifts_fig.fig.inner_height
         fig_width = self._drifts_fig.fig.inner_width
         xrange = self._drifts_fig.fig.x_range
@@ -1172,7 +1172,7 @@ m_alpha_slider.value = 0.5
         closest = np.argmin(dist_2)
         closest_dist = np.sqrt(dist_2[closest])
         closest_stack_idx = int(self._static_scatter.cds.data["pt_label"][closest])
-        if closest_dist > 30:
+        if closest_dist > radius_px:
             # print(f"too far to {closest_stack_idx}: {closest_dist} px")
             return
         if closest_stack_idx == self.current_static_idx():
