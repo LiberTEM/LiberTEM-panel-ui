@@ -666,7 +666,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         return int(self._moving_slider.value)
 
     def _current_colors(self) -> list[str]:
-        colors = ["red"] * self._static_scatter.data_length
+        colors = ["red" if not v else "gray" for v in self._static_scatter.cds.data['pt_skip']]
         s_idx = self.current_static_idx()
         cds = self._static_scatter.cds.data
         static_cds_idx = tuple(map(int, cds['pt_label'])).index(s_idx)
@@ -814,7 +814,8 @@ m_alpha_slider.value = 0.5
             pt_color=[
                 "red" if i != self.current_static_idx() else "black"
                 for i in range(self._data.stack_len) if i != self.current_moving_idx()
-            ]
+            ],
+            pt_skip=[False] * (self._data.stack_len - 1)
         )
         self._static_scatter.points.fill_color = "pt_color"
         self._static_scatter.points.line_color = "pt_color"
@@ -832,6 +833,7 @@ m_alpha_slider.value = 0.5
         self._moving_scatter.raw_update(
             pt_label=[f"{self.current_moving_idx()}"],
             pt_color=["blue"],
+            pt_skip=[False],
         )
         self._moving_scatter.points.fill_color = "pt_color"
         self._moving_scatter.points.line_color = "pt_color"
@@ -863,6 +865,13 @@ m_alpha_slider.value = 0.5
             .on(self._drifts_fig.fig)
         )
         self._moving_text.glyph.update(**text_options)
+
+        self._skip_image_box = pn.widgets.Checkbox(
+            name="Skip image",
+            value=False,
+        )
+        self._drifts_fig._toolbar.insert(0, self._skip_image_box)
+        self._skip_image_box.param.watch(self._set_validity_cb, "value")
 
         align_all_btn = pn.widgets.Button(
             name="Auto-Align all",
@@ -987,32 +996,43 @@ m_alpha_slider.value = 0.5
         if new_idx is None:
             new_idx = self.current_moving_idx()
         self._change_moving_scatter(new_idx)
+        self._skip_image_box.value = self._moving_scatter.cds.data['pt_skip'][0]
         self._moving_im.set_anchor(
             x=self._moving_scatter.cds.data['cx'][0],
             y=self._moving_scatter.cds.data['cy'][0],
         )
         new_frame = self._data.get_frame(new_idx)
         self._moving_im.update(new_frame)
-        self.set_image_title()
+        self.set_image_title(skipped=self._skip_image_box.value)
 
-    def set_image_title(self):
-        self._image_fig.fig.title.text = (
+    def set_image_title(self, skipped=False):
+        title = (
             f'Static image: {self.current_static_idx()} - Align image: {self.current_moving_idx()}'
         )
+        if skipped:
+            title = title + " (Skipped)"
+        self._image_fig.fig.title.text = title
+
+    def _set_validity_cb(self, e):
+        self._moving_scatter.cds.data['pt_skip'][0] = bool(e.new)
+        self.set_image_title(skipped=bool(e.new))
 
     def _change_moving_scatter(self, new_idx: str | int):
         new_idx = int(new_idx)
         old_idx = int(self._moving_scatter.cds.data['pt_label'][0])
         old_x = self._moving_scatter.cds.data['cx'][0]
         old_y = self._moving_scatter.cds.data['cy'][0]
+        old_valid = self._moving_scatter.cds.data['pt_skip'][0]
         idx_in_static = list(self._static_scatter.cds.data['pt_label']).index(str(new_idx))
         new_x = self._static_scatter.cds.data['cx'][idx_in_static]
         new_y = self._static_scatter.cds.data['cy'][idx_in_static]
+        new_valid = self._static_scatter.cds.data['pt_skip'][idx_in_static]
         self._static_scatter.cds.patch(
             {
                 'cx': [(idx_in_static, old_x)],
                 'cy': [(idx_in_static, old_y)],
                 'pt_label': [(idx_in_static, str(old_idx))],
+                'pt_skip': [(idx_in_static, old_valid)],
             }
         )
         self._moving_scatter.cds.patch(
@@ -1020,6 +1040,7 @@ m_alpha_slider.value = 0.5
                 'cx': [(0, new_x)],
                 'cy': [(0, new_y)],
                 'pt_label': [(0, str(new_idx))],
+                'pt_skip': [(0, new_valid)],
             }
         )
         self._static_scatter.raw_update(
