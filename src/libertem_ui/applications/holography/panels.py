@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Self, TYPE_CHECKING, NamedTuple, Literal
+import itertools
 
 import numpy as np
 import panel as pn
@@ -15,6 +16,7 @@ from libertem_ui.display.display_base import DiskSet, Rectangles, PointSet, Text
 from libertem_ui.display.image_db import BokehImage
 # from libertem_ui.display.vectors import MultiLine
 from libertem_ui.windows.base import UIWindow, WindowType, WindowProperties
+from libertem_ui.utils.colormaps import get_bokeh_palette
 
 from libertem.api import Context
 from libertem.io.dataset.memory import MemoryDataSet
@@ -25,6 +27,8 @@ from libertem_holo.base.reconstr import (
 )
 from libertem_holo.base.filters import phase_unwrap
 from libertem_holo.base.mask import disk_aperture
+
+from .image_transformer import ImageTransformer
 
 
 if TYPE_CHECKING:
@@ -1234,3 +1238,243 @@ m_alpha_slider.value = 0.5
             return
         self._moving_slider.value = closest_stack_idx
         self.update_moving_cb(new_idx=closest_stack_idx)
+
+
+class PointsAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
+    @staticmethod
+    def default_properties():
+        return WindowProperties(
+            'points_align',
+            'Points Aligner',
+            header_run=False,
+            header_stop=False,
+            self_run_only=True,
+            header_activate=False,
+        )
+
+    def initialize(self, dataset: MemoryDataSet) -> Self:
+
+        static = np.random.uniform(size=(64, 64))
+        moving = np.random.uniform(size=(64, 64))
+
+        self.transformer = ImageTransformer(moving)
+        self.transformer.add_null_transform(output_shape=static.shape)
+
+        transformations = {s.title(): s for s in ImageTransformer.available_transforms()}
+        self.method_select = pn.widgets.Select(
+            name='Transformation type',
+            options=[*transformations.keys()],
+            width=120,
+        )
+        run_button = pn.widgets.Button(
+            name='Run',
+            button_type='primary',
+            width=70,
+            align='end',
+        )
+        self.output_md = pn.pane.Markdown(
+            object='No transform defined',
+            width=450,
+        )
+        clear_button = pn.widgets.Button(
+            name='Clear points',
+            width=120,
+            align='end',
+        )
+
+        self.static_fig = ApertureFigure.new(
+            static, title='Static'
+        )
+        self.overlay_image = (
+            BokehImage
+            .new()
+            .from_numpy(
+                moving,
+            )
+            .on(self.static_fig.fig)
+        )
+        self.overlay_image.im.global_alpha = 0.
+        alpha_slider = self.overlay_image.color.get_alpha_slider(
+            name="Overlay alpha",
+            width=200,
+        )
+
+        toggle_alpha_btn = pn.widgets.Button(
+            name="Toggle alpha",
+            button_type="default",
+            width=60,
+        )
+        toggle_alpha_btn.js_on_click(
+            dict(
+                alpha_slider=alpha_slider,
+            ),
+            code="""
+if (alpha_slider.value < 0.5) {
+    alpha_slider.value = 1.
+} else {
+    alpha_slider.value = 0.
+}
+"""
+        )
+        self.static_fig._toolbar.insert(0, toggle_alpha_btn)
+        self.static_fig._toolbar.insert(0, alpha_slider)
+
+        self.moving_fig = ApertureFigure.new(
+            moving, title='Moving'
+        )
+
+        self.static_pointset = (
+            PointSet
+            .new()
+            .empty()
+            .on(self.static_fig.fig)
+            .editable()
+        )
+        self.static_fig.fig.toolbar.active_drag = self.static_fig.fig.tools[-1]
+        self.static_pointset.raw_update(
+            cx_moving=[],
+            cy_moving=[],
+            pt_init=[],
+            color=[],
+        )
+        self.static_pointset.points.fill_color = "color"
+        self.moving_pointset = (
+            PointSet(
+                self.static_pointset.cds,
+                x="cx_moving",
+                y="cy_moving",
+            )
+            .on(self.moving_fig.fig)
+            .editable()
+        )
+        self.moving_fig.fig.toolbar.active_drag = self.moving_fig.fig.tools[-1]
+        self.moving_pointset.points.fill_color = "color"
+
+        self._sentinel_val = 3.14159
+        self.setup_color_sequence()
+        self.static_pointset.cds.default_values = dict(
+            color="red",
+            pt_init=True,
+            cx_moving=self._sentinel_val,
+            cy_moving=self._sentinel_val,
+            cx=self._sentinel_val,
+            cy=self._sentinel_val,
+        )
+        self.static_pointset.cds.on_change('data', self._pointset_data_change)
+
+        clear_button.on_click(self.clear_pointsets)
+        run_button.on_click(self.compute_transform)
+
+        self.inner_layout.extend((
+            pn.Column(
+                self.static_fig.layout,
+                pn.Row(
+                    self.method_select,
+                    run_button,
+                    clear_button,
+                )
+            ),
+            pn.Column(
+                self.moving_fig.layout,
+                pn.Row(
+                    self.output_md
+                ),
+            )
+        ))
+
+        return self
+
+    def setup_color_sequence(self):
+        self._color_iterator = itertools.cycle(get_bokeh_palette())
+
+    def next_color(self):
+        return next(self._color_iterator)
+
+    def _pointset_data_change(self, attr, old, new):
+        patches = {
+            'cx': [],
+            'cy': [],
+            'cx_moving': [],
+            'cy_moving': [],
+            "pt_init": [],
+            "color": [],
+        }
+        for idx, is_new in enumerate(new['pt_init']):
+            if not is_new:
+                continue
+            left_x = new['cx'][idx]
+            left_y = new['cy'][idx]
+            right_x = new['cx_moving'][idx]
+            right_y = new['cy_moving'][idx]
+            if right_x == self._sentinel_val and right_y == self._sentinel_val:
+                patches["cx_moving"].append((idx, left_x))
+                patches["cy_moving"].append((idx, left_y))
+                patches["pt_init"].append((idx, False))
+                patches["color"].append((idx, self.next_color()))
+            elif left_x == self._sentinel_val and left_y == self._sentinel_val:
+                patches["cx"].append((idx, right_x))
+                patches["cy"].append((idx, right_y))
+                patches["pt_init"].append((idx, False))
+                patches["color"].append((idx, self.next_color()))
+            else:
+                continue
+
+        if len(patches["pt_init"]) > 0:
+            self.static_pointset.cds.patch(patches)
+            self.static_fig.push(self.moving_fig)
+
+    def clear_pointsets(self, *e):
+        self.setup_color_sequence()
+        self.static_pointset.clear()
+        self.static_fig.push(self.moving_fig)
+
+    def compute_transform(self, *e):
+        method = self.method_select.value.lower()
+
+        points = self.static_pointset.cds.data
+        static_points = np.stack((points["cx"], points["cy"]), axis=1)
+        moving_points = np.stack((points["cx_moving"], points["cy_moving"]), axis=1)
+
+        if static_points.shape[0] == 0:
+            self.output_md.object = 'No points defined'
+            return
+        try:
+            transform = self.transformer.estimate_transform(
+                static_points,
+                moving_points,
+                method=method,
+                clear=True
+            )
+        except Exception:
+            self.output_md.object = f'Error computing transform: {str(e)}'
+            return
+        try:
+            self.output_md.object = self.array_format(transform.params)
+        except Exception:
+            self.output_md.object = 'Post-transform error (format?)'
+            return
+
+        warped_moving = self.transformer.get_transformed_image(self.transformer)
+        self.overlay_image.update(warped_moving)
+        self.static_fig.push()
+
+    @staticmethod
+    def array_format(array: np.ndarray, header='Transformation matrix:'):
+        """
+        Format a 3x3 array nicely as a Markdown string
+        This is quite hacky, can be much improved
+        """
+        assert array.shape == (3, 3)
+        str_array = np.array2string(array,
+                                    precision=2,
+                                    suppress_small=True,
+                                    sign=' ',
+                                    floatmode='fixed')
+        substrings = str_array.split('\n')
+        return f'''
+    {header}
+    ```
+    {substrings[0]}
+    {substrings[1]}
+    {substrings[2]}
+    ```'''
