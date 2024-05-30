@@ -675,13 +675,28 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         self._data = StackDataHandler(dataset)
 
         self._moving_slider = pn.widgets.DiscreteSlider(
-            name="Moving image",
+            name="Align image",
             value=1,
             options=self.movable_keys(),
             width=250,
         )
         static_image = self._data.get_frame(self.current_static_idx())
         moving_image = self._data.get_frame(self.current_moving_idx())
+
+        next_button = pn.widgets.Button(
+            name="Next",
+            button_type="primary",
+            width=50,
+            margin=(3, 10, 30, 3),
+        )
+        prev_button = pn.widgets.Button(
+            name="Prev",
+            button_type="primary",
+            width=50,
+            margin=3,
+        )
+        next_button.on_click(self._next_moving_cb)
+        prev_button.on_click(self._prev_moving_cb)
 
         self._image_fig = ApertureFigure.new(
             static_image,
@@ -701,7 +716,7 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
         )
         self._moving_im.im.global_alpha = 0.5
         m_alpha_slider = self._moving_im.color.get_alpha_slider(
-            name="Moving Alpha",
+            name="Align Alpha",
             width=150,
         )
         toggle_alpha_btn = pn.widgets.Button(
@@ -749,6 +764,8 @@ m_alpha_slider.value = 0.5
         self._image_fig.add_mask_tools()
         self._image_fig.set_mask_visiblity(rectangles=False, polygons=False)
         self._image_fig._toolbar.insert(0, self._moving_slider)
+        self._image_fig._toolbar.insert(0, next_button)
+        self._image_fig._toolbar.insert(0, prev_button)
         self._image_fig._toolbar.height = 60
         self._moving_slider.param.watch(self.update_moving_cb, 'value_throttled')
 
@@ -850,7 +867,7 @@ m_alpha_slider.value = 0.5
             button_type="primary",
         )
         reset_btn = pn.widgets.Button(
-            name="Reset moving",
+            name="Reset pair",
             button_type="warning",
         )
         reset_all_btn = pn.widgets.Button(
@@ -945,6 +962,21 @@ m_alpha_slider.value = 0.5
             polygons=poly_vis,
         )
 
+    def _increment_moving(self, increment: int):
+        options = list(self._moving_slider.options)
+        num_options = len(options)
+        idx = options.index(self._moving_slider.value)
+        next_value = options[(idx + increment) % num_options]
+        self._moving_slider.value = next_value
+        self.update_moving_cb()
+        self._image_fig.push(self._drifts_fig)
+
+    def _next_moving_cb(self, *e):
+        self._increment_moving(1)
+
+    def _prev_moving_cb(self, *e):
+        self._increment_moving(-1)
+
     def update_moving_cb(self, *e, new_idx=None):
         if new_idx is None:
             new_idx = self.current_moving_idx()
@@ -959,7 +991,7 @@ m_alpha_slider.value = 0.5
 
     def set_image_title(self):
         self._image_fig.fig.title.text = (
-            f'Stack image: {self.current_moving_idx()}'
+            f'Static image: {self.current_static_idx()} - Align image: {self.current_moving_idx()}'
         )
 
     def _change_moving_scatter(self, new_idx: str | int):
