@@ -481,7 +481,7 @@ action.callback.execute(action)
             self._clear_btn = pn.widgets.Button(
                 name='Clear ROI',
                 button_type='default',
-                width=100,
+                width=75,
             )
             self._clear_btn.on_click(self.clear_mask)
             self._toolbar.insert(0, self._clear_btn)
