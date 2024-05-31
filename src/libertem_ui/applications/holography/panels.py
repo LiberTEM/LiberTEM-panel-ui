@@ -1240,7 +1240,16 @@ m_alpha_slider.value = 0.5
         self.update_moving_cb(new_idx=closest_stack_idx)
 
 
-class PointsAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
+class KwArgWindow(UIWindow):
+    @classmethod
+    def using(
+        cls,
+        **init_kwargs,
+    ):
+        return super().using(None, None, **init_kwargs)
+
+
+class PointsAlignWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
     @staticmethod
     def default_properties():
         return WindowProperties(
@@ -1252,11 +1261,7 @@ class PointsAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             header_activate=False,
         )
 
-    def initialize(self, dataset: MemoryDataSet) -> Self:
-
-        static = np.random.uniform(size=(64, 64))
-        moving = np.random.uniform(size=(64, 64))
-
+    def initialize(self, _: None, *, static: np.ndarray, moving: np.ndarray) -> Self:
         self.transformer = ImageTransformer(moving)
         self.transformer.add_null_transform(output_shape=static.shape)
 
