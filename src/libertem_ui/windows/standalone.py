@@ -42,7 +42,8 @@ class StandaloneContext(UIContextBase):
         # between _header_layout and _inner_layout
         ui_window.layout().insert(insert_at, pbar)
 
-    def _setup_run_button(self, *elements: pn.reactive.Reactive):
+    @staticmethod
+    def _setup_run_button(*elements: pn.reactive.Reactive):
         code = '''
 const is_disabled = cb_obj.disabled
 

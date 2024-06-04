@@ -12,6 +12,7 @@ from bokeh.models.tools import LassoSelectTool
 from bokeh.models import Span
 
 from libertem_ui.ui_context import UIContext  # noqa
+from libertem_ui.windows.standalone import StandaloneContext
 from libertem_ui.live_plot import ApertureFigure, BokehFigure
 from libertem_ui.display.display_base import DiskSet, Rectangles, PointSet, Text, Polygons
 from libertem_ui.display.image_db import BokehImage
@@ -1511,7 +1512,7 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
     def initialize(self, _: None, *, image: np.ndarray) -> Self:
         self._data = wrap(image)
 
-        run_button = pn.widgets.Button(
+        self._run_button = pn.widgets.Button(
             name='Run',
             button_type='primary',
             width=70,
@@ -1538,7 +1539,8 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
             step=0.01,
         )
 
-        run_button.on_click(self.unwrap_cb)
+        self._run_button.on_click(self.unwrap_cb)
+        StandaloneContext._setup_run_button(self._run_button)
         reset_button.on_click(self.reset_cb)
         self._phase_roll_slider.param.watch(
             self._phase_roll_cb, 'value_throttled'
@@ -1569,7 +1571,7 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
             ),
             pn.Column(
                 pn.Row(
-                    run_button,
+                    self._run_button,
                     reset_button,
                 ),
                 self._method_select,
@@ -1590,6 +1592,7 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
         )
 
     def unwrap_cb(self, *e):
+        self._run_button.disabled = True
         self._phase_roll_slider.disabled = True
         method = self._method_select.value
         if method == UnwrapOption.SKIMAGE:
@@ -1608,6 +1611,7 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
         self.image_fig.im.update(unwrapped)
         self.image_fig.fig.title.text = f"Unwrapped ({method})"
         self.image_fig.push()
+        self._run_button.disabled = False
 
     def reset_cb(self, *e):
         self._phase_roll_slider.disabled = False
