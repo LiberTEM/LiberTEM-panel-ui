@@ -12,7 +12,7 @@ from bokeh.models import Span
 
 from libertem_ui.ui_context import UIContext  # noqa
 from libertem_ui.live_plot import ApertureFigure, BokehFigure
-from libertem_ui.display.display_base import DiskSet, Rectangles, PointSet, Text
+from libertem_ui.display.display_base import DiskSet, Rectangles, PointSet, Text, Polygons
 from libertem_ui.display.image_db import BokehImage
 # from libertem_ui.display.vectors import MultiLine
 from libertem_ui.windows.base import UIWindow, WindowType, WindowProperties
@@ -1550,6 +1550,18 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
             'doubletap', self._set_point_zero_cb
         )
 
+        drag_tool = LassoSelectTool(continuous=False)
+        drag_tool.overlay.fill_alpha = 0.
+        self.image_fig.fig.add_tools(drag_tool)
+        self.image_fig.fig.on_event("selectiongeometry", self._drag_cb)
+
+        self._seed_polys = (
+            Polygons
+            .new()
+            .empty()
+            .on(self.image_fig.fig)
+        )
+
         self.inner_layout.extend((
             pn.Column(
                 self.image_fig.layout,
@@ -1588,6 +1600,7 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
 
     def _phase_roll_cb(self, *e):
         offset = self._phase_roll_slider.value
+        self._seed_polys.clear()
         self.image_fig.im.update(wrap(self._data + offset * np.pi))
         self.image_fig.fig.title.text = f"Image (offset {offset:.2f} * pi)"
         self.image_fig.push()
@@ -1597,6 +1610,20 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
         h, w = self._data.shape
         if not ((0 <= click_x < w) and (0 <= click_y < h)):
             return
-        ref_val = self._data[click_y, click_x]
+        ref_val = wrap(self._data[click_y, click_x])
         self._phase_roll_slider.value = min(max(-1, -1 * (ref_val / np.pi)), 1.)
         self._phase_roll_cb()
+
+    def _drag_cb(self, event: SelectionGeometry):
+        if not event.final or event.geometry["type"] != "poly":
+            return
+        xvals = np.asarray(event.geometry["x"])
+        yvals = np.asarray(event.geometry["y"])
+
+        if len(xvals) < 2:
+            return
+
+        self._seed_polys.update(
+            [xvals], [yvals],
+        )
+        self.image_fig.push()
