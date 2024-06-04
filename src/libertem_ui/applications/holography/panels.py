@@ -7,6 +7,7 @@ import panel as pn
 from strenum import StrEnum
 from skimage.filters._fft_based import _get_nd_butterworth_filter
 from skimage.registration import phase_cross_correlation
+from skimage.draw import polygon2mask
 from bokeh.models.tools import LassoSelectTool
 from bokeh.models import Span
 
@@ -1576,16 +1577,29 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
             )
         ))
 
+    def _current_seed(self):
+        if self._seed_polys.data_length == 0:
+            return None
+        xvals = self._seed_polys.cds.data['xs'][0]
+        yvals = self._seed_polys.cds.data['ys'][0]
+        if len(yvals) < 2:
+            return
+        return polygon2mask(
+            self._data.shape,
+            np.round(np.stack((yvals, xvals), axis=1)).astype(int)
+        )
+
     def unwrap_cb(self, *e):
         method = self._method_select.value
         if method == UnwrapOption.SKIMAGE:
-            unwrapped = lt_phase_unwrap(self._data.copy())
+            unwrapped = lt_phase_unwrap(self._current_rolled_image())
         else:
-            phase_wrapped = wrap(self._data.copy())
+            phase_wrapped = self._current_rolled_image()
             quality = derivative_variance(phase_wrapped)
             unwrapped = quality_unwrap(
                 phase_wrapped,
                 quality,
+                seed=self._current_seed(),
             )
 
         self.image_fig.im.update(unwrapped)
@@ -1594,14 +1608,18 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
 
     def reset_cb(self, *e):
         self._phase_roll_slider.value = 0.
+        self._seed_polys.clear()
         self.image_fig.im.update(self._data)
         self.image_fig.fig.title.text = "Image"
         self.image_fig.push()
 
+    def _current_rolled_image(self):
+        offset = self._phase_roll_slider.value
+        return wrap(self._data + offset * np.pi)
+
     def _phase_roll_cb(self, *e):
         offset = self._phase_roll_slider.value
-        self._seed_polys.clear()
-        self.image_fig.im.update(wrap(self._data + offset * np.pi))
+        self.image_fig.im.update(self._current_rolled_image())
         self.image_fig.fig.title.text = f"Image (offset {offset:.2f} * pi)"
         self.image_fig.push()
 
