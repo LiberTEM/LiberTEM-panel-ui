@@ -1590,6 +1590,7 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
         )
 
     def unwrap_cb(self, *e):
+        self._phase_roll_slider.disabled = True
         method = self._method_select.value
         if method == UnwrapOption.SKIMAGE:
             unwrapped = lt_phase_unwrap(self._current_rolled_image())
@@ -1607,6 +1608,7 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
         self.image_fig.push()
 
     def reset_cb(self, *e):
+        self._phase_roll_slider.disabled = False
         self._phase_roll_slider.value = 0.
         self._seed_polys.clear()
         self.image_fig.im.update(self._data)
