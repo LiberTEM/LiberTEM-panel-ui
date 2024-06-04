@@ -1508,7 +1508,7 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
         )
 
     def initialize(self, _: None, *, image: np.ndarray) -> Self:
-        self._data = image
+        self._data = wrap(image)
 
         run_button = pn.widgets.Button(
             name='Run',
@@ -1529,8 +1529,19 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
             align="end",
         )
 
+        self._phase_roll_slider = pn.widgets.FloatSlider(
+            name="Offset phase",
+            value=0.,
+            start=-np.pi,
+            end=np.pi,
+            step=0.01,
+        )
+
         run_button.on_click(self.unwrap_cb)
         reset_button.on_click(self.reset_cb)
+        self._phase_roll_slider.param.watch(
+            self._phase_roll_cb, 'value_throttled'
+        )
 
         self.image_fig = ApertureFigure.new(
             self._data.copy(), title='Image'
@@ -1546,6 +1557,7 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
                     reset_button,
                 ),
                 self._method_select,
+                self._phase_roll_slider,
             )
         ))
 
@@ -1568,4 +1580,10 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
     def reset_cb(self, *e):
         self.image_fig.im.update(self._data)
         self.image_fig.fig.title.text = "Image"
+        self.image_fig.push()
+
+    def _phase_roll_cb(self, e):
+        offset = e.new
+        self.image_fig.im.update(wrap(self._data + offset))
+        self.image_fig.fig.title.text = f"Image (offset {offset / np.pi:.2f} * pi)"
         self.image_fig.push()
