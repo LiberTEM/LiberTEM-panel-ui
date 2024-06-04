@@ -141,3 +141,4 @@ extras/
 *.pkl
 *.tif
 *.npy
+*.dm3

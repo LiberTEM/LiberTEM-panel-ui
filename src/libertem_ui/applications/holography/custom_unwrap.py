@@ -100,7 +100,7 @@ def unwrap_heap(heap, flat_phase, flat_q, flat_to_q, height, width, uw_phase, co
         )
 
 
-def unwrap(
+def quality_unwrap(
     phase: np.ndarray,
     quality: np.ndarray,
     seed: np.ndarray | tuple[int, int] | None = None,

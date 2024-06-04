@@ -25,10 +25,11 @@ from libertem_holo.base.reconstr import (
     estimate_sideband_size,
     estimate_sideband_position,
 )
-from libertem_holo.base.filters import phase_unwrap
+from libertem_holo.base.filters import phase_unwrap as lt_phase_unwrap
 from libertem_holo.base.mask import disk_aperture
 
 from .image_transformer import ImageTransformer
+from .custom_unwrap import quality_unwrap, derivative_variance, wrap
 
 
 if TYPE_CHECKING:
@@ -272,6 +273,8 @@ class ApertureBuilder(StackDSWindow, ui_type=WindowType.STANDALONE):
             sb_pos=(cy, cx),
             radius=radius,
             window_size=self._recon_shape(),
+            ap_type=self._aperture_type(),
+            ap_but_order=self._aperture_but_order(),
         )
 
     def initialize(self, dataset: MemoryDataSet, state: ApertureConfig | None = None) -> Self:
@@ -630,7 +633,7 @@ cds.change.emit();
             return
         data = self._output_fig.im.array
         self._output_fig.im.update(
-            phase_unwrap(data)
+            lt_phase_unwrap(data)
         )
         self._output_fig.push()
 
@@ -1483,3 +1486,86 @@ if (alpha_slider.value < 0.5) {
     {substrings[1]}
     {substrings[2]}
     ```'''
+
+
+class UnwrapOption(StrEnum):
+    SKIMAGE = "Reliability-guided"
+    QUALITY = "Quality-guided"
+    # GOLDSTEIN = "Goldstein's method"
+    # MASK_CUT = "Mask Cut"
+
+
+class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
+    @staticmethod
+    def default_properties():
+        return WindowProperties(
+            'phase_unwrap',
+            'Phase Unwrap',
+            header_run=False,
+            header_stop=False,
+            self_run_only=True,
+            header_activate=False,
+        )
+
+    def initialize(self, _: None, *, image: np.ndarray) -> Self:
+        self._data = image
+
+        run_button = pn.widgets.Button(
+            name='Run',
+            button_type='primary',
+            width=70,
+            align='end',
+        )
+        reset_button = pn.widgets.Button(
+            name='Reset',
+            width=120,
+            align='end',
+        )
+        self._method_select = pn.widgets.Select(
+            name="Method",
+            value=UnwrapOption.SKIMAGE,
+            options=list(e.value for e in UnwrapOption),
+            width=200,
+            align="end",
+        )
+
+        run_button.on_click(self.unwrap_cb)
+        reset_button.on_click(self.reset_cb)
+
+        self.image_fig = ApertureFigure.new(
+            self._data.copy(), title='Image'
+        )
+
+        self.inner_layout.extend((
+            pn.Column(
+                self.image_fig.layout,
+            ),
+            pn.Column(
+                pn.Row(
+                    run_button,
+                    reset_button,
+                ),
+                self._method_select,
+            )
+        ))
+
+    def unwrap_cb(self, *e):
+        method = self._method_select.value
+        if method == UnwrapOption.SKIMAGE:
+            unwrapped = lt_phase_unwrap(self._data.copy())
+        else:
+            phase_wrapped = wrap(self._data.copy())
+            quality = derivative_variance(phase_wrapped)
+            unwrapped = quality_unwrap(
+                phase_wrapped,
+                quality,
+            )
+
+        self.image_fig.im.update(unwrapped)
+        self.image_fig.fig.title.text = f"Unwrapped ({method})"
+        self.image_fig.push()
+
+    def reset_cb(self, *e):
+        self.image_fig.im.update(self._data)
+        self.image_fig.fig.title.text = "Image"
+        self.image_fig.push()
