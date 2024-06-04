@@ -1530,10 +1530,10 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
         )
 
         self._phase_roll_slider = pn.widgets.FloatSlider(
-            name="Offset phase",
+            name="Offset phase (/pi)",
             value=0.,
-            start=-np.pi,
-            end=np.pi,
+            start=-1,
+            end=1,
             step=0.01,
         )
 
@@ -1584,6 +1584,6 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
 
     def _phase_roll_cb(self, e):
         offset = e.new
-        self.image_fig.im.update(wrap(self._data + offset))
+        self.image_fig.im.update(wrap(self._data + offset * np.pi))
         self.image_fig.fig.title.text = f"Image (offset {offset / np.pi:.2f} * pi)"
         self.image_fig.push()
