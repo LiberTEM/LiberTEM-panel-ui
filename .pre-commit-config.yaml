@@ -23,5 +23,6 @@ repos:
   rev: v3.19.0
   hooks:
     - id: pyupgrade
+      exclude: src/libertem_ui/applications/holography/custom_unwrap.py
       args: ["--py37-plus"]
   
