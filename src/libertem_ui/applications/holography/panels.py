@@ -1593,7 +1593,9 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
         self._phase_roll_slider.disabled = True
         method = self._method_select.value
         if method == UnwrapOption.SKIMAGE:
-            unwrapped = lt_phase_unwrap(self._current_rolled_image())
+            unwrapped = lt_phase_unwrap(
+                self._current_rolled_image()
+            )
         else:
             phase_wrapped = self._current_rolled_image()
             quality = derivative_variance(phase_wrapped)
