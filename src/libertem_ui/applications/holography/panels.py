@@ -1546,6 +1546,9 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
         self.image_fig = ApertureFigure.new(
             self._data.copy(), title='Image'
         )
+        self.image_fig.fig.on_event(
+            'doubletap', self._set_point_zero_cb
+        )
 
         self.inner_layout.extend((
             pn.Column(
@@ -1578,12 +1581,22 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
         self.image_fig.push()
 
     def reset_cb(self, *e):
+        self._phase_roll_slider.value = 0.
         self.image_fig.im.update(self._data)
         self.image_fig.fig.title.text = "Image"
         self.image_fig.push()
 
-    def _phase_roll_cb(self, e):
-        offset = e.new
+    def _phase_roll_cb(self, *e):
+        offset = self._phase_roll_slider.value
         self.image_fig.im.update(wrap(self._data + offset * np.pi))
-        self.image_fig.fig.title.text = f"Image (offset {offset / np.pi:.2f} * pi)"
+        self.image_fig.fig.title.text = f"Image (offset {offset:.2f} * pi)"
         self.image_fig.push()
+
+    def _set_point_zero_cb(self, event: DoubleTap):
+        click_x, click_y = int(event.x), int(event.y)
+        h, w = self._data.shape
+        if not ((0 <= click_x < w) and (0 <= click_y < h)):
+            return
+        ref_val = self._data[click_y, click_x]
+        self._phase_roll_slider.value = min(max(-1, -1 * (ref_val / np.pi)), 1.)
+        self._phase_roll_cb()
