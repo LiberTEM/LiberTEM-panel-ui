@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import Self, TYPE_CHECKING, NamedTuple, Literal
 import itertools
+import functools
 
 import numpy as np
 import panel as pn
@@ -930,8 +931,23 @@ m_alpha_slider.value = 0.5
             name="Skip image",
             value=bool(state.skip_frame[moving_mask][0]),
         )
+        self._drifts_fig._toolbar.height = 85
         self._drifts_fig._toolbar.insert(0, self._skip_image_box)
         self._skip_image_box.param.watch(self._set_validity_cb, "value")
+        self._drifts_fig._toolbar.insert(
+            1,
+            translate_buttons(self._translate_cb),
+        )
+        self._translate_amount = pn.widgets.RadioButtonGroup(
+            name='Translate amount',
+            value=1,
+            options=[0.1, 1, 10],
+            align="end",
+        )
+        self._drifts_fig._toolbar.insert(
+            2,
+            self._translate_amount
+        )
 
         align_all_btn = pn.widgets.Button(
             name="Auto-Align all",
@@ -1018,6 +1034,12 @@ m_alpha_slider.value = 0.5
                 ),
             )
         ))
+
+    def _translate_cb(self, *e, x=0, y=0):
+        step = float(self._translate_amount.value)
+        dx = x * step
+        dy = y * step
+        self._update_one(dy, dx, absolute=False, push=True)
 
     def _align_choice_cb(self, e):
         mode = e.new
@@ -1690,3 +1712,103 @@ class PhaseUnwrapWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
             [xvals], [yvals],
         )
         self.image_fig.push()
+
+
+# Unicode arrow codes used for defining UI buttons
+LEFT_ARROW = '\u25C1'
+UP_ARROW = '\u25B3'
+RIGHT_ARROW = '\u25B7'
+DOWN_ARROW = '\u25BD'
+ROTATE_RIGHT_ARROW = '\u21B7'
+ROTATE_LEFT_ARROW = '\u21B6'
+
+
+def translate_buttons(cb, width: int = 40, height: int = 40, margin: tuple[int, int] = (2, 2)):
+    """
+    A button array for up/down/left/right
+    Configured for y-axis pointing down!!
+    """
+    kwargs = {
+        'width': width,
+        'height': height,
+        'margin': margin,
+        'sizing_mode': 'fixed',
+    }
+    get_sp = lambda: pn.Spacer(**kwargs)  # noqa
+    button_kwargs = {
+        'button_type': 'primary',
+        **kwargs,
+    }
+    left = pn.widgets.Button(name=LEFT_ARROW, **button_kwargs)
+    left.on_click(functools.partial(cb, x=-1))
+    up = pn.widgets.Button(name=UP_ARROW, **button_kwargs)
+    up.on_click(functools.partial(cb, y=-1))
+    right = pn.widgets.Button(name=RIGHT_ARROW, **button_kwargs)
+    right.on_click(functools.partial(cb, x=1))
+    down = pn.widgets.Button(name=DOWN_ARROW, **button_kwargs)
+    down.on_click(functools.partial(cb, y=1))
+    return pn.Column(
+        pn.Row(get_sp(), up, get_sp(), margin=(0, 0)),
+        pn.Row(left, down, right, margin=(0, 0)),
+        # pn.Row(get_sp(), down, get_sp(), margin=(0, 0)),
+        margin=(0, 0),
+    )
+
+
+def rotate_buttons(cb):
+    """A button array for rotate acw / cw"""
+    width = height = 40
+    margin = (2, 2)
+    sp = pn.Spacer(width=width, height=height, margin=margin)
+    kwargs = {'width': width, 'height': height, 'margin': margin, 'button_type': 'primary'}
+    acw_btn = pn.widgets.Button(name=ROTATE_LEFT_ARROW, **kwargs)
+    acw_btn.on_click(functools.partial(cb, dir=-1))
+    cw_btn = pn.widgets.Button(name=ROTATE_RIGHT_ARROW, **kwargs)
+    cw_btn.on_click(functools.partial(cb, dir=1))
+    return pn.Row(sp, acw_btn, cw_btn, margin=(0, 0))
+
+
+def scale_buttons(cb):
+    """A button array for scaling x / y / xy up and down"""
+    width = height = 40
+    margin = (2, 2)
+    text_kwargs = {'width': width // 2,
+                   'height': height // 2,
+                   'margin': margin,
+                   'align': ('end', 'center')}
+    button_kwargs = {'width': width,
+                     'height': height,
+                     'margin': margin,
+                     'button_type': 'primary'}
+    x_row = up_down_pair('X:',
+                         cb,
+                         {'xdir': 1},
+                         {'xdir': -1},
+                         text_kwargs,
+                         button_kwargs)
+    y_row = up_down_pair('Y:',
+                         cb,
+                         {'ydir': 1},
+                         {'ydir': -1},
+                         text_kwargs,
+                         button_kwargs)
+    xy_row = up_down_pair('XY:',
+                          cb,
+                          {'xdir': 1, 'ydir': 1},
+                          {'xdir': -1, 'ydir': -1},
+                          text_kwargs,
+                          button_kwargs)
+    lo = pn.Column(x_row,
+                   y_row,
+                   xy_row, margin=(0, 0))
+    return lo
+
+
+def up_down_pair(name, cb, upkwargs, downkwargs, text_kwargs, button_kwargs):
+    sp = pn.Spacer(**text_kwargs)
+    text = pn.widgets.StaticText(value=name, **text_kwargs)
+    compress = pn.widgets.Button(name=f'{RIGHT_ARROW} {LEFT_ARROW}', **button_kwargs)
+    compress.on_click(functools.partial(cb, **downkwargs))
+    expand = pn.widgets.Button(name=f'{LEFT_ARROW} {RIGHT_ARROW}', **button_kwargs)
+    expand.on_click(functools.partial(cb, **upkwargs))
+    return pn.Row(sp, text, compress, expand, margin=(0, 0))
