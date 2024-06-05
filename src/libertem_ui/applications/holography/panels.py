@@ -396,6 +396,16 @@ class ApertureBuilder(StackDSWindow, ui_type=WindowType.STANDALONE):
             label="Aperture Radius"
         )
 
+        self._point_annot = (
+            PointSet(
+                self._disk_annot.cds
+            )
+            .on(self._stack_fig.fig)
+            .set_visible(self._stack_view_option.value == ViewStates.FFT)
+        )
+        self._point_annot.points.marker = "cross"
+        self._point_annot.points.line_color = "red"
+
         self._disk_annot.cds.add([self._window_size_slider.value], name="window_size")
         self._box_annot = (
             Rectangles(
@@ -542,7 +552,8 @@ cds.change.emit();
         state = e.new
         is_fft = state == ViewStates.FFT
         self._estimate_sb_button.disabled = not is_fft
-        # self._line_annot.set_visible(is_fft)
+        # self._line_annot.set_visible(is_fft)]
+        self._point_annot.set_visible(is_fft)
         self._disk_annot.set_visible(is_fft)
         self._box_annot.set_visible(is_fft)
         self._stack_fig.channel_prefix = state
