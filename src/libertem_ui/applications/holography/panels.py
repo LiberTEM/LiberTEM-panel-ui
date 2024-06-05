@@ -814,6 +814,13 @@ m_alpha_slider.value = 0.5
 """
         )
 
+        cycle_alpha_check = pn.widgets.Checkbox(
+            name="Cycle alpha",
+            value=False,
+        )
+        cycle_alpha_check.param.watch(self._alpha_cycle_cb, 'value')
+        self._cycle_cb = None
+
         self._image_fig.fig.x_range.bounds = (0, static_image.shape[1] - 1)
         self._image_fig.fig.y_range.bounds = (0, static_image.shape[0] - 1)
 
@@ -988,6 +995,9 @@ m_alpha_slider.value = 0.5
                 pn.Row(
                     s_alpha_slider,
                     m_alpha_slider,
+                ),
+                pn.Row(
+                    cycle_alpha_check,
                     toggle_alpha_btn,
                     equal_alpha_btn,
                 ),
@@ -1100,6 +1110,22 @@ m_alpha_slider.value = 0.5
             pt_color=self._current_colors(),
         )
         self._drifts_fig.push()
+
+    def _alpha_cycle_cb(self, e):
+        if self._cycle_cb is None:
+            self._cycle_cb = pn.state.add_periodic_callback(
+                self._toggle_alpha_cb,
+                period=400,
+            )
+        else:
+            self._cycle_cb.stop()
+            self._cycle_cb = None
+
+    async def _toggle_alpha_cb(self):
+        value = bool(self._cycle_cb.counter % 2)
+        self._image_fig.im.im.global_alpha = max(0.1, float(not value))
+        self._moving_im.im.global_alpha = max(0.1, float(value))
+        self._image_fig.push()
 
     def current_upsampling(self) -> int:
         return 20 if self._upsample_choice.value else 1
