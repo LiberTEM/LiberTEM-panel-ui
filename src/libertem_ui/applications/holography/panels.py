@@ -1313,6 +1313,14 @@ class KwArgWindow(UIWindow):
         return super().using(None, None, **init_kwargs)
 
 
+class PointsAlignState(NamedTuple):
+    static_y: np.ndarray
+    static_x: np.ndarray
+    moving_y: np.ndarray
+    moving_x: np.ndarray
+    transform_matrix: np.ndarray | None
+
+
 class PointsAlignWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
     @staticmethod
     def default_properties():
@@ -1323,6 +1331,17 @@ class PointsAlignWindow(KwArgWindow, ui_type=WindowType.STANDALONE):
             header_stop=False,
             self_run_only=True,
             header_activate=False,
+        )
+
+    @property
+    def state(self):
+        points = self.static_pointset.cds.data
+        return PointsAlignState(
+            static_y=np.asarray(points["cy"]),
+            static_x=np.asarray(points["cx"]),
+            moving_y=np.asarray(points["cy_moving"]),
+            moving_x=np.asarray(points["cx_moving"]),
+            transform_matrix=self.transformer.get_combined_transform().params
         )
 
     def initialize(self, _: None, *, static: np.ndarray, moving: np.ndarray) -> Self:
