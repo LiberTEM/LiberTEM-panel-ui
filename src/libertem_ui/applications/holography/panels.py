@@ -492,14 +492,14 @@ cds.change.emit();
                 #     self._stack_filtered_check,
                 # ),
                 pn.Row(
+                    self._disk_radius_slider,
+                    self._window_size_slider,
+                ),
+                pn.Row(
                     self._estimate_sb_button,
                     self._estimate_sb_choice,
                     pn.widgets.StaticText(value="Sampling", **label_kwargs),
                     self._sampling_val,
-                ),
-                pn.Row(
-                    self._disk_radius_slider,
-                    self._window_size_slider,
                 ),
             ),
             pn.Column(
