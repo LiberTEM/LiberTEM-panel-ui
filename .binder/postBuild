@@ -1,2 +1,2 @@
 #!/bin/bash
-python .binder/warmup.py
+uv pip install git+https://github.com/matbryan52/LiberTEM-panel-ui.git@holo
