@@ -766,6 +766,10 @@ class StackAlignWindow(StackDSWindow, ui_type=WindowType.STANDALONE):
             .on(self._image_fig.fig)
         )
         self.set_image_title(skipped=state.skip_frame[moving_mask][0])
+        self._moving_im.set_anchor(
+            x=state.shifts_x[moving_mask][0],
+            y=state.shifts_y[moving_mask][0],
+        )
         self._image_fig.im.im.global_alpha = 0.5
         s_alpha_slider = self._image_fig.im.color.get_alpha_slider(
             name="Static Alpha",
