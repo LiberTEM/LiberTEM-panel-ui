@@ -19,7 +19,6 @@ from .display.image_db import BokehImage
 from .display.display_base import Rectangles, DisplayBase, Polygons
 from .display.icons import options_icon, options_icon_blue, sigma_icon
 
-# pn.extension('floatpanel')
 
 PlotDataT = (
     np.ndarray

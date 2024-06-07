@@ -11,7 +11,6 @@ import humanize
 import pandas as pd
 from libertem.common.shape import Shape
 
-# pn.extension('tabulator', 'jsoneditor')
 
 if TYPE_CHECKING:
     from ..base import UIContextBase

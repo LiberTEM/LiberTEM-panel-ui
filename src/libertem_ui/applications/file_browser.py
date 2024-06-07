@@ -8,7 +8,6 @@ import datetime
 import pathlib
 import panel as pn
 import pandas as pd
-pn.extension('tabulator', css_files=[pn.io.resources.CSS_URLS['font-awesome']])
 
 
 def sizeof_fmt(num, suffix="B"):
