@@ -218,19 +218,21 @@ def demo_dataset():
     bias = np.zeros(nav_shape, dtype=float)
     bias[haadf_slice] = 0.35
     bias = gaussian(bias)
-    a_vec = 32+0j
-    base_tilt = 12
-    ab_angle = 60
+    a_vec = np.full(nav_shape, 32+0j, dtype=complex)
+    a_offset = np.linspace(-1, 1., num=nav_shape[1], dtype=complex)[np.newaxis, :]
+    base_tilt = np.full(nav_shape, 12, dtype=float)
+    ab_angle = np.full(nav_shape, 60, dtype=float)
+    angle_offset = np.linspace(-2, 2., num=nav_shape[0], dtype=float)[:, np.newaxis]
     return generate_data(
         nav_shape,
         sig_shape,
         centre=58+70j,
         centre_offset=descan + feature_shift,
         radius=8,
-        a=a_vec,
-        b=a_vec,
-        a_rot=base_tilt,
-        b_rot=base_tilt + ab_angle,
+        a=a_vec + a_offset,
+        b=a_vec - a_offset,
+        a_rot=base_tilt - angle_offset,
+        b_rot=base_tilt + ab_angle + angle_offset,
         noise_level=0.05,
         falloff=1.5,
         bias=bias,

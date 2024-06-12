@@ -7,15 +7,16 @@ import panel as pn
 from bokeh.models import CustomJS
 from bokeh.models.glyphs import MultiLine as BkMultiLine
 from bokeh.models.sources import ColumnDataSource
+from bokeh.models.tools import PolyEditTool
 
-from .display_base import DisplayBase, ConsBase, Text
+from .display_base import DisplayBase, ConsBase, Text, VertexPointSetMixin
 
 
 if TYPE_CHECKING:
-    pass
+    from bokeh.plotting import figure as BkFigure
 
 
-class MultiLine(DisplayBase):
+class MultiLine(DisplayBase, VertexPointSetMixin):
     glyph_map = {
         'lines': BkMultiLine
     }
@@ -52,6 +53,29 @@ class MultiLine(DisplayBase):
         data[self.lines.xs] = xs
         data[self.lines.ys] = ys
         return super().update(**data)
+
+    def editable(
+        self,
+        *figs: BkFigure,
+        tag_name: str = 'default',
+    ) -> Self:
+
+        def _make_edit_tool():
+            return PolyEditTool(
+                name='Polygon Draw',
+                description='Edit polygons on figure',
+                renderers=[],
+                tags=[tag_name],
+            )
+
+        where = self._add_to_tool(
+            figs=figs,
+            glyph_name='lines',
+            tool_filter=lambda t: tag_name in t.tags and isinstance(t, PolyEditTool),
+            make_tool=_make_edit_tool,
+        )
+        self._setup_vertex_renderer(where)
+        return self
 
 
 class MultiLineCons(ConsBase):

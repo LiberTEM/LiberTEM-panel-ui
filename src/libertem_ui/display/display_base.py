@@ -1094,7 +1094,48 @@ class RectanglesCons(ConsBase):
         return super().empty(Rectangles)
 
 
-class Polygons(DisplayBase):
+class VertexPointSetMixin:
+    _vertex_pointset: PointSet
+
+    @property
+    def vertices(self) -> PointSet | None:
+        try:
+            return self._vertex_pointset
+        except AttributeError:
+            return None
+
+    def _setup_vertex_renderer(
+        self,
+        where: list[tuple[BkFigure, EditTool]]
+    ):
+        """
+        This DisplayBase is used by PolyEditTool/PolyDrawTool
+        to display the vertice of polygons / lines. If the tool is first
+        added to a figure by this instance, it will 'own'
+        the vertex renderer, otherwise it will 'borrow' the
+        PointSet / vertex renderer of another DisplayBase
+
+        To style the vertex glyph in this case, use the 'owner'
+        instance or find the associated glyph through the tool itself
+        """
+        if not hasattr(self, '_vertex_pointset'):
+            self._vertex_pointset = PointSet.new().empty()
+        for fig, poly_tool in where:
+            if poly_tool.vertex_renderer is not None:
+                continue
+            renderers = self._vertex_pointset.renderers_for_fig('points', fig)
+            if len(renderers) == 0:
+                vertex_renderer = (
+                    self._vertex_pointset
+                    .on(fig)
+                    .renderers_for_fig('points', fig)[0]
+                )
+            else:
+                vertex_renderer = renderers[0]
+            poly_tool.vertex_renderer = vertex_renderer
+
+
+class Polygons(DisplayBase, VertexPointSetMixin):
     glyph_map = {
         'polys': [Patches],
     }
@@ -1115,14 +1156,6 @@ class Polygons(DisplayBase):
             line_dash='dashed',
         )
         self._register_glyph('polys', glyph)
-        # This DisplayBase is used by PolyEditTool/PolyDrawTool
-        # to display the vertice of polygons. If the tool is first
-        # added to a figure by this instance of Polygons, it will 'own'
-        # the vertex renderer, otherwise it will 'borrow' the
-        # PointSet / vertex renderer of another DisplayBase
-        # To style the vertex glyph in this case, use the 'owner'
-        # polygons or find the associated glyph through the tool itself
-        self._vertex_pointset: PointSet | None = None
 
     def editable(
         self,
@@ -1160,26 +1193,6 @@ class Polygons(DisplayBase):
         )
         self._setup_vertex_renderer(where)
         return self
-
-    def _setup_vertex_renderer(
-        self,
-        where: list[tuple[BkFigure, EditTool]]
-    ):
-        if self._vertex_pointset is None:
-            self._vertex_pointset = PointSet.new().empty()
-        for fig, poly_tool in where:
-            if poly_tool.vertex_renderer is not None:
-                continue
-            renderers = self._vertex_pointset.renderers_for_fig('points', fig)
-            if len(renderers) == 0:
-                vertex_renderer = (
-                    self._vertex_pointset
-                    .on(fig)
-                    .renderers_for_fig('points', fig)[0]
-                )
-            else:
-                vertex_renderer = renderers[0]
-            poly_tool.vertex_renderer = vertex_renderer
 
     @property
     def polys(self) -> Patches:
