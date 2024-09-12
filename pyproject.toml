@@ -30,6 +30,7 @@ classifiers=[
 dependencies = [
     "libertem",
     "libertem-live",  # used for RecordUDF and SignalMonitorUDF
+    "libertem-blobfinder",  # used for Strain Application
     "numpy",
     "scipy",
     "pandas",

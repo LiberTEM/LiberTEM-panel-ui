@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from .results.results_manager import ResultsManager, ResultRow, RunRow
     from .utils.logging import UILogger
     from .resources import LiveResources, OfflineResources
+    from .ui_context import UITools
 
     WindowIdent = NewType('WindowIdent', str)
 
@@ -54,6 +55,7 @@ class UIContextBase(Protocol):
     _windows: dict[WindowIdent, UIWindow]
     _results_manager: ResultsManager
     _resources: LiveResources | OfflineResources
+    _tools: UITools
 
     @staticmethod
     def notebook_fullwidth():

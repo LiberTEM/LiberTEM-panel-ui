@@ -6,7 +6,7 @@ import panel as pn
 
 from ..utils.logging import DEFAULT_LEVEL, logger
 
-pn.extension('terminal')
+# pn.extension('terminal')
 
 
 class UILog:
