@@ -28,7 +28,12 @@ from .applications.terminal_logger import UILog
 from .utils.panel_components import labelled_switch, button_divider, get_spinner
 from .utils.progress import PanelProgressReporter
 
-pn.extension('tabulator', 'jsoneditor', 'terminal', 'floatpanel')
+pn.extension(
+    'tabulator',
+    'jsoneditor',
+    'terminal',
+    'floatpanel',
+)
 
 if TYPE_CHECKING:
     import pathlib
@@ -49,8 +54,9 @@ class UITools:
         )
 
         self.title = pn.pane.HTML(
-            object='<H2><font color="#005b9e">UI Context</font></H2>',
+            object="",
         )
+        self.set_title(properties.title)
 
         self.run_btn = pn.widgets.Button(
             name='Run',
@@ -128,11 +134,15 @@ for (let model of this.document._all_models.values()){
             min_width=125,
         )
 
+    def set_title(self, title: str):
+        self.title.object = f'<H2><font color="#005b9e">{title}</font></H2>'
+
 
 class UIContextProperties(NamedTuple):
     add_window_widget: bool = True
     allow_manual_add: bool = True
     allow_remove: bool = True
+    title: str = "UI Context"
 
 
 class UIContext(UIContextBase):
@@ -160,7 +170,7 @@ class UIContext(UIContextBase):
         self._layout = pn.Column(
             self._button_row,
             self._tools.pbar,
-            self._logger.as_collapsible(),
+            self._logger.as_collapsible(collapsed=False),
             self._windows_area,
             min_width=700,
         )
@@ -309,7 +319,7 @@ class UIContext(UIContextBase):
         window_id = self._unique_windows.get(name)
         return self._windows.get(window_id, None)
 
-    def _register_unique_window_names(self) -> TypedDict[str, WindowIdent | None]:
+    def _register_unique_window_names(self) -> dict[str, WindowIdent | None]:
         raise NotImplementedError
 
     def _remove_window(self, window: UIWindow):
