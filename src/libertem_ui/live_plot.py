@@ -651,6 +651,7 @@ class AperturePlot(Live2DPlot, ApertureFigure):
     ):
         # Live plot gets a None title if not specified so it keeps its default
         plot = cls(dataset, udf, roi=roi, channel=channel, title=title if len(title) else None)
+        plot.data = np.asarray(plot.data)
         # Bokeh needs a string title, however, so gets the default ''
         fig = figure(title=title)
         im = BokehImage.new().from_numpy(plot.data).on(fig)
@@ -701,6 +702,7 @@ class AperturePlot(Live2DPlot, ApertureFigure):
         if manual or force or not rate_limited:
             self._last_res = (udf_results, damage)
             self.data, damage = self.extract(*self._last_res)
+            self.data = np.asarray(self.data)
             self.update(damage, force=force)
         else:
             self._was_rate_limited = rate_limited
