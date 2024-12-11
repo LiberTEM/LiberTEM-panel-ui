@@ -7,3 +7,4 @@ dependencies:
   - git
   - pip:
     - uv
+    - numba
