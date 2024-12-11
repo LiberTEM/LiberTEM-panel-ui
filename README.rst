@@ -102,16 +102,6 @@ installed using (requires :code:`git`):
 
     pip install 'libertem_ui @ git+https://github.com/LiberTEM/LiberTEM-panel-ui'
 
-Certain components require an installation of NodeJS
-to run correctly. If you don't already have an installation
-of NodeJS, you can use conda to easily install it using:
-
-.. code-block:: bash
-
-    conda install nodejs
-
-(particularly on Windows), or use a tool like
-`nvm <https://github.com/nvm-sh/nvm>`_ on linux.
 
 Disclaimer
 ----------
