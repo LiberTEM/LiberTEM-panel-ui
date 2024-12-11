@@ -30,8 +30,6 @@ classifiers=[
 dependencies = [
     "libertem",
     "libertem-live",  # used for RecordUDF and SignalMonitorUDF
-    "libertem-blobfinder",  # used for Strain Application
-    "libertem-holo@git+https://github.com/sk1p/LiberTEM-holo.git@core-reconstr-changes",  # HoloTools
     "numpy",
     "scipy",
     "pandas",
