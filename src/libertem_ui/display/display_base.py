@@ -192,7 +192,7 @@ class DisplayBase(abc.ABC):
         return self
 
     @property
-    def visible(self) -> Generator[bool, None, None]:
+    def visible(self) -> Generator[bool]:
         for wrappers in self._glyphs.values():
             wrappers: list[GlyphOnWrapper]
             for wrapper in wrappers:
