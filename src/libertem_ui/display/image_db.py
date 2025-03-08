@@ -639,9 +639,12 @@ clim_slider.step = (high - low) / nstep;
         """
         if palette is None:
             palette = event.new
-        self._current_palette_name = palette
+        if isinstance(palette, list):
+            _palette_list = palette
+        else:
+            self._current_palette_name = palette
+            _palette_list = cmaps.get_colormap(palette, inverted=self.is_cmap_inverted())
         # can definitely be JS-linked!!!
-        _palette_list = cmaps.get_colormap(palette, inverted=self.is_cmap_inverted())
         self._lin_mapper.palette = _palette_list
 
     def invert_cmap(self, event):
@@ -861,8 +864,6 @@ clim_slider.step = (bar_high - bar_low) / nstep;
 
         Parameters
         ----------
-        alpha : Optional[float], optional
-            An initial alpha value, by default None in which case 1.0
         name : str, optional
             A label to apply  to the slider, by default 'Alpha'
         **kwargs : dict, optional
