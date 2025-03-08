@@ -164,6 +164,7 @@ class ApertureFigure:
         title: str = '',
         downsampling: bool = True,
         channel_dimension: int | tuple[int, ...] | tuple[str, ...] = -1,
+        tools: bool = True,
     ):
         plot = cls()
         image = plot._setup_multichannel(data, dim=channel_dimension)
@@ -174,7 +175,8 @@ class ApertureFigure:
             im.enable_downsampling()
         plot.set_plot(fig=fig, im=im)
         adapt_figure(fig, image.shape, maxdim=maxdim, mindim=mindim)
-        plot._setup()
+        if tools:
+            plot._setup()
         return plot
 
     def _setup(self):
