@@ -11,13 +11,12 @@ from bokeh.plotting import figure
 from bokeh.models import CustomJS
 from bokeh.models.tools import CustomAction, WheelZoomTool
 from bokeh.models.annotations import Title
-from bokeh.models.widgets import Button
 from bokeh.events import MouseMove, MouseLeave
 from libertem.viz.base import Live2DPlot
 
 from .display.image_db import BokehImage
 from .display.display_base import Rectangles, DisplayBase, Polygons
-from .display.icons import options_icon, options_icon_blue, sigma_icon
+from .display.icons import options_icon, sigma_icon
 
 
 PlotDataT = (
