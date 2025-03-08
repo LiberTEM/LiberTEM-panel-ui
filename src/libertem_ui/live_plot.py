@@ -120,13 +120,17 @@ class ApertureFigure:
             height=40,
             margin=(0, 0)
         )
-        self._layout = pn.Column(
+        self._outer_toolbar = pn.Row(
             self._toolbar,
+            height=40,
+            margin=(0, 0),
+        )
+        self._layout = pn.Column(
+            self._outer_toolbar,
             margin=(0, 0),
         )
 
         self._clear_btn: pn.widgets.Button | None = None
-        self._floatpanel: pn.layout.FloatPanel | None = None
 
         self._channel_prefix = "Channel"
         self._channel_select: pn.widgets.Select | pn.widgets.IntSlider | None = None
@@ -272,76 +276,48 @@ class ApertureFigure:
         self,
         name: str = 'Image Controls',
     ):
-        initial_vis = False
-
-        button_uuid = str(uuid.uuid4())
-        open_btn = pn.widgets.Toggle(
-            name=name,
-            value=initial_vis,
-            margin=(5, 5, 5, 5),
-            tags=[button_uuid],
-            visible=False,
-            width=2,
-            height=2,
-        )
-        close_btn = Button(
-            label='✖',
-            button_type='light',
-            align='start',
-        )
-
-        self._floatpanel = pn.layout.FloatPanel(
+        self._floatpanel_title = name
+        self._floatpanel_items = [
             pn.Row(
                 self.im.color.get_cmap_select(width=150),
                 self.im.color.get_cmap_invert(
                     align='center',
                     margin=(25, 5, 5, 5),
                 ),
-                pn.layout.HSpacer(width=35),
-                close_btn,
             ),
             self.im.color.get_cmap_slider(),
-            # self.im.color._gamma_slider,
             pn.Row(
                 self.im.color._full_scale_btn,
                 self.im.color.clip_outliers_btn,
                 self.im.color.clip_outliers_sigma_spinner,
             ),
             self.im.color._cbar_freeze,
+        ]
+
+        button_uuid = str(uuid.uuid4())
+        open_btn = pn.widgets.Toggle(
             name=name,
-            config={
-                "headerControls": {
-                    "maximize": "remove",
-                    "normalize": "remove",
-                    "minimize": "remove",
-                    # Really needs a close-type button !
-                    # even if self-implemented
-                    "close": "remove",
-                },
-            },
-            margin=20,
-            visible=initial_vis,
+            value=False,
+            margin=(5, 5, 5, 5),
+            tags=[button_uuid],
+            visible=False,
+            width=2,
+            height=2,
         )
-        open_btn.jslink(self._floatpanel, value='visible')
+        open_btn.param.watch(self._open_controls, 'value')
+        floatpanel = self._make_floatpanel(status='closed')
+        self._outer_toolbar.insert(0, open_btn)
+        self._outer_toolbar.insert(0, floatpanel)
 
         cb = CustomJS(
             args={
                 'btn_uuid': button_uuid,
-                'icon_active': options_icon_blue(as_b64=True),
-                'icon_inactive': options_icon(as_b64=True),
             },
             code='''
 // searching through *all* models is really a hack...
 for (let model of this.document._all_models.values()){
     if (model.properties.tags._value.includes(btn_uuid)){
         model.active = !model.active
-        if (model.active){
-            cb_obj.properties.icon.set_value(icon_active)
-        } else {
-            cb_obj.properties.icon.set_value(icon_inactive)
-        }
-        cb_obj.properties.icon.change.emit()
-        cb_obj.change.emit()
         return
     }
 }
@@ -354,17 +330,6 @@ for (let model of this.document._all_models.values()){
         )
         self.fig.add_tools(action)
 
-        close_btn.js_on_click(
-            CustomJS(
-                args={
-                    'action': action,
-                },
-                code='''
-action.callback.execute(action)
-'''
-            )
-        )
-
         autorange_action = CustomAction(
             icon=sigma_icon(),
             callback=self.im.color._clip_outliers_btn.js_event_callbacks['button_click'][0],
@@ -372,13 +337,29 @@ action.callback.execute(action)
         )
         self.fig.add_tools(autorange_action)
 
-        self._toolbar.extend((
-            open_btn,
-            self._floatpanel,
-        ))
+    def _make_floatpanel(self, status='normalized'):
+        return pn.layout.FloatPanel(
+            *self._floatpanel_items,
+            name=self._floatpanel_title,
+            config={
+                "headerControls": {
+                    "maximize": "remove",
+                    # "normalize": "remove",
+                    "minimize": "remove",
+                    "smallify": "remove",
+                    # "close": "remove",
+                },
+            },
+            contained=False,
+            position='center',
+            status=status,
+        )
+
+    def _open_controls(self, *e):
+        self._outer_toolbar[0] = self._make_floatpanel()
 
     def get_float_panel(self):
-        return self._floatpanel
+        return self._outer_toolbar[0]
 
     def add_hover_position_text(self):
         title = Title(
