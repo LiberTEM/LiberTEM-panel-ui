@@ -126,7 +126,7 @@ class ApertureFigure:
         )
         self._layout = pn.Column(
             self._outer_toolbar,
-            margin=(0, 0),
+            margin=(3, 3),
         )
 
         self._clear_btn: pn.widgets.Button | None = None
