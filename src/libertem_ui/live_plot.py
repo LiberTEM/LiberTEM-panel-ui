@@ -131,6 +131,7 @@ class ApertureFigure:
 
         self._clear_btn: pn.widgets.Button | None = None
 
+        self._base_title = ""
         self._channel_prefix = "Channel"
         self._channel_select: pn.widgets.Select | pn.widgets.IntSlider | None = None
         self._channel_data: PlotDataT | None = None
@@ -170,6 +171,7 @@ class ApertureFigure:
         tools: bool = True,
     ):
         plot = cls()
+        plot._base_title = title
         image = plot._setup_multichannel(data, dim=channel_dimension)
         # Bokeh needs a string title, however, so gets the default ''
         fig = figure(title=title)
@@ -584,6 +586,8 @@ for (let model of this.document._all_models.values()){
             title = f"{self.channel_prefix} [{slice_as_str}]"
         self.im.update(data)
         if update_title:
+            if len(self._base_title) > 0:
+                title = f"{self._base_title} - {title}"
             self.fig.title.text = title
         if push_update:
             self.push()
