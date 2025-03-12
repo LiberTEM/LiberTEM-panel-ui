@@ -403,7 +403,7 @@ for (let model of this.document._all_models.values()){
                 .new()
                 .empty()
                 .on(self.fig)
-                .editable()
+                .editable(selected=activate)
             )
         if rectangles:
             self._mask_elements.append(
@@ -411,12 +411,12 @@ for (let model of this.document._all_models.values()){
                 .new()
                 .empty()
                 .on(self.fig)
-                .editable()
+                .editable(selected=activate)
             )
         # Could use custom icons to show which tools are ROI tools
         # Could add clear ROI button as a callback on the toolbar
-        if activate and len(self.fig.tools):
-            self.fig.toolbar.active_drag = self.fig.tools[-1]
+        # if activate and len(self.fig.tools):
+        #     self.fig.toolbar.active_drag = self.fig.tools[-1]
         if clear_btn:
             self.get_clear_mask_btn()
         return self

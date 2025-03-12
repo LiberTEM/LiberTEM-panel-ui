@@ -291,6 +291,7 @@ class DisplayBase(abc.ABC):
         glyph_name: str,
         tool_filter: Callable[[Tool], bool],
         make_tool: Callable[[], EditTool],
+        selected: bool = False,
     ):
         all_figs = self.is_on()
         if figs and not all(f in all_figs for f in figs):
@@ -312,6 +313,9 @@ class DisplayBase(abc.ABC):
             except IndexError:
                 tool = make_tool()
                 fig.add_tools(tool)
+            if selected:
+                # FIXME this should determine the correct tool category to activate
+                fig.toolbar.active_multi = tool
             renderers = self.renderers_for_fig(glyph_name, fig)
             for renderer in renderers:
                 tool.renderers.append(renderer)
@@ -390,6 +394,7 @@ class PointSet(DisplayBase):
         add: bool = True,
         drag: bool = True,
         tag_name: str = 'default',
+        selected: bool = False,
     ) -> PointSet:
         if not (add or drag):
             raise ValueError('Cannot make editable without one of add or drag')
@@ -397,7 +402,8 @@ class PointSet(DisplayBase):
             figs=figs,
             glyph_name='points',
             tool_filter=lambda t: tag_name in t.tags and isinstance(t, PointDrawTool),
-            make_tool=partial(get_point_tool, add=add, drag=drag, tag_name=tag_name)
+            make_tool=partial(get_point_tool, add=add, drag=drag, tag_name=tag_name),
+            selected=selected,
         )
         return self
 
@@ -503,6 +509,7 @@ class DiskSet(DisplayBase):
         add: bool = True,
         drag: bool = True,
         tag_name: str = 'default',
+        selected: bool = False,        
     ) -> DiskSet:
         if not (add or drag):
             raise ValueError('Cannot make editable without one of add or drag')
@@ -510,7 +517,8 @@ class DiskSet(DisplayBase):
             figs=figs,
             glyph_name='disks',
             tool_filter=lambda t: tag_name in t.tags and isinstance(t, PointDrawTool),
-            make_tool=partial(get_point_tool, add=add, drag=drag, tag_name=tag_name)
+            make_tool=partial(get_point_tool, add=add, drag=drag, tag_name=tag_name),
+            selected=selected,            
         )
         return self
 
@@ -625,6 +633,7 @@ class RingSet(DisplayBase):
         add: bool = True,
         drag: bool = True,
         tag_name: str = 'default',
+        selected: bool = False,        
     ) -> RingSet:
         if not (add or drag):
             raise ValueError('Cannot make editable without one of add or drag')
@@ -632,7 +641,8 @@ class RingSet(DisplayBase):
             figs=figs,
             glyph_name='rings',
             tool_filter=lambda t: tag_name in t.tags and isinstance(t, PointDrawTool),
-            make_tool=partial(get_point_tool, add=add, drag=drag, tag_name=tag_name)
+            make_tool=partial(get_point_tool, add=add, drag=drag, tag_name=tag_name),
+            selected=selected,            
         )
         return self
 
@@ -708,6 +718,7 @@ class Cursor(DisplayBase):
         self,
         *figs: BkFigure,
         tag_name: str = 'cursor',
+        selected: bool = False,        
     ) -> Cursor:
         self._add_to_tool(
             figs=figs,
@@ -719,7 +730,8 @@ class Cursor(DisplayBase):
                 drag=True,
                 tag_name=tag_name,
                 icon=cursor_icon(),
-            )
+            ),
+            selected=selected,            
         )
         return self
 
@@ -1004,6 +1016,7 @@ class Rectangles(DisplayBase):
         self,
         *figs: BkFigure,
         tag_name: str = 'default',
+        selected: bool = False,        
     ) -> Rectangles:
 
         def _make_tool():
@@ -1019,6 +1032,7 @@ class Rectangles(DisplayBase):
             glyph_name='rectangles',
             tool_filter=lambda t: tag_name in t.tags and isinstance(t, BoxEditTool),
             make_tool=_make_tool,
+            selected=selected,            
         )
         return self
 
@@ -1184,6 +1198,7 @@ class Polygons(DisplayBase, VertexPointSetMixin):
         self,
         *figs: BkFigure,
         tag_name: str = 'default',
+        selected: bool = False,        
     ) -> Polygons:
 
         def _make_draw_tool():
@@ -1198,6 +1213,7 @@ class Polygons(DisplayBase, VertexPointSetMixin):
             glyph_name='polys',
             tool_filter=lambda t: tag_name in t.tags and isinstance(t, PolyDrawTool),
             make_tool=_make_draw_tool,
+            selected=selected,
         )
         self._setup_vertex_renderer(where)
 
