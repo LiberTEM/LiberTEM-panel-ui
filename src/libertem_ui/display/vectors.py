@@ -59,6 +59,7 @@ class MultiLine(DisplayBase, VertexPointSetMixin):
         self,
         *figs: BkFigure,
         tag_name: str = 'default',
+        selected: bool = False,
     ) -> Self:
 
         def _make_draw_tool():
@@ -74,6 +75,7 @@ class MultiLine(DisplayBase, VertexPointSetMixin):
             glyph_name='lines',
             tool_filter=lambda t: tag_name in t.tags and isinstance(t, PolyDrawTool),
             make_tool=_make_draw_tool,
+            selected=selected,
         )
         self._setup_vertex_renderer(where)
 
