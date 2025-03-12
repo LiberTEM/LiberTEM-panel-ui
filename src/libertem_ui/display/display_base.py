@@ -509,7 +509,7 @@ class DiskSet(DisplayBase):
         add: bool = True,
         drag: bool = True,
         tag_name: str = 'default',
-        selected: bool = False,        
+        selected: bool = False,
     ) -> DiskSet:
         if not (add or drag):
             raise ValueError('Cannot make editable without one of add or drag')
@@ -518,7 +518,7 @@ class DiskSet(DisplayBase):
             glyph_name='disks',
             tool_filter=lambda t: tag_name in t.tags and isinstance(t, PointDrawTool),
             make_tool=partial(get_point_tool, add=add, drag=drag, tag_name=tag_name),
-            selected=selected,            
+            selected=selected,
         )
         return self
 
@@ -633,7 +633,7 @@ class RingSet(DisplayBase):
         add: bool = True,
         drag: bool = True,
         tag_name: str = 'default',
-        selected: bool = False,        
+        selected: bool = False,
     ) -> RingSet:
         if not (add or drag):
             raise ValueError('Cannot make editable without one of add or drag')
@@ -642,7 +642,7 @@ class RingSet(DisplayBase):
             glyph_name='rings',
             tool_filter=lambda t: tag_name in t.tags and isinstance(t, PointDrawTool),
             make_tool=partial(get_point_tool, add=add, drag=drag, tag_name=tag_name),
-            selected=selected,            
+            selected=selected,
         )
         return self
 
@@ -718,7 +718,7 @@ class Cursor(DisplayBase):
         self,
         *figs: BkFigure,
         tag_name: str = 'cursor',
-        selected: bool = False,        
+        selected: bool = False,
     ) -> Cursor:
         self._add_to_tool(
             figs=figs,
@@ -731,7 +731,7 @@ class Cursor(DisplayBase):
                 tag_name=tag_name,
                 icon=cursor_icon(),
             ),
-            selected=selected,            
+            selected=selected,
         )
         return self
 
@@ -1016,7 +1016,7 @@ class Rectangles(DisplayBase):
         self,
         *figs: BkFigure,
         tag_name: str = 'default',
-        selected: bool = False,        
+        selected: bool = False,
     ) -> Rectangles:
 
         def _make_tool():
@@ -1032,7 +1032,7 @@ class Rectangles(DisplayBase):
             glyph_name='rectangles',
             tool_filter=lambda t: tag_name in t.tags and isinstance(t, BoxEditTool),
             make_tool=_make_tool,
-            selected=selected,            
+            selected=selected,
         )
         return self
 
@@ -1198,7 +1198,7 @@ class Polygons(DisplayBase, VertexPointSetMixin):
         self,
         *figs: BkFigure,
         tag_name: str = 'default',
-        selected: bool = False,        
+        selected: bool = False,
     ) -> Polygons:
 
         def _make_draw_tool():
