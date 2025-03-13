@@ -70,6 +70,7 @@ class MultiLine(DisplayBase, VertexPointSetMixin):
                 icon=line_icon(),
                 tags=[tag_name],
             )
+
         where = self._add_to_tool(
             figs=figs,
             glyph_name='lines',
