@@ -3,7 +3,6 @@ import numpy as np
 from itertools import pairwise
 from typing import Callable
 
-import pandas as pd
 import panel as pn
 from scipy.interpolate import RectBivariateSpline
 from bokeh.models import CustomJS
@@ -258,7 +257,7 @@ boxes_cds.change.emit()
 '''
 
 
-def sampling_tool(array: np.ndarray, fig_kwargs = None) -> tuple[pn.layout.Row, Callable[[], dict]]:
+def sampling_tool(array: np.ndarray, fig_kwargs=None) -> tuple[pn.layout.Row, Callable[[], dict]]:
     fig = ApertureFigure.new(
         array,
         **(fig_kwargs if fig_kwargs is not None else {})
