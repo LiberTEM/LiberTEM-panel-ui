@@ -334,7 +334,7 @@ def sampling_tool(array: np.ndarray, fig_kwargs=None) -> tuple[pn.layout.Row, Ca
     )
     fig._toolbar.append(oversampling_slider)
     fig._toolbar.append(perpendicular_slider)
-    
+
     def getter():
         return {
             'points': sample_path.cds.clone().data,
