@@ -284,6 +284,26 @@ class DisplayBase(abc.ABC):
     def editable(self, *figs: BkFigure) -> Self:
         raise NotImplementedError
 
+    def tools(self, glyph_name: str, *figs: tuple[BkFigure, ...]) -> dict[BkFigure, list[Tool]]:
+        if len(figs) == 0:
+            figs = self.is_on()
+        if len(figs) == 0:
+            return {}
+        tools = {}
+        for fig in figs:
+            tools[fig] = []
+            renderers = self.renderers_for_fig(glyph_name, fig)
+            for tool in fig.tools:
+                if not hasattr(tool, 'renderers') or isinstance(tool.renderers, str):
+                    continue
+                for renderer in renderers:
+                    try:
+                        if renderer in tool.renderers:
+                            tools[fig].append(tool)
+                    except TypeError:
+                        continue
+        return tools
+
     def _add_to_tool(
         self,
         *,
