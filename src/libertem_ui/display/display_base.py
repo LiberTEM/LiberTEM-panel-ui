@@ -822,6 +822,9 @@ class Curve(DisplayBase):
         data = {}
         data[self.glyph.x] = xvals
         data[self.glyph.y] = yvals
+        # Not sure where this column comes from ?
+        if 'index' in self.cds.column_names:
+            data['index'] = np.ones(len(xvals), dtype=int)
         return super().update(**data)
 
 
