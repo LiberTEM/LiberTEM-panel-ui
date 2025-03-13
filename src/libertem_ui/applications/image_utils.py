@@ -214,7 +214,7 @@ def fine_adjust(
         # To be sure we set the output shape to match static
         transformer_moving.add_null_transform(output_shape=static.shape)
 
-    static_name = 'Static'
+    # static_name = 'Static'
     moving_name = 'Moving'
 
     fig = (
