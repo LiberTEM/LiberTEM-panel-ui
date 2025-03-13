@@ -30,7 +30,7 @@ def select_roi(
     rectangles = fig._mask_elements[0]
 
     def getter() -> list[tuple[slice, slice]]:
-        return fig.get_mask_rect_as_slices(image.shape)
+        return fig.get_mask_rect_as_slices(fig.im.array.shape)
 
     return fig, rectangles, getter
 
