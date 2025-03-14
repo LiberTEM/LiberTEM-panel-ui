@@ -10,7 +10,7 @@ from bokeh.plotting import figure as BkFigure
 
 from ..display.display_base import Rectangles, Curve
 from ..display.vectors import MultiLine
-from ..live_plot import ApertureFigure
+from ..figure import ApertureFigure
 
 
 def deduplicate(iterable):

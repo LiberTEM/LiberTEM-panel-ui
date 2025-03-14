@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from ..base import UIState, JobResults
 from .base import UIWindow, UDFWindowJob
-from ..live_plot import AperturePlot
+from ..figure import AperturePlot
 from ..results.containers import Numpy2DResultContainer
 
 if TYPE_CHECKING:

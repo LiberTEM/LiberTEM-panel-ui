@@ -4,7 +4,7 @@ import numpy as np
 import panel as pn
 from skimage.transform import AffineTransform
 
-from ..live_plot import ApertureFigure
+from ..figure import ApertureFigure
 from ..display.display_base import PointSet, Cursor
 from ..display.vectors import MultiLine
 from ..display.image_db import BokehImage

@@ -23,7 +23,7 @@ if TYPE_CHECKING:
     from .standalone import StandaloneContext
     from ..results.results_manager import ResultRow
     from ..results.tracker import ResultTracker
-    from ..live_plot import AperturePlot
+    from ..figure import AperturePlot
 
     T = TypeVar('T', bound='WindowProperties')
     W = TypeVar('W', bound='UIWindow')
