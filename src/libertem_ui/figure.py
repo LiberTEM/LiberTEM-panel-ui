@@ -162,7 +162,7 @@ class ApertureFigure:
         mindim: int | None = 100,
         title: str = '',
         downsampling: bool = True,
-        channel_dimension: int | tuple[int, ...] | tuple[str, ...] = -1,
+        channel_dimension: int | tuple[int, ...] | list[str] = -1,
         tools: bool = True,
     ):
         plot = cls()
@@ -190,6 +190,27 @@ class ApertureFigure:
     def is_multichannel(self):
         return self._channel_map is not None
 
+    @staticmethod
+    def _complex_keys():
+        return [
+            "Real",
+            "Imaginary",
+            "Abs",
+            "Phase",
+        ]
+
+    @staticmethod
+    def _unpack_complex(data: np.ndarray, key: str):
+        if key == "Real":
+            return data.real, key
+        if key == "Imaginary":
+            return data.imag, key
+        if key == "Abs":
+            return np.abs(data), key
+        if key == "Phase":
+            return np.angle(data), key
+        raise NotImplementedError(key)
+
     def _setup_multichannel(
         self,
         data: PlotDataT,
@@ -204,8 +225,12 @@ class ApertureFigure:
             self._channel_map = dim
             self._channel_data = data
         elif isinstance(data, np.ndarray):
-            if data.ndim == 2:
+            if data.ndim == 2 and not np.iscomplexobj(data):
                 return data
+            elif data.ndim == 2 and np.iscomplexobj(data):
+                self._channel_map = self._complex_keys()
+                self._channel_data = partial(self._unpack_complex, data)
+                out_data, _ = self._channel_data(self._channel_map[0])
             elif data.ndim > 2:
                 if isinstance(dim, int):
                     dim = (dim,)
