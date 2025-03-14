@@ -224,6 +224,7 @@ def fine_adjust(
             tools=False,
         )
     )
+    fig.add_control_panel(fig.im, name="Static image")
     static_im = fig.im
     moving_im = (
         BokehImage
@@ -233,6 +234,7 @@ def fine_adjust(
         )
         .on(fig.fig)
     )
+    fig.add_control_panel(moving_im, name="Moving image")
 
     static_im.color.change_cmap('Blues')
     moving_im.color.change_cmap('Reds')
@@ -260,7 +262,7 @@ def fine_adjust(
     def update_moving(*updates, fix_clims=True):
         moving = transformer_moving.get_transformed_image()
         if show_diff_cbox.value:
-            to_display = moving - static
+            to_display = np.float32(moving) - np.float32(static)
         else:
             to_display = moving
         moving_im.update(to_display)
