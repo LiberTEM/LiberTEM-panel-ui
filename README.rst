@@ -90,7 +90,7 @@ see :code:`examples/` for some more complete example use cases.
 Installation
 ------------
 
-:code:`libertem_ui` requires Python 3.9 or greater.
+:code:`libertem_ui` requires Python 3.10 or greater.
 
 As always, it is advisable to use a virtual or conda environment
 for testing packages.
@@ -100,7 +100,7 @@ installed using (requires :code:`git`):
 
 .. code-block:: bash
 
-    pip install 'libertem_ui @ git+https://github.com/LiberTEM/LiberTEM-panel-ui'
+    pip install 'libertem_ui[libertem] @ git+https://github.com/LiberTEM/LiberTEM-panel-ui'
 
 
 Disclaimer
