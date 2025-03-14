@@ -177,14 +177,14 @@ class ApertureFigure:
         adapt_figure(fig, image.shape, maxdim=maxdim, mindim=mindim)
         if tools:
             plot._setup()
+        if plot.is_multichannel:
+            plot.get_channel_select()
         return plot
 
     def _setup(self):
         self.add_hover_position_text()
         self.add_control_panel(self.im)
-        self.add_autorange()
-        if self.is_multichannel:
-            self.get_channel_select()
+        self.add_autorange(self.im)
 
     @property
     def is_multichannel(self):
@@ -361,10 +361,10 @@ for (let model of this.document._all_models.values()){
         )
         self.fig.add_tools(action)
 
-    def add_autorange(self):
+    def add_autorange(self, im: BokehFigure):
         autorange_action = CustomAction(
             icon=sigma_icon(),
-            callback=self.im.color._clip_outliers_btn.js_event_callbacks['button_click'][0],
+            callback=im.color._clip_outliers_btn.js_event_callbacks['button_click'][0],
             description='Autorange color',
         )
         self.fig.add_tools(autorange_action)
