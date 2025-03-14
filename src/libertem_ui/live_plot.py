@@ -130,6 +130,7 @@ class ApertureFigure:
         )
 
         self._clear_btn: pn.widgets.Button | None = None
+        self._floatpanels: dict[str, dict] = {}
 
         self._base_title = ""
         self._channel_prefix = "Channel"
@@ -186,7 +187,8 @@ class ApertureFigure:
 
     def _setup(self):
         self.add_hover_position_text()
-        self.add_control_panel()
+        self.add_control_panel(self.im)
+        self.add_autorange()
         if self.is_multichannel:
             self.get_channel_select()
 
@@ -275,24 +277,24 @@ class ApertureFigure:
 
     def add_control_panel(
         self,
+        im: BokehImage,
         name: str = 'Image Controls',
     ):
-        self._floatpanel_title = name
-        self._floatpanel_items = [
+        items = [
             pn.Row(
-                self.im.color.get_cmap_select(width=150),
-                self.im.color.get_cmap_invert(
+                im.color.get_cmap_select(width=150),
+                im.color.get_cmap_invert(
                     align='center',
                     margin=(25, 5, 5, 5),
                 ),
             ),
-            self.im.color.get_cmap_slider(),
+            im.color.get_cmap_slider(),
             pn.Row(
-                self.im.color._full_scale_btn,
-                self.im.color.clip_outliers_btn,
-                self.im.color.clip_outliers_sigma_spinner,
+                im.color._full_scale_btn,
+                im.color.clip_outliers_btn,
+                im.color.clip_outliers_sigma_spinner,
             ),
-            self.im.color._cbar_freeze,
+            im.color._cbar_freeze,
         ]
 
         button_uuid = str(uuid.uuid4())
@@ -306,9 +308,18 @@ class ApertureFigure:
             height=2,
         )
         open_btn.param.watch(self._open_controls, 'value')
-        floatpanel = self._make_floatpanel(status='closed')
-        self._outer_toolbar.insert(0, open_btn)
-        self._outer_toolbar.insert(0, floatpanel)
+
+        index = len(self._floatpanels)
+        floatpanel_spec = dict(
+            title=name,
+            items=items,
+            index=index,
+        )
+        self._floatpanels[button_uuid] = floatpanel_spec
+
+        floatpanel = self._make_floatpanel(**floatpanel_spec, status='closed')
+        self._outer_toolbar.insert(index, floatpanel)
+        self._outer_toolbar.append(open_btn)
 
         cb = CustomJS(
             args={
@@ -331,6 +342,7 @@ for (let model of this.document._all_models.values()){
         )
         self.fig.add_tools(action)
 
+    def add_autorange(self):
         autorange_action = CustomAction(
             icon=sigma_icon(),
             callback=self.im.color._clip_outliers_btn.js_event_callbacks['button_click'][0],
@@ -338,10 +350,11 @@ for (let model of this.document._all_models.values()){
         )
         self.fig.add_tools(autorange_action)
 
-    def _make_floatpanel(self, status='normalized'):
+    @staticmethod
+    def _make_floatpanel(items, title, status='normalized', **kwargs):
         return pn.layout.FloatPanel(
-            *self._floatpanel_items,
-            name=self._floatpanel_title,
+            *items,
+            name=title,
             config={
                 "headerControls": {
                     "maximize": "remove",
@@ -356,11 +369,12 @@ for (let model of this.document._all_models.values()){
             status=status,
         )
 
-    def _open_controls(self, *e):
-        self._outer_toolbar[0] = self._make_floatpanel()
-
-    def get_float_panel(self):
-        return self._outer_toolbar[0]
+    def _open_controls(self, event):
+        floatpanel_spec = self._floatpanels[event.obj.tags[0]]
+        self._outer_toolbar[floatpanel_spec["index"]] = self._make_floatpanel(
+            floatpanel_spec['items'],
+            floatpanel_spec['title'],
+        )
 
     def add_hover_position_text(self):
         title = Title(
