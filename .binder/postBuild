@@ -1,2 +1,2 @@
 #!/bin/bash
-/srv/conda/envs/notebook/bin/python -m uv pip install .
+/srv/conda/envs/notebook/bin/python -m uv pip install .[libertem]

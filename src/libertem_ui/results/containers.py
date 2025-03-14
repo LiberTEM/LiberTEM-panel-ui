@@ -11,7 +11,7 @@ from bokeh.plotting import figure
 from ..display.image_db import BokehImage
 from ..utils.export import image_save_functions
 from ..utils.logging import logger
-from ..live_plot import adapt_figure
+from ..figure import adapt_figure
 
 
 class ResultContainer:

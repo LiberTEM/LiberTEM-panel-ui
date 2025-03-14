@@ -28,8 +28,6 @@ classifiers=[
     'Environment :: Console',
 ]
 dependencies = [
-    "libertem",
-    "libertem-live",  # used for RecordUDF and SignalMonitorUDF
     "numpy",
     "scipy",
     "pandas",
@@ -47,6 +45,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+libertem = [
+    "libertem",
+    "libertem-live",  # used for RecordUDF and SignalMonitorUDF
+]
 notebook = [
     "notebook",
     "ipython",
