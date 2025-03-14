@@ -140,6 +140,8 @@ class BokehImageCons:
     def _cast_if_needed(array: np.ndarray) -> np.ndarray:
         if np.dtype(array.dtype).itemsize > 4:
             return array.astype(np.float32)
+        if np.dtype(array.dtype) == bool:
+            return array.astype(np.uint8)
         return array
 
     @staticmethod
