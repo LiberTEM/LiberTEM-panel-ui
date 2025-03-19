@@ -105,6 +105,10 @@ class ImageTransformer:
         transform = sktransform.EuclideanTransform(translation=(xshift, yshift))
         self.add_transform(transform, output_shape=output_shape)
 
+    def shear(self, xshear=0., yshear=0., output_shape=None):
+        transform = sktransform.AffineTransform(shear=(xshear, yshear))
+        self.add_transform(transform, output_shape=output_shape)
+
     def rotate_about_point(self, point_yx, rotation_degrees=None, rotation_rad=None):
         if rotation_degrees and rotation_rad:
             raise ValueError('Cannot specify both degrees and radians')
