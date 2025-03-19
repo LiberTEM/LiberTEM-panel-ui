@@ -185,31 +185,11 @@ class ApertureFigure:
         self.add_hover_position_text()
         self.add_control_panel(self.im)
         self.add_autorange(self.im)
+        self.add_complex_select(self.im)
 
     @property
     def is_multichannel(self):
         return self._channel_map is not None
-
-    @staticmethod
-    def _complex_keys():
-        return [
-            "Real",
-            "Imaginary",
-            "Abs",
-            "Phase",
-        ]
-
-    @staticmethod
-    def _unpack_complex(data: np.ndarray, key: str):
-        if key == "Real":
-            return data.real, key
-        if key == "Imaginary":
-            return data.imag, key
-        if key == "Abs":
-            return np.abs(data), key
-        if key == "Phase":
-            return np.angle(data), key
-        raise NotImplementedError(key)
 
     def _setup_multichannel(
         self,
@@ -225,12 +205,8 @@ class ApertureFigure:
             self._channel_map = dim
             self._channel_data = data
         elif isinstance(data, np.ndarray):
-            if data.ndim == 2 and not np.iscomplexobj(data):
+            if data.ndim == 2:
                 return data
-            elif data.ndim == 2 and np.iscomplexobj(data):
-                self._channel_map = self._complex_keys()
-                self._channel_data = partial(self._unpack_complex, data)
-                out_data, _ = self._channel_data(self._channel_map[0])
             elif data.ndim > 2:
                 if isinstance(dim, int):
                     dim = (dim,)
@@ -394,6 +370,23 @@ for (let model of this.document._all_models.values()){
             floatpanel_spec['items'],
             floatpanel_spec['title'],
         )
+
+    def add_complex_select(self, im: BokehImage, label: str | None = "View"):
+        if im.complex_manager is not None:
+            if label is not None:
+                self._toolbar.append(
+                    pn.widgets.StaticText(
+                        value=label,
+                        align='center',
+                        margin=(5, 5),
+                    )
+                )
+            select = im.complex_manager.get_complex_select()
+            self._toolbar.append(
+                select
+            )
+            return select
+        return None
 
     def add_hover_position_text(self):
         title = Title(
