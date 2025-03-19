@@ -37,6 +37,7 @@ class BokehImageCons:
             The image constructed from the array
         """
         cls.check_nparray(array)
+        array, complex_manager = BokehImageComplex.new_if_complex(array)
         array = cls._cast_if_needed(array)
         minmax = cls._calc_minmax(array)
         cds_dict = cls._get_datadict(
@@ -44,7 +45,7 @@ class BokehImageCons:
             minmax,
         )
         cds = ColumnDataSource(cds_dict)
-        return BokehImage(cds=cds)
+        return BokehImage(cds=cds, complex_manager=complex_manager)
 
     @classmethod
     def from_shape(cls, *, height: int, width: int, dtype: np.dtype = np.float32,
@@ -149,7 +150,6 @@ class BokehImageCons:
         assert isinstance(array, np.ndarray)
         assert array.ndim == 2, 'No support for multi-channel images yet'
         assert all(s > 0 for s in array.shape)
-        assert not np.issubdtype(array.dtype, complex), 'No support for complex images yet'
         return True
 
 
@@ -175,6 +175,7 @@ class BokehImage(DisplayBase):
     def __init__(
         self,
         cds: ColumnDataSource,
+        complex_manager: BokehImageComplex | None = None,
     ):
         super().__init__(cds)
 
@@ -183,6 +184,9 @@ class BokehImage(DisplayBase):
         self._register_glyph('image', glyph)
         self._ds_helper: DatashadeHelper | None = None
         self._array: np.ndarray = self.cds.data['image'][0].copy()
+        self._complex_manager = complex_manager
+        if self.complex_manager is not None:
+            self.complex_manager.setup_callback(self)
 
     @staticmethod
     def new():
@@ -204,6 +208,10 @@ class BokehImage(DisplayBase):
         except AttributeError:
             self._color_manager = BokehImageColor(self)
             return self.color
+
+    @property
+    def complex_manager(self) -> BokehImageComplex | None:
+        return self._complex_manager
 
     def _update_geometry(self):
         # Get true array shape not from CDS
@@ -241,6 +249,15 @@ class BokehImage(DisplayBase):
             The array to update with
         """
         self.constructor.check_nparray(array)
+        if np.iscomplexobj(array) and self.complex_manager is None:
+            self._complex_manager = BokehImageComplex(array, self)
+        if self.complex_manager is not None:
+            view = self.complex_manager.update(array).view()
+            if view is not None:
+                array = view
+        self._update_inner(array)
+
+    def _update_inner(self, array: np.ndarray):
         array = self.constructor._cast_if_needed(array)
         # Store ref to most recent full array on this class
         self._array = array
@@ -273,7 +290,7 @@ class BokehImage(DisplayBase):
             self._create_downsampler(dimension)
             # Push an update to the CDS to ensure we initialize in a low resolution
             # This will go through the downsampler and update its internal self.array
-            self.update(self.array)
+            self._update_inner(self.array)
         elif array_bytesize > threshold_bytesize:
             self.downsampler.enable()
             self.downsampler.set_dimension(dimension)
@@ -286,7 +303,7 @@ class BokehImage(DisplayBase):
         if not self.use_downsampling():
             return
         self.downsampler.disable()  # Nullifies the callback
-        self.update(self.array)
+        self._update_inner(self.array)
         return self
 
     def _create_downsampler(self, dimension):
@@ -888,3 +905,88 @@ clim_slider.step = (bar_high - bar_low) / nstep;
         return """
 glyph.global_alpha = cb_obj.value;
 """
+
+
+class BokehImageComplex:
+    def __init__(self, array: np.ndarray, img: BokehImage | None = None):
+        self.img = img
+        self._complex_array = array
+        self._complex_select = self._make_complex_select()
+        if self.img is not None:
+            self.setup_callback(img)
+
+    @staticmethod
+    def new_if_complex(array: np.ndarray):
+        if not np.iscomplexobj(array):
+            return array, None
+        complex_manager = BokehImageComplex(array)
+        return complex_manager.view(), complex_manager
+
+    def view(self) -> np.ndarray | None:
+        if self._complex_array is None:
+            return None
+        return self._unpack_complex(
+            self._complex_array, self.current_view
+        )
+
+    def update(self, array: np.ndarray):
+        if not np.iscomplexobj(array):
+            self._complex_select.disabled = True
+            self._complex_array = None
+        else:
+            self._complex_array = array
+            self._complex_select.disabled = False
+        return self
+
+    @staticmethod
+    def _unpack_complex(data: np.ndarray, key: str):
+        if key == "Real":
+            return data.real
+        if key == "Imag":
+            return data.imag
+        if key == "Abs":
+            return np.abs(data)
+        if key == "Phase":
+            return np.angle(data)
+        raise NotImplementedError(key)
+
+    @property
+    def current_view(self) -> str:
+        return self._complex_select.value
+
+    @staticmethod
+    def _complex_keys():
+        return [
+            "Abs",
+            "Phase",
+            "Real",
+            "Imag",
+        ]
+
+    @staticmethod
+    def _make_complex_select(initial: int = 0):
+        options = BokehImageComplex._complex_keys()
+        return pn.widgets.Select(
+            value=options[initial],
+            options=options,
+            width=80,
+            margin=(5, 5),
+            # visible=True,
+            # disabled=False,
+        )
+
+    def get_complex_select(self) -> pn.widgets.Select:
+        return self._complex_select
+
+    def _switch_view(self, *e):
+        if self._complex_array is not None:
+            view = self.view()
+            if view is not None:
+                self.img._update_inner(view)
+
+    def setup_callback(self, img: BokehImage):
+        self.img = img
+        self.get_complex_select().param.watch(
+            self._switch_view,
+            'value'
+        )
