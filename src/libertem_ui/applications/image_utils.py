@@ -104,6 +104,8 @@ RIGHT_ARROW = '\u25B7'
 DOWN_ARROW = '\u25BD'
 ROTATE_RIGHT_ARROW = '\u21B7'
 ROTATE_LEFT_ARROW = '\u21B6'
+SHEAR_MORE ='+'
+SHEAR_LESS = '-'
 
 
 def translate_buttons(cb, width: int = 40, height: int = 40, margin: tuple[int, int] = (2, 2)):
@@ -129,6 +131,37 @@ def translate_buttons(cb, width: int = 40, height: int = 40, margin: tuple[int, 
     right = pn.widgets.Button(name=RIGHT_ARROW, **button_kwargs)
     right.on_click(functools.partial(cb, x=1))
     down = pn.widgets.Button(name=DOWN_ARROW, **button_kwargs)
+    down.on_click(functools.partial(cb, y=1))
+    return pn.Column(
+        pn.Row(get_sp(), up, get_sp(), margin=(0, 0)),
+        pn.Row(left, down, right, margin=(0, 0)),
+        # pn.Row(get_sp(), down, get_sp(), margin=(0, 0)),
+        margin=(0, 0),
+    )
+
+
+def shear_buttons(cb, width: int = 40, height: int = 40, margin: tuple[int, int] = (2, 2)):
+    """
+    Buttons for x and y shear
+    """
+    kwargs = {
+        'width': width,
+        'height': height,
+        'margin': margin,
+        'sizing_mode': 'fixed',
+    }
+    get_sp = lambda: pn.Spacer(**kwargs)  # noqa
+    button_kwargs = {
+        'button_type': 'primary',
+        **kwargs,
+    }
+    left = pn.widgets.Button(name=SHEAR_LESS, **button_kwargs)
+    left.on_click(functools.partial(cb, x=-1))
+    up = pn.widgets.Button(name=SHEAR_MORE, **button_kwargs)
+    up.on_click(functools.partial(cb, y=-1))
+    right = pn.widgets.Button(name=SHEAR_MORE, **button_kwargs)
+    right.on_click(functools.partial(cb, x=1))
+    down = pn.widgets.Button(name=SHEAR_LESS, **button_kwargs)
     down.on_click(functools.partial(cb, y=1))
     return pn.Column(
         pn.Row(get_sp(), up, get_sp(), margin=(0, 0)),
@@ -259,6 +292,12 @@ def fine_adjust(
                                                  end=100.,
                                                  width=125)
 
+    shear_step_input = pn.widgets.FloatInput(name='Shear step (deg):',
+                                                 value=1.,
+                                                 start=0.1,
+                                                 end=10.,
+                                                 width=125)
+
     def update_moving(*updates, fix_clims=True):
         moving = transformer_moving.get_transformed_image()
         if show_diff_cbox.value:
@@ -286,6 +325,14 @@ def fine_adjust(
             return
         raw_adjust = -1 * translate_step_input.value
         transformer_moving.translate(xshift=x * raw_adjust, yshift=y * raw_adjust)
+        update_moving()
+
+    def fine_shear(event, x=0, y=0):
+        if not x and not y:
+            print('no shear')
+            return
+        raw_adjust = (np.pi / 360.0  * shear_step_input.value)
+        transformer_moving.shear(xshear=raw_adjust * x, yshear=raw_adjust * y)
         update_moving()
 
     origin_cursor = (
@@ -383,6 +430,8 @@ def fine_adjust(
                 rotate_buttons(fine_rotate),
                 scale_step_input,
                 scale_buttons(fine_scale),
+                shear_step_input,
+                shear_buttons(fine_shear),
             )
         )
     ), getter
