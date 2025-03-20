@@ -294,6 +294,11 @@ class ApertureFigure:
                 im.color.clip_outliers_sigma_spinner,
             ),
         ]
+        im.color._full_scale_btn.height = 35
+        im.color.clip_outliers_btn.margin = (5, 0, 5, 5)
+        im.color.clip_outliers_btn.height = 35
+        im.color.clip_outliers_sigma_spinner.margin = (5, 5, 5, 0)
+        im.color.clip_outliers_sigma_spinner.height = 35
 
         button_uuid = str(uuid.uuid4())
         open_btn = pn.widgets.Toggle(
