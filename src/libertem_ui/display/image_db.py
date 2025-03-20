@@ -453,7 +453,7 @@ class BokehImageColor():
         return self.cbar_slider is not None
 
     def get_cmap_slider(self,
-                        title: str = 'Range',
+                        title: str = 'Vmin/Vmax',
                         init_range: tuple[float, float] | None = None,
                         nstep: int = 300,
                         **kwargs) -> RangeSlider:
