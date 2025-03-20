@@ -285,11 +285,14 @@ class ApertureFigure:
             ),
             im.color.get_cmap_slider(),
             pn.Row(
+                im.color.get_cmap_center(),
+                im.color._cbar_freeze,
+            ),
+            pn.Row(
                 im.color._full_scale_btn,
                 im.color.clip_outliers_btn,
                 im.color.clip_outliers_sigma_spinner,
             ),
-            im.color._cbar_freeze,
         ]
 
         button_uuid = str(uuid.uuid4())

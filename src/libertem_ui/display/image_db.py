@@ -740,7 +740,7 @@ clim_slider.step = (high - low) / nstep;
         except AttributeError:
             return None
 
-    def get_cmap_center(self, title='Centered colormap', value=False) -> pn.widgets.Checkbox:
+    def get_cmap_center(self, title='Symmetric', value=False) -> pn.widgets.Checkbox:
         if self.center_cmap_toggle is not None:
             return self.center_cmap_toggle
         self._centre_cmap_toggle = pn.widgets.Checkbox(name=title, value=value)
