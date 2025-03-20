@@ -794,7 +794,7 @@ clim_slider.step = (high - low) / nstep;
             step=1.,
             mode='float',
             syncable=False,
-            width=75,
+            width=50,
         )
         autorange_callback = CustomJS(args={'clim_slider': self._cbar_slider,
                                             'freeze': self._cbar_freeze,
