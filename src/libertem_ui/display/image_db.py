@@ -96,7 +96,7 @@ class BokehImageCons:
             **cls._get_geometry(array.shape[:2], anchor_xy, px_offset),
             **cls._get_array(array),
             **cls._get_minmax(minmax),
-            'cbar_slider': [False],
+            'clim_slider': [False],
             'clim_update': [True],  # when False this will disable clim updates in the jscallback
         }
 
@@ -434,7 +434,7 @@ class BokehImageColor():
         return self.img.im.color_mapper
 
     @property
-    def cbar_slider(self) -> RangeSlider | None:
+    def clim_slider(self) -> RangeSlider | None:
         """
         Returns the current colormap slider, if initialized
 
@@ -444,12 +444,12 @@ class BokehImageColor():
             Slider if present, else None
         """
         try:
-            return self._cbar_slider
+            return self._clim_slider
         except AttributeError:
             return None
 
-    def has_cbar_slider(self) -> bool:
-        return self.cbar_slider is not None
+    def has_clim_slider(self) -> bool:
+        return self.clim_slider is not None
 
     def get_cmap_slider(self,
                         title: str = 'Vmin/Vmax',
@@ -476,8 +476,8 @@ class BokehImageColor():
         RangeSlider
             The colormap slider with callbacks registered.
         """
-        if self.has_cbar_slider():
-            return self.cbar_slider
+        if self.has_clim_slider():
+            return self.clim_slider
 
         if not init_range:
             init_range = self.img.current_minmax
@@ -505,7 +505,7 @@ class BokehImageColor():
         )
         vmin_i, vmax_i = self._vmin_input, self._vmax_input
 
-        self._cbar_slider = RangeSlider(
+        self._clim_slider = RangeSlider(
             title=title,
             start=init_range[0],
             end=init_range[1],
@@ -518,17 +518,39 @@ class BokehImageColor():
         clim_value_callback = CustomJS(
             args={
                 'cds': self.img.cds,
-                'freeze': self._cbar_freeze,
                 'center': self._centre_cmap_toggle,
                 'vmin_input': vmin_i,
                 'vmax_input': vmax_i,
             },
             code=self._clim_slider_value_js()
         )
-        self._cbar_slider.js_on_change('value', clim_value_callback)
+        self._clim_slider.js_on_change('value', clim_value_callback)
+
+        maxval = max(abs(v) for v in init_range)
+        self._clim_slider_symmetric = Slider(
+            title="Vmax",
+            start=0.,
+            end=maxval,
+            value=maxval,
+            step=slider_step_size(*init_range, n=nstep),
+            syncable=False,
+            visible=False,
+            **kwargs,
+        )
+
+        clim_value_symmetric_callback = CustomJS(
+            args={
+                'cds': self.img.cds,
+                'vmin_input': vmin_i,
+                'vmax_input': vmax_i,
+                'center': self._centre_cmap_toggle,
+            },
+            code=self._clim_slider_symmetric_value_js()
+        )
+        self._clim_slider_symmetric.js_on_change('value', clim_value_symmetric_callback)
 
         vmin_value_callback = CustomJS(args={
-                'clim_slider': self._cbar_slider,
+                'clim_slider': self._clim_slider,
                 'lin_mapper': self._lin_mapper,
             },
             code=self._vmin_value_js()
@@ -536,7 +558,7 @@ class BokehImageColor():
         vmin_i.js_on_change('value', vmin_value_callback)
 
         vmax_value_callback = CustomJS(args={
-                'clim_slider': self._cbar_slider,
+                'clim_slider': self._clim_slider,
                 'lin_mapper': self._lin_mapper,
                 'vmin_input': vmin_i,
                 'center': self._centre_cmap_toggle,
@@ -547,7 +569,8 @@ class BokehImageColor():
 
         self.get_clip_outliers_btn(nstep=nstep)
         clim_freeze_callback = CustomJS(args={
-                'clim_slider': self._cbar_slider,
+                'clim_slider': self._clim_slider,
+                'clim_slider_symmetric': self._clim_slider_symmetric,
                 'center': self._centre_cmap_toggle,
                 'vmin_input': vmin_i,
                 'vmax_input': vmax_i,
@@ -557,12 +580,13 @@ class BokehImageColor():
         )
         self._cbar_freeze.js_on_change('active', clim_freeze_callback)
 
-        self.img.raw_update(cbar_slider=[True])
+        self.img.raw_update(clim_slider=[True])
         clim_update_callback = CustomJS(args={
-                'clim_slider': self._cbar_slider,
+                'clim_slider': self._clim_slider,
                 'nstep': nstep,
                 'freeze': self._cbar_freeze,
                 'center': self._centre_cmap_toggle,
+                'clim_slider_symmetric': self._clim_slider_symmetric,
                 'vmin_input': vmin_i,
                 'vmax_input': vmax_i,
             },
@@ -572,12 +596,10 @@ class BokehImageColor():
 
         full_scale_callback = CustomJS(
             args={
-                'clim_slider': self._cbar_slider,
+                'clim_slider': self._clim_slider,
+                'clim_slider_symmetric': self._clim_slider_symmetric,
                 'cds': self.img.cds,
-                'freeze': self._cbar_freeze,
                 'center': self._centre_cmap_toggle,
-                'nstep': nstep,
-                'im_glyph': self.img.im,
                 'vmin_input': vmin_i,
                 'vmax_input': vmax_i,
             },
@@ -589,13 +611,14 @@ class BokehImageColor():
                 'cds': self.img.cds,
                 'vmin_input': vmin_i,
                 'vmax_input': vmax_i,
-                'cbar_slider': self._cbar_slider,
+                'clim_slider': self._clim_slider,
+                'clim_slider_symmetric': self._clim_slider_symmetric,
             },
             code=self._clim_symmetric_toggle_js()
         )
         self._centre_cmap_toggle.js_on_change('active', clim_symmetric_callback)
 
-        return self.cbar_slider
+        return self.clim_slider
 
     @property
     def minmax_input(self):
@@ -622,16 +645,20 @@ clim_slider.start = low
 clim_slider.end = high
 clim_slider.step = (high - low) / nstep;
 
+const maxval = Math.max(Math.abs(low), Math.abs(high))
+clim_slider_symmetric.end = maxval
+clim_slider_symmetric.step = maxval / nstep;
+
 if (freeze.active.length == 1){
     return
 }
 
 clim_slider.value = [low, high];
+clim_slider_symmetric.value = maxval;
 
 if (center.active.length == 1){
-    const val = Math.max(Math.abs(low), Math.abs(high))
-    low = -val
-    high = val
+    low = -maxval
+    high = maxval
 }
 
 vmin_input.value = +low.toPrecision(5)
@@ -641,14 +668,13 @@ vmax_input.value = +high.toPrecision(5)
     @staticmethod
     def _clim_slider_value_js():
         return '''
+if (center.active.length == 1){
+    return
+}
+
 var low = cb_obj.value[0]
 var high = cb_obj.value[1]
 
-if (center.active.length == 1){
-    const val = Math.max(Math.abs(low), Math.abs(high))
-    low = -val
-    high = val
-}
 if (vmin_input.value != low) {
     vmin_input.value = +low.toPrecision(5);
 }
@@ -658,12 +684,23 @@ if (vmax_input.value != high) {
 '''
 
     @staticmethod
+    def _clim_slider_symmetric_value_js():
+        return '''
+if (center.active.length == 0){
+    return
+}
+
+const val = cb_obj.value
+
+if (vmax_input.value != val) {
+    vmax_input.value = +val.toPrecision(5);
+}
+'''
+
+    @staticmethod
     def _vmin_value_js():
         return '''
 const low = cb_obj.value
-if (clim_slider.value[0] != low) {
-    clim_slider.value[0] = low;
-}
 lin_mapper.low = low;
 '''
 
@@ -671,9 +708,6 @@ lin_mapper.low = low;
     def _vmax_value_js():
         return '''
 var high = cb_obj.value
-if (clim_slider.value[1] != high) {
-    clim_slider.value[1] = high;
-}
 if (center.active.length == 1){
     high = Math.abs(high)
     vmin_input.value = -high
@@ -686,13 +720,17 @@ lin_mapper.high = high;
         return '''
 if (cb_obj.active.length == 1){
     clim_slider.disabled = true
+    clim_slider_symmetric.disabled = true
     center.disabled = true
     vmin_input.disabled = true;
     vmax_input.disabled = true;
 } else {
     clim_slider.disabled = false
+    clim_slider_symmetric.disabled = false
     center.disabled = false
-    vmin_input.disabled = false;
+    if (center.active.length == 0){
+        vmin_input.disabled = false;
+    }
     vmax_input.disabled = false;
 }
 '''
@@ -703,12 +741,14 @@ if (cb_obj.active.length == 1){
 var low = cds.data.val_low[0]
 var high = cds.data.val_high[0]
 
-clim_slider.value = [low, high];
 
 if (center.active.length == 1){
     const val = Math.max(Math.abs(low), Math.abs(high))
     low = -val
     high = val
+    clim_slider_symmetric.value = val;
+} else {
+    clim_slider.value = [low, high];
 }
 
 vmin_input.value = +low.toPrecision(5)
@@ -719,6 +759,7 @@ vmax_input.value = +high.toPrecision(5)
     def _clim_symmetric_toggle_js():
         return '''
 const data_low = cds.data.val_low[0]
+const data_high = cds.data.val_high[0]
 var low = vmin_input.value
 var high = vmax_input.value
 
@@ -726,10 +767,23 @@ if (cb_obj.active.length == 1){
     const val = Math.max(Math.abs(low), Math.abs(high))
     low = -val
     high = val
+    clim_slider_symmetric.value = val
+
     vmin_input.disabled = true
+    clim_slider_symmetric.visible = true
+    clim_slider.visible = false
+    clim_slider_symmetric.disabled = false
+    clim_slider.disabled = true
 } else {
-    low = Math.max(cbar_slider.value[0], Math.max(low, data_low))
+    low = Math.max(low, data_low)
+    high = Math.min(high, data_high)
+    clim_slider.value = [low, high]
+
     vmin_input.disabled = false
+    clim_slider_symmetric.visible = false
+    clim_slider.visible = true
+    clim_slider_symmetric.disabled = true
+    clim_slider.disabled = false
 }
 
 vmin_input.value = +low.toPrecision(5)
@@ -764,6 +818,7 @@ var low = Math.max(data_low, mean - nsig * std)
 var high = Math.min(data_high, mean + nsig * std)
 
 clim_slider.value = [low, high];
+clim_slider_symmetric.value = Math.max(Math.abs(low), Math.abs(high));
 
 if (center.active.length == 1){
     const val = Math.max(Math.abs(low), Math.abs(high))
@@ -924,8 +979,8 @@ vmax_input.value = +high.toPrecision(5)
         )
         autorange_callback = CustomJS(
             args={
-                'clim_slider': self._cbar_slider,
-                'freeze': self._cbar_freeze,
+                'clim_slider': self._clim_slider,
+                'clim_slider_symmetric': self._clim_slider_symmetric,
                 'center': self._centre_cmap_toggle,
                 'cds': self.img.cds,
                 'nstep': nstep,

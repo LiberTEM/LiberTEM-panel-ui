@@ -298,6 +298,7 @@ class ApertureFigure:
                 *im.color.minmax_input
             ),
             cmap_slider,
+            im.color._clim_slider_symmetric
         ]
         im.color._full_scale_btn.height = 35
         im.color.clip_outliers_btn.margin = (5, 0, 5, 5)
