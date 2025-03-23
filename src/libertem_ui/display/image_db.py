@@ -12,7 +12,7 @@ from bokeh.models.annotations import ColorBar
 from .display_base import DisplayBase, PointSet
 # from .gamma_mapper import GammaColorMapper
 from ..utils import colormaps as cmaps
-from bokeh.models.widgets import RangeSlider, CheckboxGroup, Button, Spinner, Slider
+from bokeh.models.widgets import RangeSlider, CheckboxGroup, Button, Spinner, Slider, NumericInput
 from bokeh.models import CustomJS
 from bokeh.events import RangesUpdate
 
@@ -97,7 +97,6 @@ class BokehImageCons:
             **cls._get_array(array),
             **cls._get_minmax(minmax),
             'cbar_slider': [False],
-            'cbar_centered': [False],
             'clim_update': [True],  # when False this will disable clim updates in the jscallback
         }
 
@@ -484,96 +483,159 @@ class BokehImageColor():
             init_range = self.img.current_minmax
 
         self._cbar_freeze = CheckboxGroup(labels=['Freeze limits'], active=[])
-        self._full_scale_btn = Button(label="Full scale", button_type="default")
+        self._centre_cmap_toggle = CheckboxGroup(labels=['Symmetric'], active=[])
+        self._full_scale_btn = Button(label="Full scale", button_type="primary")
 
-        self._cbar_slider = RangeSlider(title=title,
-                                        start=init_range[0],
-                                        end=init_range[1],
-                                        value=init_range,
-                                        step=slider_step_size(*init_range, n=nstep),
-                                        syncable=False,
-                                        **kwargs)
+        vmin, vmax = init_range
+        common_kwargs = dict(
+            width=120,
+            mode='float',
+            syncable=False,
+            **kwargs,
+        )
+        self._vmin_input = NumericInput(
+            title=f"Vmin ({vmin:.5g})",
+            value=float(f"{vmin:.5g}"),
+            **common_kwargs,
+        )
+        self._vmax_input = NumericInput(
+            title=f"Vmax ({vmax:.5g})",
+            value=float(f"{vmax:.5g}"),
+            **common_kwargs,
+        )
+        vmin_i, vmax_i = self._vmin_input, self._vmax_input
 
-        clim_value_callback = CustomJS(args={'lin_mapper': self._lin_mapper,
-                                             'cds': self.img.cds,
-                                             'freeze': self._cbar_freeze},
-                                       code=self._clim_slider_value_js())
+        self._cbar_slider = RangeSlider(
+            title=title,
+            start=init_range[0],
+            end=init_range[1],
+            value=init_range,
+            step=slider_step_size(*init_range, n=nstep),
+            syncable=False,
+            **kwargs,
+        )
+
+        clim_value_callback = CustomJS(
+            args={
+                'cds': self.img.cds,
+                'freeze': self._cbar_freeze,
+                'center': self._centre_cmap_toggle,
+                'vmin_input': vmin_i,
+                'vmax_input': vmax_i,
+            },
+            code=self._clim_slider_value_js()
+        )
         self._cbar_slider.js_on_change('value', clim_value_callback)
 
-        autorange_btn = self.get_clip_outliers_btn(nstep=nstep)
-        clim_freeze_callback = CustomJS(args={'cds': self.img.cds,
-                                              'clim_slider': self._cbar_slider,
-                                              'nstep': nstep,
-                                              'full_btn': self._full_scale_btn,
-                                              'autorange_btn': autorange_btn},
-                                        code=self._clim_freeze_toggle_js())
+        vmin_value_callback = CustomJS(args={
+                'clim_slider': self._cbar_slider,
+                'lin_mapper': self._lin_mapper,
+            },
+            code=self._vmin_value_js()
+        )
+        vmin_i.js_on_change('value', vmin_value_callback)
+
+        vmax_value_callback = CustomJS(args={
+                'clim_slider': self._cbar_slider,
+                'lin_mapper': self._lin_mapper,
+                'vmin_input': vmin_i,
+                'center': self._centre_cmap_toggle,
+            },
+            code=self._vmax_value_js()
+        )
+        vmax_i.js_on_change('value', vmax_value_callback)
+
+        self.get_clip_outliers_btn(nstep=nstep)
+        clim_freeze_callback = CustomJS(args={
+                'clim_slider': self._cbar_slider,
+                'center': self._centre_cmap_toggle,
+                'vmin_input': vmin_i,
+                'vmax_input': vmax_i,
+                'n_sigma': self._clip_outliers_sigma_spinner,
+            },
+            code=self._clim_freeze_toggle_js()
+        )
         self._cbar_freeze.js_on_change('active', clim_freeze_callback)
 
         self.img.raw_update(cbar_slider=[True])
-        clim_update_callback = CustomJS(args={'clim_slider': self._cbar_slider,
-                                              'lin_mapper': self._lin_mapper,
-                                              'nstep': nstep,
-                                              'freeze': self._cbar_freeze},
-                                        code=self._clim_slider_update_image_js())
+        clim_update_callback = CustomJS(args={
+                'clim_slider': self._cbar_slider,
+                'nstep': nstep,
+                'freeze': self._cbar_freeze,
+                'center': self._centre_cmap_toggle,
+                'vmin_input': vmin_i,
+                'vmax_input': vmax_i,
+            },
+            code=self._clim_update_image_js()
+        )
         self.img.cds.js_on_change('data', clim_update_callback)
 
-        full_scale_callback = CustomJS(args={'clim_slider': self._cbar_slider,
-                                             'cds': self.img.cds,
-                                             'freeze': self._cbar_freeze,
-                                             'nstep': nstep,
-                                             'im_glyph': self.img.im},
-                                       code=self._clim_full_scale_js())
+        full_scale_callback = CustomJS(
+            args={
+                'clim_slider': self._cbar_slider,
+                'cds': self.img.cds,
+                'freeze': self._cbar_freeze,
+                'center': self._centre_cmap_toggle,
+                'nstep': nstep,
+                'im_glyph': self.img.im,
+                'vmin_input': vmin_i,
+                'vmax_input': vmax_i,
+            },
+            code=self._clim_full_scale_js()
+        )
         self._full_scale_btn.js_on_event("button_click", full_scale_callback)
+
+        clim_symmetric_callback = CustomJS(args={
+                'cds': self.img.cds,
+                'vmin_input': vmin_i,
+                'vmax_input': vmax_i,
+                'cbar_slider': self._cbar_slider,
+            },
+            code=self._clim_symmetric_toggle_js()
+        )
+        self._centre_cmap_toggle.js_on_change('active', clim_symmetric_callback)
+
         return self.cbar_slider
 
-    @staticmethod
-    def _log_norm_py(low, high):
-        if low <= 0. and high <= 0.:
-            low = 0.01
-            high = 1.
-        elif low <= 0.:
-            low = min(0.01, high * 0.1)
-        return {'low': low, 'high': high}
+    @property
+    def minmax_input(self):
+        return (
+            self._vmin_input,
+            self._vmax_input,
+        )
 
     @staticmethod
-    def _log_norm_js():
-        return '''
-if (low <= 0.  && high <= 0.) {
-    low = 0.01
-    high = 1.
-} else if (low <= 0.){
-    low = Math.min(0.01, high * 0.1)
-}'''
-
-    @staticmethod
-    def _clim_slider_update_image_js():
-        return '''
+    def _clim_update_image_js():
+        return R'''
 
 const clim_update = cb_obj.data.clim_update[0]
 if (!clim_update){
     return
 }
 
+var low = cb_obj.data.val_low[0]
+var high = cb_obj.data.val_high[0]
+vmin_input.title = "Vmin (" + low.toPrecision(5) + ")"
+vmax_input.title = "Vmax (" + high.toPrecision(5) + ")"
+
+clim_slider.start = low
+clim_slider.end = high
+clim_slider.step = (high - low) / nstep;
+
 if (freeze.active.length == 1){
     return
 }
 
-var low = cb_obj.data.val_low[0]
-var high = cb_obj.data.val_high[0]
-
-clim_slider.start = low
-clim_slider.end = high
 clim_slider.value = [low, high];
-clim_slider.step = (high - low) / nstep;
 
-if (cb_obj.data.cbar_centered[0]){
+if (center.active.length == 1){
     const val = Math.max(Math.abs(low), Math.abs(high))
     low = -val
     high = val
 }
 
-lin_mapper.low = low;
-lin_mapper.high = high;
+vmin_input.value = +low.toPrecision(5)
+vmax_input.value = +high.toPrecision(5)
 '''
 
     @staticmethod
@@ -582,13 +644,40 @@ lin_mapper.high = high;
 var low = cb_obj.value[0]
 var high = cb_obj.value[1]
 
-if (cds.data.cbar_centered[0]){
+if (center.active.length == 1){
     const val = Math.max(Math.abs(low), Math.abs(high))
     low = -val
     high = val
 }
+if (vmin_input.value != low) {
+    vmin_input.value = +low.toPrecision(5);
+}
+if (vmax_input.value != high) {
+    vmax_input.value = +high.toPrecision(5);
+}
+'''
 
+    @staticmethod
+    def _vmin_value_js():
+        return '''
+const low = cb_obj.value
+if (clim_slider.value[0] != low) {
+    clim_slider.value[0] = low;
+}
 lin_mapper.low = low;
+'''
+
+    @staticmethod
+    def _vmax_value_js():
+        return '''
+var high = cb_obj.value
+if (clim_slider.value[1] != high) {
+    clim_slider.value[1] = high;
+}
+if (center.active.length == 1){
+    high = Math.abs(high)
+    vmin_input.value = -high
+}
 lin_mapper.high = high;
 '''
 
@@ -596,44 +685,95 @@ lin_mapper.high = high;
     def _clim_freeze_toggle_js():
         return '''
 if (cb_obj.active.length == 1){
-    // clim_slider.disabled = true
-    // full_btn.disabled = true
-    // autorange_btn.disabled = true
-    return
+    clim_slider.disabled = true
+    center.disabled = true
+    vmin_input.disabled = true;
+    vmax_input.disabled = true;
+} else {
+    clim_slider.disabled = false
+    center.disabled = false
+    vmin_input.disabled = false;
+    vmax_input.disabled = false;
 }
-
-// clim_slider.disabled = false
-// full_btn.disabled = false
-// autorange_btn.disabled = false
-
-var low = cds.data.val_low[0]
-var high = cds.data.val_high[0]
-
-var new_val_low = Math.max(low, clim_slider.value[0])
-var new_val_high = Math.min(high, clim_slider.value[1])
-
-clim_slider.start = low
-clim_slider.end = high
-clim_slider.value = [new_val_low, new_val_high];
-clim_slider.step = (high - low) / nstep;
 '''
 
     @staticmethod
     def _clim_full_scale_js():
         return '''
-// if (freeze.active.length == 1){
-//     return
-// }
+var low = cds.data.val_low[0]
+var high = cds.data.val_high[0]
 
-
-const low = cds.data.val_low[0]
-const high = cds.data.val_high[0]
-
-clim_slider.start = low
-clim_slider.end = high
 clim_slider.value = [low, high];
-clim_slider.step = (high - low) / nstep;
+
+if (center.active.length == 1){
+    const val = Math.max(Math.abs(low), Math.abs(high))
+    low = -val
+    high = val
+}
+
+vmin_input.value = +low.toPrecision(5)
+vmax_input.value = +high.toPrecision(5)
 '''
+
+    @staticmethod
+    def _clim_symmetric_toggle_js():
+        return '''
+const data_low = cds.data.val_low[0]
+var low = vmin_input.value
+var high = vmax_input.value
+
+if (cb_obj.active.length == 1){
+    const val = Math.max(Math.abs(low), Math.abs(high))
+    low = -val
+    high = val
+    vmin_input.disabled = true
+} else {
+    low = Math.max(cbar_slider.value[0], Math.max(low, data_low))
+    vmin_input.disabled = false
+}
+
+vmin_input.value = +low.toPrecision(5)
+vmax_input.value = +high.toPrecision(5)
+'''
+
+    @staticmethod
+    def _clim_autorange_js():
+        return """
+const data = cds.data.image[0]
+var non_nan = Math.max(data.length, 1)
+const mean = data.reduce((acc, v) => {
+    if (!Number.isNaN(v)) {
+        return acc + v
+    }
+    non_nan -= 1
+    return acc
+}, 0) / Math.max(non_nan, 1)
+var std = Math.sqrt(data.reduce((acc, v) => {
+    return Number.isNaN(v) ? acc : acc + (Math.abs(v - mean) ** 2)}
+, 0) / Math.max(non_nan, 1))
+if (std == 0.) {
+    std = 0.1
+}
+
+const data_low = cds.data.val_low[0]
+const data_high = cds.data.val_high[0]
+
+const nsig = nsigma.value
+
+var low = Math.max(data_low, mean - nsig * std)
+var high = Math.min(data_high, mean + nsig * std)
+
+clim_slider.value = [low, high];
+
+if (center.active.length == 1){
+    const val = Math.max(Math.abs(low), Math.abs(high))
+    low = -val
+    high = val
+}
+
+vmin_input.value = +low.toPrecision(5)
+vmax_input.value = +high.toPrecision(5)
+"""
 
     @property
     def current_palette_name(self) -> str:
@@ -740,20 +880,6 @@ clim_slider.step = (high - low) / nstep;
         except AttributeError:
             return None
 
-    def get_cmap_center(self, title='Symmetric', value=False) -> pn.widgets.Checkbox:
-        if self.center_cmap_toggle is not None:
-            return self.center_cmap_toggle
-        self._centre_cmap_toggle = pn.widgets.Checkbox(name=title, value=value)
-        self._centre_cmap_toggle.param.watch(self.toggle_center_cmap_cb, 'value')
-        self._centre_cmap_toggle.param.trigger('value')
-        return self.center_cmap_toggle
-
-    def toggle_center_cmap_cb(self, event):
-        current = self.img.cds.data['cbar_centered'][0]
-        if event.new == current:
-            return
-        self.img.raw_update(cbar_centered=[event.new])
-
     def add_colorbar(self, *figs, width=10, padding=2, position='right'):
         if not figs:
             figs = self.img.is_on()
@@ -796,54 +922,22 @@ clim_slider.step = (high - low) / nstep;
             syncable=False,
             width=50,
         )
-        autorange_callback = CustomJS(args={'clim_slider': self._cbar_slider,
-                                            'freeze': self._cbar_freeze,
-                                            'cds': self.img.cds,
-                                            'nstep': nstep,
-                                            'nsigma': self._clip_outliers_sigma_spinner},
-                                      code=self._clim_autorange_js())
+        autorange_callback = CustomJS(
+            args={
+                'clim_slider': self._cbar_slider,
+                'freeze': self._cbar_freeze,
+                'center': self._centre_cmap_toggle,
+                'cds': self.img.cds,
+                'nstep': nstep,
+                'nsigma': self._clip_outliers_sigma_spinner,
+                'vmin_input': self._vmin_input,
+                'vmax_input': self._vmax_input,
+            },
+            code=self._clim_autorange_js()
+        )
         self._clip_outliers_btn.js_on_event("button_click", autorange_callback)
 
         return self.clip_outliers_btn
-
-    @staticmethod
-    def _clim_autorange_js():
-        return """
-// if (freeze.active.length == 1){
-//     return
-// }
-
-const data = cds.data.image[0]
-var non_nan = Math.max(data.length, 1)
-const mean = data.reduce((acc, v) => {
-    if (!Number.isNaN(v)) {
-        return acc + v
-    }
-    non_nan -= 1
-    return acc
-}, 0) / Math.max(non_nan, 1)
-var std = Math.sqrt(data.reduce((acc, v) => {
-    return Number.isNaN(v) ? acc : acc + (Math.abs(v - mean) ** 2)}
-, 0) / Math.max(non_nan, 1))
-if (std == 0.) {
-    std = 0.1
-}
-
-const data_low = cds.data.val_low[0]
-const data_high = cds.data.val_high[0]
-
-const nsig = nsigma.value
-
-const low = Math.max(data_low, mean - nsig * std)
-const high = Math.min(data_high, mean + nsig * std)
-const bar_low = Math.max(data_low, mean - (nsig + 1) * std)
-const bar_high = Math.min(data_high, mean + (nsig + 1) * std)
-
-clim_slider.value = [low, high]
-clim_slider.start = bar_low
-clim_slider.end = bar_high
-clim_slider.step = (bar_high - bar_low) / nstep;
-"""
 
     def current_alpha(self) -> float:
         """

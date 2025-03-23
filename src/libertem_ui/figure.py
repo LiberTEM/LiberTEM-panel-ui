@@ -186,6 +186,7 @@ class ApertureFigure:
         self.add_control_panel(self.im)
         self.add_autorange(self.im)
         self.add_complex_select(self.im)
+        self.im.color.add_colorbar()
 
     @property
     def is_multichannel(self):
@@ -275,6 +276,7 @@ class ApertureFigure:
         im: BokehImage,
         name: str = 'Image Controls',
     ):
+        cmap_slider = im.color.get_cmap_slider()
         items = [
             pn.Row(
                 im.color.get_cmap_select(width=150),
@@ -283,16 +285,19 @@ class ApertureFigure:
                     margin=(25, 5, 5, 5),
                 ),
             ),
-            im.color.get_cmap_slider(),
             pn.Row(
-                im.color.get_cmap_center(),
                 im.color._cbar_freeze,
+                im.color.center_cmap_toggle,
             ),
             pn.Row(
                 im.color._full_scale_btn,
                 im.color.clip_outliers_btn,
                 im.color.clip_outliers_sigma_spinner,
             ),
+            pn.Row(
+                *im.color.minmax_input
+            ),
+            cmap_slider,
         ]
         im.color._full_scale_btn.height = 35
         im.color.clip_outliers_btn.margin = (5, 0, 5, 5)
