@@ -870,6 +870,7 @@ clim_slider.step = (bar_high - bar_low) / nstep;
             end=1.,
             value=self.current_alpha(),
             step=0.01,
+            syncable=False,
             **kwargs
         )
 
