@@ -10,6 +10,9 @@ from ..display.vectors import MultiLine
 from ..display.image_db import BokehImage
 from .image_transformer import ImageTransformer
 
+from bokeh.models.widgets import CheckboxGroup, Spinner
+from bokeh.models import CustomJS
+
 
 def select_roi(
     image: np.ndarray,
@@ -104,7 +107,7 @@ RIGHT_ARROW = '\u25B7'
 DOWN_ARROW = '\u25BD'
 ROTATE_RIGHT_ARROW = '\u21B7'
 ROTATE_LEFT_ARROW = '\u21B6'
-SHEAR_MORE ='+'
+SHEAR_MORE = '+'
 SHEAR_LESS = '-'
 
 
@@ -282,9 +285,59 @@ def fine_adjust(
         max_width=200,
     )
 
+    wobble_alpha_cbox = CheckboxGroup(
+        labels=['Wobble alpha, step:'],
+        active=[],
+        align='center',
+    )
+    wobble_step_input = Spinner(
+        low=0.05,
+        high=0.25,
+        value=0.1,
+        step=0.05,
+        align='end',
+        width=100,
+        format="0.2f",
+    )
+    wobble_callback = CustomJS(
+        args=dict(
+            alpha_slider=overlay_alpha,
+            wobble_step=wobble_step_input,
+        ),
+        code=R'''
+const TIMEOUT = 25
+var RUNNING = false
+var DIRECTION = 1
+
+export default async function (args, obj, data, context) {
+    const active = obj.active.length == 1
+    if (!active) {
+        RUNNING = false
+        return
+    }
+    var stepsize = 0.05
+    var current_val = args.alpha_slider.value
+
+    RUNNING = true
+    while (RUNNING) {
+        current_val = args.alpha_slider.value
+        stepsize = Math.min(Math.max(args.wobble_step.value, 0.01), 0.9)
+
+        var new_val = Math.min(Math.max(current_val + DIRECTION * stepsize, 0), 1)
+        if ((new_val >= 1) || (new_val <= 0)) {
+            DIRECTION = -1 * DIRECTION
+        }
+        args.alpha_slider.value = new_val
+        await new Promise(r => setTimeout(r, TIMEOUT));
+    }
+}
+'''
+    )
+    wobble_alpha_cbox.js_on_change('active', wobble_callback)
+
     show_diff_cbox = pn.widgets.Checkbox(name='Show image difference',
                                          value=False,
-                                         align='end')
+                                         align='center')
 
     translate_step_input = pn.widgets.FloatInput(name='Translate step (px):',
                                                  value=1.,
@@ -293,10 +346,10 @@ def fine_adjust(
                                                  width=125)
 
     shear_step_input = pn.widgets.FloatInput(name='Shear step (deg):',
-                                                 value=1.,
-                                                 start=0.1,
-                                                 end=10.,
-                                                 width=125)
+                                             value=1.,
+                                             start=0.1,
+                                             end=10.,
+                                             width=125)
 
     def update_moving(*updates, fix_clims=True):
         moving = transformer_moving.get_transformed_image()
@@ -331,7 +384,7 @@ def fine_adjust(
         if not x and not y:
             print('no shear')
             return
-        raw_adjust = (np.pi / 360.0  * shear_step_input.value)
+        raw_adjust = (np.pi / 360.0 * shear_step_input.value)
         transformer_moving.shear(xshear=raw_adjust * x, yshear=raw_adjust * y)
         update_moving()
 
@@ -415,14 +468,16 @@ def fine_adjust(
     def getter() -> AffineTransform:
         return transformer_moving.get_combined_transform()
 
-    fig._toolbar.insert(0, undo_button)
     fig._toolbar.insert(0, show_diff_cbox)
+    fig._toolbar.insert(0, wobble_step_input)
+    fig._toolbar.insert(0, wobble_alpha_cbox)
     fig._toolbar.insert(0, overlay_alpha)
 
     return pn.Column(
         pn.Row(
             fig.layout,
             pn.Column(
+                undo_button,
                 translate_step_input,
                 translate_buttons(fine_translate),
                 about_center_cbox,
