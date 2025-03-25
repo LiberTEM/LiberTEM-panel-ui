@@ -28,6 +28,7 @@ classifiers=[
 ]
 dependencies = [
     "numpy",
+    "numba",
     "scipy",
     "pandas",
     "scikit-image",
