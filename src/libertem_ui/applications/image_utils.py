@@ -351,6 +351,21 @@ export default async function (args, obj, data, context) {
                                              end=10.,
                                              width=125)
 
+    def _transform_md():
+        transform = transformer_moving.get_combined_transform()
+        scale_x, scale_y = transform.scale
+        trans_x, trans_y = transform.translation
+        return f"""### Transform:
+
+| Rotation | Scale   | Shear    | Translation   |
+| -------- | ------- | -------- | -------       |
+| {np.rad2deg(transform.rotation):.1f}  | ({scale_x:.3f}, {scale_y:.3f}) | {transform.shear:.2f}  | ({trans_x:.1f}, {trans_y:.1f}) |
+"""  # noqa
+
+    transform_md = pn.pane.Markdown(
+        object=_transform_md(),
+    )
+
     def update_moving(*updates, fix_clims=True):
         moving = transformer_moving.get_transformed_image()
         if show_diff_cbox.value:
@@ -359,6 +374,7 @@ export default async function (args, obj, data, context) {
             to_display = moving
         moving_im.update(to_display)
         fig.push()
+        transform_md.object = _transform_md()
 
     # def update_moving():
         # update_moving_sync()
@@ -475,7 +491,10 @@ export default async function (args, obj, data, context) {
 
     return pn.Column(
         pn.Row(
-            fig.layout,
+            pn.Column(
+                fig.layout,
+                transform_md,
+            ),
             pn.Column(
                 undo_button,
                 translate_step_input,
