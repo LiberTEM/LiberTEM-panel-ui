@@ -409,6 +409,7 @@ export default async function (args, obj, data, context) {
         .new()
         .from_pos(*tuple(a // 2 for a in static.shape))
         .on(fig.fig)
+        .editable(selected=True)
     )
     origin_cursor.cursor.line_color = 'cyan'
     origin_cursor.cursor.line_alpha = 0.
