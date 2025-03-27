@@ -270,8 +270,8 @@ class ApertureFigure:
         return self._layout
 
     def update(self, data: PlotDataT, push_update: bool = True):
-        if self.is_multichannel:
-            channel_data, channel_map, _ = self._setup_multichannel(data, self._channel_map)
+        channel_data, channel_map, _ = self._setup_multichannel(data, self._channel_map)
+        if channel_map is not None or self.is_multichannel:
             assert self._channel_map == channel_map, "Cannot change multichannel mode via update"
             assert type(channel_data) is type(self._channel_data), (
                 f"Cannot change multichannel data from {type(self._channel_data)} "
@@ -280,16 +280,23 @@ class ApertureFigure:
             if callable(channel_data):
                 pass  # cannot validate a callable
             elif isinstance(channel_data, np.ndarray):
+                # There is no intrinsic reason we cannot change the shape in an update
+                # it would just require some clever validation and a widget update
                 assert channel_data.shape == self._channel_data.shape, (
-                    "Mismatching stack shapes during update"
+                    f"Mismatching stack shapes during update, {self._channel_data.shape} "
+                    f"to {channel_data.shape}"
                 )
             elif isinstance(channel_data, dict):
+                # This could also be updated - would just need to update the widget too
+                # and handle the case of the current slice / key no longer existing
                 assert tuple(channel_data.keys()) == tuple(self._channel_data.keys()), (
                     "Mismatching data keys during update"
                 )
             else:
+                # Same as above, a non-matching length update is possible
                 assert len(channel_data) == len(self._channel_data), (
-                    "Mismatching data sequence length during update"
+                    f"Mismatching data sequence length during update, {len(self._channel_data)} "
+                    f"to {len(channel_data)}"
                 )
             self._channel_data = channel_data
             self.change_channel(None, push_update=push_update)
