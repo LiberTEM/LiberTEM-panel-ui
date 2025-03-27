@@ -7,6 +7,11 @@ import panel as pn
 from ..utils.logging import DEFAULT_LEVEL, logger
 
 
+pn.extension(
+    'terminal',
+)
+
+
 class UILog:
     def __init__(self):
         self._terminal = pn.widgets.Terminal(

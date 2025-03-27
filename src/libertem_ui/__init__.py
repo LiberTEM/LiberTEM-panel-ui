@@ -9,10 +9,6 @@ icon_path = _static_root / 'lt_icon.svg'
 import panel as pn  # noqa
 
 pn.extension(
-    'tabulator',
-    'jsoneditor',
-    'terminal',
-    'floatpanel',
     css_files=[
         pn.io.resources.CSS_URLS['font-awesome']
     ],

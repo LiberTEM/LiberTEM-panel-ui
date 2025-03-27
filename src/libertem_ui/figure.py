@@ -17,6 +17,11 @@ from .display.display_base import Rectangles, DisplayBase, Polygons
 from .display.icons import options_icon, sigma_icon
 
 
+pn.extension(
+    'floatpanel',
+)
+
+
 PlotDataT = (
     np.ndarray
     | dict[str, np.ndarray]
