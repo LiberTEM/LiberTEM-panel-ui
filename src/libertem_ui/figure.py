@@ -167,7 +167,9 @@ class ApertureFigure:
     ):
         plot = cls()
         plot._base_title = title
-        image = plot._setup_multichannel(data, dim=channel_dimension)
+        plot._channel_data, plot._channel_map, image = (
+            plot._setup_multichannel(data, dim=channel_dimension)
+        )
         # Bokeh needs a string title, however, so gets the default ''
         fig = figure(title=title)
         im = BokehImage.new().from_numpy(image).on(fig)
@@ -192,8 +194,8 @@ class ApertureFigure:
     def is_multichannel(self):
         return self._channel_map is not None
 
+    @staticmethod
     def _setup_multichannel(
-        self,
         data: PlotDataT,
         dim: int | tuple[int, ...] | tuple[str, ...] = -1,
     ):
@@ -203,11 +205,11 @@ class ApertureFigure:
             except TypeError:
                 raise TypeError("With callable data, channel_dimension must be a sequence")
             out_data, _ = data(first_element)
-            self._channel_map = dim
-            self._channel_data = data
+            channel_map = dim
+            channel_data = data
         elif isinstance(data, np.ndarray):
             if data.ndim == 2:
-                return data
+                return None, None, data
             elif data.ndim > 2:
                 if isinstance(dim, int):
                     dim = (dim,)
@@ -227,30 +229,30 @@ class ApertureFigure:
                         f"Channel dim {dim} with data shape "
                         f"{data.shape} does not yield 2D arrays"
                     )
-                self._channel_map = dim
-                self._channel_data = data
+                channel_map = dim
+                channel_data = data
                 slices = tuple(
-                    slice(None) if i not in self._channel_map else 0
-                    for i in range(self._channel_data.ndim)
+                    slice(None) if i not in channel_map else 0
+                    for i in range(channel_data.ndim)
                 )
-                out_data = self._channel_data[slices]
+                out_data = channel_data[slices]
             else:
                 raise ValueError('No support for 0/1-D images')
 
         elif isinstance(data, dict):
             assert all(isinstance(k, str) for k in data.keys())
             assert all(isinstance(v, np.ndarray) and v.ndim == 2 for v in data.values())
-            self._channel_map = 'DICT'
-            self._channel_data = data
-            out_data = self._channel_data[tuple(self._channel_data.keys())[0]]
+            channel_map = 'DICT'
+            channel_data = data
+            out_data = channel_data[tuple(channel_data.keys())[0]]
         elif isinstance(data, (tuple, list)):
             assert all(isinstance(v, np.ndarray) and v.ndim == 2 for v in data)
-            self._channel_data = data
-            self._channel_map = 'SEQUENCE'
+            channel_data = data
+            channel_map = 'SEQUENCE'
             out_data = data[0]
         else:
             raise ValueError('Unrecognized data format for multichannel')
-        return out_data
+        return channel_data, channel_map, out_data
 
     @property
     def pane(self) -> pn.pane.Bokeh | None:
@@ -267,6 +269,35 @@ class ApertureFigure:
     @property
     def layout(self) -> pn.Column:
         return self._layout
+
+    def update(self, data: PlotDataT, push_update: bool = True):
+        if self.is_multichannel:
+            channel_data, channel_map, _ = self._setup_multichannel(data, self._channel_map)
+            assert self._channel_map == channel_map, "Cannot change multichannel mode via update"
+            assert type(channel_data) is type(self._channel_data), (
+                f"Cannot change multichannel data from {type(self._channel_data)} "
+                f"to {type(channel_data)} via update"
+            )
+            if callable(channel_data):
+                pass  # cannot validate a callable
+            elif isinstance(channel_data, np.ndarray):
+                assert channel_data.shape == self._channel_data.shape, (
+                    "Mismatching stack shapes during update"
+                )
+            elif isinstance(channel_data, dict):
+                assert tuple(channel_data.keys()) == tuple(self._channel_data.keys()), (
+                    "Mismatching data keys during update"
+                )
+            else:
+                assert len(channel_data) == len(self._channel_data), (
+                    "Mismatching data sequence length during update"
+                )
+            self._channel_data = channel_data
+            self.change_channel(None, push_update=push_update)
+        else:
+            self.im.update(data)
+            if push_update:
+                self.push()
 
     def push(self, *others: ApertureFigure | BokehFigure):
         pn.io.notebook.push_notebook(self.pane, *(o.pane for o in others))
