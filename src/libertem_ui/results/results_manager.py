@@ -12,6 +12,12 @@ import pandas as pd
 from libertem.common.shape import Shape
 
 
+pn.extension(
+    'jsoneditor',
+    'tabulator',
+)
+
+
 if TYPE_CHECKING:
     from ..base import UIContextBase
     from ..windows.base import UIWindow
