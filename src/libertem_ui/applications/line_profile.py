@@ -5,9 +5,10 @@ from typing import Callable
 
 import panel as pn
 from scipy.interpolate import RectBivariateSpline
-from bokeh.models import CustomJS
+from bokeh.models import CustomJS, Slider
 from bokeh.plotting import figure as BkFigure
 
+from ..utils import Margin
 from ..display.display_base import Rectangles, Curve
 from ..display.vectors import MultiLine
 from ..figure import ApertureFigure
@@ -157,7 +158,7 @@ def _sampling_plot(
     sample_path: MultiLine,
     sample_curve: Curve,
     oversampling_slider: pn.widgets.FloatSlider,
-    perpendicular_slider: pn.widgets.FloatSlider,
+    perpendicular_slider: Slider,
 ):
 
     def _update_curve():
@@ -169,25 +170,14 @@ def _sampling_plot(
 
         oversampling = oversampling_slider.value
         orthog_dist = perpendicular_slider.value
-        xvals, yvals, coords_concat = image_sampler(array_spline,
-                                                    sample_points,
-                                                    oversampling=oversampling,
-                                                    orthog_dist=orthog_dist)
-        # result_tree.set(data=pd.DataFrame())
-        # result_tree.data['coord_x'] = coords_concat[:, 0]
-        # result_tree.data['coord_y'] = coords_concat[:, 1]
-        # result_tree.data['coord_t'] = xvals
-        # result_tree.data['value'] = yvals
-        # result_tree.set(meta={'sample_points_xy': sample_points})
+        xvals, yvals, _ = image_sampler(
+            array_spline,
+            sample_points,
+            oversampling=oversampling,
+            orthog_dist=orthog_dist,
+        )
 
-        # if xvals.size and yvals.size:
-        #     sample_curve._xrange = (xvals.min(), xvals.max())
-        #     sample_curve._yrange = (yvals.min(), yvals.max())
         sample_curve.update(xvals=xvals, yvals=yvals)
-
-        # if autorange_cbox.value:
-        #     sample_curve.fig.set_xrange(*sample_curve._xrange)
-        #     sample_curve.fig.set_yrange(*sample_curve._yrange)
 
     def _update_curve_bk(attr, old, new):
         _update_curve()
@@ -197,7 +187,7 @@ def _sampling_plot(
 
     sample_path.cds.on_change('data', _update_curve_bk)
     oversampling_slider.param.watch(_update_curve_pn, 'value')
-    perpendicular_slider.param.watch(_update_curve_pn, 'value_throttled')
+    perpendicular_slider.on_change('value_throttled', _update_curve_bk)
 
 
 def _sample_boxes_js():
@@ -283,26 +273,76 @@ def sampling_tool(array: np.ndarray, fig_kwargs=None) -> tuple[pn.layout.Row, Ca
     sample_boxes.cds.data['angle'] = []
     sample_boxes.rectangles.angle = 'angle'
 
+    # sampling_choice = pn.widgets.Select(
+    #     value="Linear",
+    #     options=[
+    #         "nearest".capitalize(),
+    #         "linear".capitalize(),
+    #         "slinear".capitalize(),
+    #         "cubic".capitalize(),
+    #         # "quintic".capitalize(),
+    #         # "pchip".capitalize(),
+    #     ],
+    #     width=200,
+    # )
     oversampling_slider = pn.widgets.FloatInput(
-        start=1.,
+        start=0.1,
         end=5.,
         value=1.5,
-        step=0.5,
-        width=65,
+        step=0.1,
+        width=120,
     )
-    perpendicular_slider = pn.widgets.IntSlider(
+    perpendicular_slider = Slider(
         name='Width (px)',
         start=0,
         end=200,
         step=1,
         value=0,
-        width=220,
+        width=200,
     )
-    p_slider_root = perpendicular_slider.get_root()
 
     sample_fig = BkFigure(title="Profile")
-    sample_fig.height = 400
+    sample_fig.frame_height = fig.fig.frame_height
     sample_fig.width = 500
+    sample_fig_pane = pn.pane.Bokeh(sample_fig)
+
+    clear_btn = pn.widgets.Button(
+        name="Clear",
+        button_type="primary",
+        margin=(5, 5),
+    )
+
+    def clear_window(*e):
+        sample_path.clear()
+        fig.push(sample_fig_pane)
+        # There is a panel notebook bug where the CDS change won't trigger
+        # so the sampling plot will not update until the next update
+        # oversampling_slider.param.trigger("value")
+
+    clear_btn.on_click(clear_window)
+
+    remove_btn = pn.widgets.Button(
+        name="Remove pt",
+        button_type="primary",
+        margin=Margin.hv(2, 5),
+    )
+
+    def remove_pt(*e):
+        if sample_path.data_length <= 0:
+            return
+
+        sample_path.cds.update(
+            data={
+                k: [v[:-1] if len(v) > 2 else v for v in vallists]
+                for k, vallists in sample_path.cds.data.items()
+            }
+        )
+        fig.push(sample_fig_pane)
+        # There is a panel notebook bug where the CDS change won't trigger
+        # so the sampling plot will not update until the next update
+        # oversampling_slider.param.trigger("value")
+
+    remove_btn.on_click(remove_pt)
 
     sample_curve = (
         Curve
@@ -321,9 +361,9 @@ def sampling_tool(array: np.ndarray, fig_kwargs=None) -> tuple[pn.layout.Row, Ca
 
     box_cb = CustomJS(code=_sample_boxes_js(), args={'boxes_cds': sample_boxes.cds,
                                                      'sample_cds': sample_path.cds,
-                                                     'width_slider': p_slider_root})
+                                                     'width_slider': perpendicular_slider})
     sample_path.cds.js_on_change('data', box_cb)
-    p_slider_root.js_on_change('value', box_cb)
+    perpendicular_slider.js_on_change('value', box_cb)
 
     fig._toolbar.append(
         pn.widgets.StaticText(
@@ -333,7 +373,8 @@ def sampling_tool(array: np.ndarray, fig_kwargs=None) -> tuple[pn.layout.Row, Ca
         ),
     )
     fig._toolbar.append(oversampling_slider)
-    fig._toolbar.append(perpendicular_slider)
+    fig._toolbar.append(clear_btn)
+    fig._toolbar.append(remove_btn)
 
     def getter():
         return {
@@ -345,5 +386,15 @@ def sampling_tool(array: np.ndarray, fig_kwargs=None) -> tuple[pn.layout.Row, Ca
 
     return pn.Row(
         fig.layout,
-        pn.pane.Bokeh(sample_fig)
+        pn.Column(
+            pn.Row(
+                pn.widgets.StaticText(
+                    value="Averaging (px):",
+                    align='end',
+                    margin=(5, 5),
+                ),
+                perpendicular_slider,
+            ),
+            sample_fig_pane,
+        )
     ), getter
