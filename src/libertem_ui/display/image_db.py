@@ -1062,6 +1062,11 @@ class BokehImageComplex:
         self.img = img
         self._complex_array = array
         self._complex_select = self._make_complex_select()
+        self._conjugate_cbox = pn.widgets.Checkbox(
+            name="Conjugate",
+            value=False,
+            margin=(5, 5),
+        )
         if self.img is not None:
             self.setup_callback(img)
 
@@ -1076,7 +1081,7 @@ class BokehImageComplex:
         if self._complex_array is None:
             return None
         return self._unpack_complex(
-            self._complex_array, self.current_view
+            self._complex_array, self.current_view, self.is_conjugate
         )
 
     def update(self, array: np.ndarray):
@@ -1089,16 +1094,24 @@ class BokehImageComplex:
         return self
 
     @staticmethod
-    def _unpack_complex(data: np.ndarray, key: str):
+    def _unpack_complex(data: np.ndarray, key: str, conjugate: bool):
         if key == "Real":
             return data.real
         if key == "Imag":
+            if conjugate:
+                return data.imag * -1
             return data.imag
         if key == "Abs":
             return np.abs(data)
         if key == "Phase":
+            if conjugate:
+                return -1 * np.angle
             return np.angle(data)
         raise NotImplementedError(key)
+
+    @property
+    def is_conjugate(self) -> bool:
+        return self._conjugate_cbox.value
 
     @property
     def current_view(self) -> str:
@@ -1128,6 +1141,9 @@ class BokehImageComplex:
     def get_complex_select(self) -> pn.widgets.Select:
         return self._complex_select
 
+    def get_conjugate_cbox(self) -> pn.widgets.Checkbox:
+        return self._conjugate_cbox
+
     def _switch_view(self, *e):
         if self._complex_array is not None:
             view = self.view()
@@ -1137,6 +1153,10 @@ class BokehImageComplex:
     def setup_callback(self, img: BokehImage):
         self.img = img
         self.get_complex_select().param.watch(
+            self._switch_view,
+            'value'
+        )
+        self.get_conjugate_cbox().param.watch(
             self._switch_view,
             'value'
         )
