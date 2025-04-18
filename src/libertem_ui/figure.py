@@ -95,7 +95,10 @@ class BokehFigure:
         return self._layout
 
     def push(self, *others: ApertureFigure | BokehFigure):
-        pn.io.notebook.push_notebook(self.pane, *(o.pane for o in others))
+        pn.io.notebook.push_notebook(
+            self.pane,
+            *(o.pane if hasattr(o, "pane") else o for o in others)
+        )
 
 
 class ApertureFigure:
@@ -312,7 +315,10 @@ class ApertureFigure:
                 self.push()
 
     def push(self, *others: ApertureFigure | BokehFigure):
-        pn.io.notebook.push_notebook(self.pane, *(o.pane for o in others))
+        pn.io.notebook.push_notebook(
+            self.pane,
+            *(o.pane if hasattr(o, "pane") else o for o in others)
+        )
 
     def add_control_panel(
         self,
