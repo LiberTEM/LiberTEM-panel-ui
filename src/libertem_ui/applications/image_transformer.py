@@ -59,7 +59,7 @@ class ImageTransformer:
         reshapes = [r for r in self._reshapes if r is not None]
         if reshapes:
             return reshapes[-1]
-        return self._image.shape
+        return self._image.shape[:2]
 
     def get_combined_transform(self):
         transform_mxs = [t.params for t in self.transforms]
