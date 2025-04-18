@@ -77,3 +77,28 @@ def clip_posxy_array(pos_xy, shape, round=True, to_int=True):
     clipped_y, ib_y = sanitize_val(pos_xy[:, 1], clip_to=h - 1, round=round, to_int=to_int)
     is_valid = np.logical_and(ib_x, ib_y)
     return np.stack((clipped_x, clipped_y), axis=-1).squeeze(), is_valid.squeeze()
+
+
+class Margin(NamedTuple):
+    top: int
+    right: int
+    bottom: int
+    left: int
+
+    @classmethod
+    def hv(cls, horizontal: int, vertical: int):
+        return cls(
+            top=vertical,
+            right=horizontal,
+            bottom=vertical,
+            left=horizontal,
+        )
+
+    @classmethod
+    def u(cls, margin: int):
+        return cls(
+            top=margin,
+            right=margin,
+            bottom=margin,
+            left=margin,
+        )
