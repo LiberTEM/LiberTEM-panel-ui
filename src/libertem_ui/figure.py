@@ -35,13 +35,7 @@ ChannelMapT = (
 )
 
 
-def adapt_figure(fig: figure, shape, maxdim: int | None = 450, mindim: int | None = None):
-    if mindim is None:
-        # Don't change aspect ratio in this case
-        mindim = -1
-
-    fig.y_range.flipped = True
-
+def set_frame_height(fig, shape, maxdim=450, mindim=-1):
     h, w = shape
     if h > w:
         fh = maxdim
@@ -51,6 +45,16 @@ def adapt_figure(fig: figure, shape, maxdim: int | None = 450, mindim: int | Non
         fh = max(mindim, int((h / w) * maxdim))
     fig.frame_height = fh
     fig.frame_width = fw
+    return fh, fw
+
+
+def adapt_figure(fig: figure, shape, maxdim: int | None = 450, mindim: int | None = None):
+    if mindim is None:
+        # Don't change aspect ratio in this case
+        mindim = -1
+
+    fig.y_range.flipped = True
+    fh, fw = set_frame_height(fig, shape, maxdim, mindim)
 
     if fh > 0.8 * fw:
         location = 'right'
