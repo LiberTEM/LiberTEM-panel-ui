@@ -1,4 +1,5 @@
 import functools
+import itertools
 from typing import Optional, TypedDict
 import numpy as np
 import panel as pn
@@ -8,10 +9,21 @@ from ..figure import ApertureFigure
 from ..display.display_base import PointSet, Cursor
 from ..display.vectors import MultiLine
 from ..display.image_db import BokehImage
+from ..utils.colormaps import get_bokeh_palette
 from .image_transformer import ImageTransformer
 
 from bokeh.models.widgets import CheckboxGroup, Spinner
-from bokeh.models import CustomJS
+from bokeh.models import CustomJS, ColumnDataSource
+
+
+def transform_md(transform: AffineTransform):
+    transform = AffineTransform(matrix=transform.params)
+    scale_x, scale_y = transform.scale
+    trans_x, trans_y = transform.translation
+    return f"""| Rotation | Scale   | Shear    | Translation   |
+| -------- | ------- | -------- | -------       |
+| {np.rad2deg(transform.rotation):.1f}  | ({scale_x:.3f}, {scale_y:.3f}) | {transform.shear:.2f}  | ({trans_x:.1f}, {trans_y:.1f}) |
+"""  # noqa
 
 
 def select_roi(
@@ -353,14 +365,7 @@ export default async function (args, obj, data, context) {
 
     def _transform_md():
         transform = transformer_moving.get_combined_transform()
-        scale_x, scale_y = transform.scale
-        trans_x, trans_y = transform.translation
-        return f"""### Transform:
-
-| Rotation | Scale   | Shear    | Translation   |
-| -------- | ------- | -------- | -------       |
-| {np.rad2deg(transform.rotation):.1f}  | ({scale_x:.3f}, {scale_y:.3f}) | {transform.shear:.2f}  | ({trans_x:.1f}, {trans_y:.1f}) |
-"""  # noqa
+        return transform_md(transform)
 
     transform_md = pn.pane.Markdown(
         object=_transform_md(),
@@ -510,3 +515,229 @@ export default async function (args, obj, data, context) {
             )
         )
     ), getter
+
+
+def get_joint_pointset(static_figure, moving_figure):
+    """
+    Place one scatter plot on each figure, and set up a callback such that
+    points created or deleted on one or the other are mirrored in the other
+    """
+    color_iterator = itertools.cycle(get_bokeh_palette())
+
+    defaults = {
+        'cx': 0,
+        'cy': 0,
+        'moving_cx': 0,
+        'moving_cy': 0,
+        'color': '#000000',
+    }
+
+    initial_data = {k: [] for k in defaults.keys()}
+
+    cds = ColumnDataSource(initial_data, default_values=defaults)
+
+    static_pointset = (
+        PointSet(
+            cds
+        )
+        .on(static_figure)
+        .editable(selected=True)
+    )
+    static_pointset.points.fill_color = "color"
+
+    moving_pointset = (
+        PointSet(
+            cds,
+            x="moving_cx",
+            y="moving_cy",
+        )
+        .on(moving_figure)
+        .editable(selected=True)
+    )
+    moving_pointset.points.fill_color = "color"
+
+    default_fill = -1
+
+    def _sync_points(attr, old, new):
+        # The synchronization callback, will be called each time
+        # the data source is changed / modified so we first
+        # exit early if the source length hasn't changed !
+        if not new['cx'] or len(old['cx']) == len(new['cx']):
+            return
+        # Use the color as a proxy to recognize which points are new
+        to_patch_ix = [
+            i for i, c in enumerate(new['color'])
+            if c in [defaults['color'], default_fill]
+        ]
+        # Exit early if no points are new, this is the case for point deletion
+        if not to_patch_ix:
+            return
+
+        patches = {'color': [(i, next(color_iterator)) for i in to_patch_ix]}
+        cx_patches = 'cx', [(i, new['moving_cx'][i]) for i in to_patch_ix
+                            if new['cx'][i] in [defaults['cx'], default_fill]]
+        cy_patches = 'cy', [(i, new['moving_cy'][i]) for i in to_patch_ix
+                            if new['cy'][i] in [defaults['cy'], default_fill]]
+        moving_cx_patches = 'moving_cx', [(i, new['cx'][i]) for i in to_patch_ix
+                                          if new['moving_cx'][i] in [defaults['moving_cx'],
+                                                                     default_fill]]
+        moving_cy_patches = 'moving_cy', [(i, new['cy'][i]) for i in to_patch_ix
+                                          if new['moving_cy'][i] in [defaults['moving_cy'],
+                                                                     default_fill]]
+        valid_point_patches = {k: v for k, v in [cx_patches,
+                                                 cy_patches,
+                                                 moving_cx_patches,
+                                                 moving_cy_patches] if v}
+        patches.update(valid_point_patches)
+        static_pointset.cds.patch(patches)
+
+    static_pointset.cds.on_change('data', _sync_points)
+
+    return static_pointset, moving_pointset
+
+
+def point_registration(
+    static: np.ndarray,
+    moving: np.ndarray,
+):
+    """
+    Provides a UI panel for pointset-to-pointset image registration
+    from the moving image onto the static image
+    Initial points can be supplied as a Pandas DataFrame
+    with the following 4 columns:
+        - `cx`, `cy` for points in the static image,
+        - `moving_cx`, `moving_cy` for corresponding points in the moving image.
+    """
+    transformer_moving = ImageTransformer(moving)
+    transformer_moving.add_null_transform(output_shape=static.shape)
+
+    static_fig = (
+        ApertureFigure
+        .new(
+            static,
+            tools=False,
+            title="Static",
+        )
+    )
+
+    overlay_image = (
+        BokehImage
+        .new()
+        .from_numpy(
+            moving,
+        )
+        .on(static_fig.fig)
+    )
+
+    overlay_image.color._lin_mapper.nan_color = (0,) * 4
+    overlay_image.im.global_alpha = 0.
+    overlay_alpha = overlay_image.color.get_alpha_slider(
+        name='Overlay alpha',
+        max_width=200,
+        align="end",
+    )
+
+    moving_fig = (
+        ApertureFigure
+        .new(
+            moving,
+            tools=False,
+            title="Moving",
+        )
+    )
+
+    static_pointset, moving_pointset = get_joint_pointset(
+        static_fig.fig,
+        moving_fig.fig,
+    )
+
+    transformations = {s.title(): s for s in ImageTransformer.available_transforms()}
+    method_select = pn.widgets.Select(
+        name='Transformation type',
+        options=[*transformations.keys()],
+        width=125,
+        align="end",
+    )
+    run_button = pn.widgets.Button(
+        name='Run',
+        button_type='primary',
+        width=100,
+        align='end',
+    )
+    output_md = pn.pane.Markdown(
+        object='No transform defined',
+        align="end",
+    )
+    clear_button = pn.widgets.Button(
+        name='Clear points',
+        align='end',
+        button_type="warning",
+    )
+
+    def _clear(event):
+        static_pointset.clear()
+        overlay_image.update(moving)
+        output_md.object = 'No transform defined'
+        transformer_moving.clear_transforms()
+
+        static_fig.push(moving_fig)
+
+    clear_button.on_click(_clear)
+
+    def get_points():
+        static_data = static_pointset.cds.data
+        if len(static_data['cx']) == 0:
+            output_md.object = 'No points defined'
+            return np.zeros((0, 2)), np.zeros((0, 2))
+        static_points = np.stack((static_data['cx'], static_data['cy']), axis=-1)
+        moving_data = moving_pointset.cds.data
+        moving_points = np.stack((moving_data['moving_cx'], moving_data['moving_cy']), axis=-1)
+        return static_points, moving_points
+
+    def _compute_transform(event, fix_clims=True):
+        method = transformations[method_select.value]
+
+        static_points, moving_points = get_points()
+        try:
+            transform = transformer_moving.estimate_transform(
+                static_points,
+                moving_points,
+                method=method,
+                clear=True,
+            )
+        except Exception as e:
+            output_md.object = f'Error computing transform: {str(e)}'
+            return
+        try:
+            output_md.object = transform_md(transform)
+        except Exception:
+            output_md.object = 'Post-transform error (format?)'
+            return
+
+        warped_moving = transformer_moving.get_transformed_image(output_shape=static.shape)
+        overlay_image.update(warped_moving)
+        static_fig.push()
+
+    run_button.on_click(_compute_transform)
+
+    static_fig._outer_toolbar.height = 0
+    moving_fig._outer_toolbar.height = 0
+
+    layout = pn.Column(
+        pn.Row(
+            run_button, method_select, overlay_alpha, clear_button, output_md,
+            min_height=80,
+        ),
+        pn.Row(
+            static_fig.layout,
+            moving_fig.layout,
+        ),
+    )
+
+    def getter():
+        return {
+            'points': get_points(),
+            'transform': transformer_moving.get_combined_transform()
+        }
+
+    return layout, getter
