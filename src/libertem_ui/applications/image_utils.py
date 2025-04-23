@@ -16,7 +16,7 @@ from bokeh.models.widgets import CheckboxGroup, Spinner
 from bokeh.models import CustomJS, ColumnDataSource
 
 
-def transform_md(transform: AffineTransform):
+def format_transform_md(transform: AffineTransform):
     transform = AffineTransform(matrix=transform.params)
     scale_x, scale_y = transform.scale
     trans_x, trans_y = transform.translation
@@ -365,7 +365,7 @@ export default async function (args, obj, data, context) {
 
     def _transform_md():
         transform = transformer_moving.get_combined_transform()
-        return transform_md(transform)
+        return format_transform_md(transform)
 
     transform_md = pn.pane.Markdown(
         object=_transform_md(),
@@ -709,7 +709,7 @@ def point_registration(
             output_md.object = f'Error computing transform: {str(e)}'
             return
         try:
-            output_md.object = transform_md(transform)
+            output_md.object = format_transform_md(transform)
         except Exception:
             output_md.object = 'Post-transform error (format?)'
             return
