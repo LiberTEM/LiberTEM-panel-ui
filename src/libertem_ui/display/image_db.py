@@ -839,7 +839,7 @@ vmax_input.value = +high.toPrecision(5)
 
     def change_cmap(self, palette: str):
         if self.cmap_select:
-            self.cmap_select.value = cmaps.get_colormap(palette, inverted=self.is_cmap_inverted())
+            self.cmap_select.value = palette
         elif self.color_mapper:
             self.change_cmap_cb(None, palette=palette)
         else:
@@ -853,7 +853,7 @@ vmax_input.value = +high.toPrecision(5)
         """
         if palette is None:
             palette = event.new
-        if isinstance(palette, list):
+        if isinstance(palette, (list, tuple)):
             _palette_list = palette
         else:
             self._current_palette_name = palette
