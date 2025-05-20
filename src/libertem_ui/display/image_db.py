@@ -941,6 +941,7 @@ vmax_input.value = +high.toPrecision(5)
         for fig in figs:
             for renderer in self.img.renderers_for_fig('image', fig):
                 color_bar = renderer.construct_color_bar(width=width, padding=padding)
+                color_bar.background_fill_alpha = 0.
                 fig.add_layout(color_bar, position)
                 # Need reference so we can change the mapper
                 # when switching from log to lin

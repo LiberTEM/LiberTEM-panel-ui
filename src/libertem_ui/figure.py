@@ -65,6 +65,8 @@ def adapt_figure(fig: figure, shape, maxdim: int | None = 450, mindim: int | Non
     fig.x_range.range_padding = 0.
     fig.y_range.range_padding = 0.
     fig.toolbar.active_drag = None
+    fig.background_fill_alpha = 0.
+    fig.border_fill_color = None
     zoom_tools = tuple(t for t in fig.tools if isinstance(t, WheelZoomTool))
     try:
         fig.toolbar.active_scroll = zoom_tools[0]
