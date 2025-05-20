@@ -6,7 +6,7 @@ from bidict import bidict
 import panel as pn
 
 if TYPE_CHECKING:
-    from ..figure import AperturePlot
+    from ..live_plot import AperturePlot
     from .results_manager import ResultRow, ResultsManager, WindowRow
     from ..windows.base import UIWindow
 
