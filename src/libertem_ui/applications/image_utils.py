@@ -490,6 +490,11 @@ export default async function (args, obj, data, context) {
     def getter() -> AffineTransform:
         return transformer_moving.get_combined_transform()
 
+    def setter(transf):
+        transformer_moving.clear_transforms()
+        transformer_moving.add_transform(transf)
+        update_moving()
+
     fig._toolbar.insert(0, show_diff_cbox)
     fig._toolbar.insert(0, wobble_step_input)
     fig._toolbar.insert(0, wobble_alpha_cbox)
@@ -514,7 +519,7 @@ export default async function (args, obj, data, context) {
                 shear_buttons(fine_shear),
             )
         )
-    ), getter
+    ), getter, setter
 
 
 def get_joint_pointset(static_figure, moving_figure):
