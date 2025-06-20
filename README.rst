@@ -1,8 +1,21 @@
+
 LiberTEM-panel-ui
 =================
 
-.. image:: https://mybinder.org/badge_logo.svg
- :target: https://mybinder.org/v2/gh/LiberTEM/LiberTEM-panel-ui/HEAD?labpath=examples%2FDemo.ipynb
+.. |binder| image:: https://mybinder.org/badge_logo.svg
+.. _binder: https://mybinder.org/v2/gh/LiberTEM/LiberTEM-panel-ui/HEAD?labpath=examples%2FDemo.ipynb
+
+.. |github| image:: https://img.shields.io/badge/GitHub-MIT-informational
+.. _github: https://github.com/LiberTEM/LiberTEM-panel-ui
+
+.. |precommit| image:: https://results.pre-commit.ci/badge/github/LiberTEM/LiberTEM-panel-ui/main.svg
+.. _precommit: https://results.pre-commit.ci/latest/github/LiberTEM/LiberTEM-panel-ui/main
+
+.. |pypi| image:: https://badge.fury.io/py/libertem-ui.svg
+.. _pypi: https://pypi.org/project/libertem-ui/
+
+|binder|_ |github|_ |precommit|_ |pypi|_
+
 
 Widget-based web GUI package intended to support the
 `LiberTEM <https://github.com/LiberTEM/LiberTEM/>`_
@@ -107,7 +120,9 @@ Disclaimer
 ----------
 
 :code:`LiberTEM-panel-ui` is at an early proof-of-concept stage. All interfaces
-and functionality is subject to change in the future.
+and functionality is subject to change in the future. Notably, the primary usage
+environment is in a Jupyter Notebook - standalone usage as a web app through
+:code:`panel serve` is not well tested.
 
 If you are interested in the project and would like to see it taken further,
 please don't hesitate to get in touch by posting an
