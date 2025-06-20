@@ -1,4 +1,0 @@
-graft src
-include LICENSE
-include README.rst
-global-exclude *.pyc *.nbi *.nbc __pycache__

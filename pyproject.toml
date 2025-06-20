@@ -1,24 +1,32 @@
 [build-system]
-requires = ["setuptools"]
-build-backend = "setuptools.build_meta"
+requires = [
+    "hatchling",
+    "hatch-fancy-pypi-readme",
+]
+build-backend = "hatchling.build"
 
 [project]
 name = "libertem_ui"
-version = "0.0.1"
+dynamic = ["version", "readme"]
 license = {file = "LICENSE"}
 description="Panel+Bokeh-based GUI Toolkit for LiberTEM"
-readme="README.rst"
 requires-python = ">=3.10"
 authors = [
-    {"name" = "Matthew Bryan", email="matthewbryan52@gmail.com"},
+    { name = "the LiberTEM team", email = "libertem-dev@googlegroups.com" },
 ]
-keywords=["electron microscopy", "notebook", "gui"]
+keywords=[
+    "electron",
+    "microscopy",
+    "notebook",
+    "gui",
+]
 classifiers=[
     'Development Status :: 3 - Alpha',
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
+    'Programming Language :: Python :: 3.13',
     'License :: OSI Approved :: MIT License',
     'Operating System :: POSIX :: Linux',
     'Operating System :: MacOS :: MacOS X',
@@ -56,7 +64,29 @@ notebook = [
 ]
 
 [project.urls]
-repository = "https://github.com/LiberTEM/LiberTEM-panel-ui"
+Repository = "https://github.com/LiberTEM/LiberTEM-panel-ui"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.hatch.version]
+path = "src/libertem_ui/__version__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/LICENSE",
+    "/README.rst",
+    "/test_requirements.txt",
+    "/tox.ini",
+]
+exclude = [
+    "*.pyc",
+    "*.nbi",
+    "*.nbc",
+    "__pycache__",
+]
+
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+"content-type" = "text/x-rst"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.rst"

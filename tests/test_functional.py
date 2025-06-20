@@ -9,7 +9,7 @@ def test_fine_adjust(page: Page):
     circle_image_shifted = np.roll(circle_image, (-50, 80), axis=(0, 1))
     layout, getter = fine_adjust(circle_image, circle_image_shifted)
     port = np.random.randint(8081, 9957)
-    show_th = layout.show(open=False, threaded=True, port=port)
+    show_th = layout.show(open=False, threaded=True, port=int(port))
     try:
         page.goto(f"http://localhost:{port}")
         page.get_by_role("button", name="▷", exact=True).click()

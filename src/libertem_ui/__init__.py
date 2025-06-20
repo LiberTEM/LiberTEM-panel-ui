@@ -1,4 +1,4 @@
-__version__ = '0.0.1'
+from .__version__ import __version__  # noqa
 
 import pathlib
 _static_root = pathlib.Path(__file__).parent / '_static'
