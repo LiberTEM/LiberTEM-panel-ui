@@ -6,7 +6,7 @@ requires = [
 build-backend = "hatchling.build"
 
 [project]
-name = "libertem_ui"
+name = "libertem-ui"
 dynamic = ["version", "readme"]
 license = {file = "LICENSE"}
 description="Panel+Bokeh-based GUI Toolkit for LiberTEM"
