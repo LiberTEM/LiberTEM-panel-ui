@@ -61,6 +61,7 @@ notebook = [
     "notebook",
     "ipython",
     "ipywidgets",
+    "jupyter_bokeh",
 ]
 
 [project.urls]
