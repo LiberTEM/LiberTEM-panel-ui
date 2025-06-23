@@ -57,7 +57,7 @@ LiberTEM `Context` and `DataSet` objects):
     rc = com_window.results_manager.get_result_container(result_id)
     assert isinstance(rc.data, np.ndarray)
 
-.. image:: examples/com_window.png
+.. image:: https://raw.githubusercontent.com/LiberTEM/LiberTEM-panel-ui/refs/heads/main/examples/com_window.png
 
 A second standalone window can be linked to the first,
 and will share the data and LiberTEM resources. Results from
@@ -96,7 +96,7 @@ from multiple windows in parallel:
     # Display table / dataframe-based results manager
     ui_context.results_manager.layout()
 
-.. image:: examples/ui_context.png
+.. image:: https://raw.githubusercontent.com/LiberTEM/LiberTEM-panel-ui/refs/heads/main/examples/ui_context.png
 
 see :code:`examples/` for some more complete example use cases.
 
@@ -108,12 +108,13 @@ Installation
 As always, it is advisable to use a virtual or conda environment
 for testing packages.
 
-At this time, :code:`libertem_ui` is not availble through PyPi, but can be
-installed using (requires :code:`git`):
-
 .. code-block:: bash
 
-    pip install 'libertem_ui[libertem] @ git+https://github.com/LiberTEM/LiberTEM-panel-ui'
+    pip install libertem-ui
+
+The optional dependencies `libertem-ui[libertem]` and `libertem-ui[notebook]`
+install the necessary components to run LiberTEM windows and Jupyter notebooks,
+respectively.
 
 
 Disclaimer
