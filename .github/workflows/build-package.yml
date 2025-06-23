@@ -2,7 +2,7 @@ name: Build package
 
 on:
   release:
-    types: [prereleased]
+    types: [published]
 
 permissions:
   contents: read

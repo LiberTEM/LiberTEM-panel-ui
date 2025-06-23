@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       releasetag:
-        description: 'Release version number (v0.x.x)'
+        description: 'Release tag (v0.X.X[rcX])'
         required: true
         type: string
 
