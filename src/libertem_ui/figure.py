@@ -13,7 +13,8 @@ from bokeh.models.annotations import Title
 from bokeh.events import MouseMove, MouseLeave
 
 from .display.image_db import BokehImage
-from .display.display_base import Rectangles, DisplayBase, Polygons
+from .display.base import DisplayBase
+from .display.shapes import Rectangles, Polygons
 from .display.icons import options_icon, sigma_icon
 
 

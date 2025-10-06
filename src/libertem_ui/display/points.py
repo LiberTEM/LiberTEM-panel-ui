@@ -8,7 +8,7 @@ from bokeh.models.sources import ColumnDataSource
 from bokeh.models.glyphs import Scatter, Circle, Annulus
 from bokeh.models.tools import PointDrawTool
 
-from .display_base import DisplayBase, ConsBase
+from .base import DisplayBase, ConsBase
 
 
 if TYPE_CHECKING:

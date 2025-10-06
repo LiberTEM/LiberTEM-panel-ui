@@ -8,7 +8,7 @@ import colorcet as cc
 from bokeh.models.sources import ColumnDataSource
 from bokeh.models.glyphs import Line
 
-from .display_base import DisplayBase, ConsBase
+from .base import DisplayBase, ConsBase
 
 
 class Curve(DisplayBase):

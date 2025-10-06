@@ -4,7 +4,7 @@ import numpy as np
 from bokeh.models.sources import ColumnDataSource
 from bokeh.models.glyphs import Text as BkText
 
-from .display_base import DisplayBase, ConsBase
+from .base import DisplayBase, ConsBase
 
 
 class Text(DisplayBase):

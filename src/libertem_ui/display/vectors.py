@@ -9,7 +9,7 @@ from bokeh.models.glyphs import MultiLine as BkMultiLine
 from bokeh.models.sources import ColumnDataSource
 from bokeh.models.tools import PolyEditTool, PolyDrawTool
 
-from .display_base import DisplayBase, ConsBase
+from .base import DisplayBase, ConsBase
 from .text import Text
 from .shapes import VertexPointSetMixin
 from .icons import line_icon

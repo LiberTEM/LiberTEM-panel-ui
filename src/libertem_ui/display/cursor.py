@@ -7,7 +7,7 @@ from bokeh.models.sources import ColumnDataSource
 from bokeh.models.glyphs import Scatter
 from bokeh.models.tools import PointDrawTool
 
-from .display_base import DisplayBase, ConsBase
+from .base import DisplayBase, ConsBase
 from .icons import cursor_icon
 from ..utils import PointXY
 from .points import get_point_tool

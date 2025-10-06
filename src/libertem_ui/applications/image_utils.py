@@ -6,7 +6,8 @@ import panel as pn
 from skimage.transform import AffineTransform
 
 from ..figure import ApertureFigure
-from ..display.display_base import PointSet, Cursor
+from ..display.points import PointSet
+from ..display.cursor import Cursor
 from ..display.vectors import MultiLine
 from ..display.image_db import BokehImage
 from ..utils.colormaps import get_bokeh_palette
