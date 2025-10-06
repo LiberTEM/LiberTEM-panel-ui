@@ -4,7 +4,7 @@ from typing_extensions import Self
 
 from bokeh.models.sources import ColumnDataSource
 
-from .display_base import DisplayBase, ConsBase
+from .base import DisplayBase, ConsBase
 from .text import Text
 from .points import DiskSet
 from .lines import Curve

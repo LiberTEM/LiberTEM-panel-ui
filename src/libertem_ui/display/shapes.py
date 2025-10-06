@@ -8,7 +8,7 @@ from bokeh.models.glyphs import Scatter, Rect, Patches
 from bokeh.models.tools import BoxEditTool, PolyDrawTool, PolyEditTool
 
 from ..utils import clip_posxy_array
-from .display_base import DisplayBase, ConsBase
+from .base import DisplayBase, ConsBase
 from .points import PointSet
 
 

@@ -9,7 +9,8 @@ from bokeh.models import CustomJS, Slider
 from bokeh.plotting import figure as BkFigure
 
 from ..utils import Margin
-from ..display.display_base import Rectangles, Curve
+from ..display.shapes import Rectangles
+from ..display.lines import Curve
 from ..display.vectors import MultiLine
 from ..figure import ApertureFigure
 

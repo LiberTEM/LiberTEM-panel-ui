@@ -10,7 +10,7 @@ from libertem.udf.sumsigudf import SumSigUDF
 from ..live_plot import AperturePlot
 from ..base import UIState, JobResults
 from .base import UIWindow, UDFWindowJob, WindowProperties
-from ..display.display_base import Cursor
+from ..display.cursor import Cursor
 from ..utils import get_initial_pos, PointYX
 
 
