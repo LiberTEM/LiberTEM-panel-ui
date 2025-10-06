@@ -22,7 +22,7 @@ from ..utils import pop_from_list, PointXY, clip_posxy_array
 
 if TYPE_CHECKING:
     from bokeh.plotting import figure as BkFigure
-    from bokeh.models.glyphs import Glyph
+    from bokeh.models.glyph import Glyph
     from bokeh.models.renderers import GlyphRenderer
     from bokeh.models.tools import EditTool, Tool
 
@@ -280,6 +280,16 @@ class DisplayBase(abc.ABC):
     @property
     def glyph_names(self):
         return tuple(self._glyphs.keys())
+
+    @property
+    def glyph(self):
+        if len(self.glyph_names) > 1:
+            raise NotImplementedError(
+                "Default glyph implementation not available for multi-glyph components"
+            )
+        elif len(self.glyph_names) == 0:
+            raise TypeError("No glyphs defined for display base")
+        return self._glyphs[self.glyph_names[0]][0].glyph
 
     def editable(self, *figs: BkFigure) -> Self:
         raise NotImplementedError
