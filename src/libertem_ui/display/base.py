@@ -1,8 +1,7 @@
 from __future__ import annotations
-import abc
 from dataclasses import dataclass, field
 import numpy as np
-from typing import TYPE_CHECKING, NamedTuple, Callable, TypeVar, Generator
+from typing import TYPE_CHECKING, NamedTuple, Callable, Generator
 from typing_extensions import Self
 
 from bokeh.models.sources import ColumnDataSource
@@ -36,7 +35,7 @@ class GlyphOnWrapper:
     on: list[RenderedOn] = field(default_factory=list)
 
 
-class DisplayBase(abc.ABC):
+class DisplayBase[G: Glyph]:
     """
     Abstract class for interacting with a source of
     data and displaying it on one-or-more BokehFigure.s
@@ -272,7 +271,7 @@ class DisplayBase(abc.ABC):
         return tuple(self._glyphs.keys())
 
     @property
-    def glyph(self):
+    def glyph(self) -> G:
         if len(self.glyph_names) > 1:
             raise NotImplementedError(
                 "Default glyph implementation not available for multi-glyph components"
@@ -344,24 +343,17 @@ class DisplayBase(abc.ABC):
         return where
 
 
-T = TypeVar('T', bound='DisplayBase')
-
-
-class ConsBase(abc.ABC):
-    default_keys = tuple()
+class ConsBase[T: DisplayBase]:
+    constructs: type[T]
+    default_keys: tuple[str, ...] = tuple()
 
     @classmethod
-    def empty(cls, constructs: type[T]) -> T:
+    def empty(cls) -> T:
         """
-        Need to figure out how to give the return Type dynamically
-
-        Self type from py3.11 or typing_extensions
-        https://stackoverflow.com/a/75337086
-        https://realpython.com/python-type-self/
-        but these constructors do not return self...
+        Generate an empty instance with the correct columns
         """
         data = {
             k: [] for k in cls.default_keys
         }
         cds = ColumnDataSource(data)
-        return constructs(cds)
+        return cls.constructs(cds)
