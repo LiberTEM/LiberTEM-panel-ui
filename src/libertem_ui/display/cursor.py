@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from bokeh.plotting import figure as BkFigure
 
 
-class Cursor(DisplayBase):
+class Cursor(DisplayBase[Scatter]):
     glyph_map = {
         'cursor': Scatter,
     }
@@ -113,7 +113,8 @@ class Cursor(DisplayBase):
         return self
 
 
-class CursorCons(ConsBase):
+class CursorCons(ConsBase[Cursor]):
+    constructs = Cursor
     default_keys = ('cx', 'cy')
 
     @staticmethod
@@ -126,7 +127,3 @@ class CursorCons(ConsBase):
         }
         cds = ColumnDataSource(data)
         return Cursor(cds)
-
-    @classmethod
-    def empty(cls) -> Cursor:
-        return super().empty()

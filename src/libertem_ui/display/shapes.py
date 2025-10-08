@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from bokeh.models.tools import EditTool
 
 
-class Rectangles(DisplayBase):
+class Rectangles(DisplayBase[Rect]):
     glyph_map = {
         'rectangles': [Rect],
     }
@@ -136,7 +136,8 @@ def rectangle_to_mask(*, cx, cy, w, h, mask, fill_value: bool = True):
     return mask
 
 
-class RectanglesCons(ConsBase):
+class RectanglesCons(ConsBase[Rectangles]):
+    constructs = Rectangles
     default_keys = ('cx', 'cy', 'w', 'h')
 
     @classmethod
@@ -156,10 +157,6 @@ class RectanglesCons(ConsBase):
         }
         cds = ColumnDataSource(data)
         return Rectangles(cds)
-
-    @classmethod
-    def empty(cls):
-        return super().empty(Rectangles)
 
 
 class VertexPointSetMixin:
@@ -203,7 +200,7 @@ class VertexPointSetMixin:
             poly_tool.vertex_renderer = vertex_renderer
 
 
-class Polygons(DisplayBase, VertexPointSetMixin):
+class Polygons(DisplayBase[Patches], VertexPointSetMixin):
     glyph_map = {
         'polys': [Patches],
     }
@@ -305,7 +302,8 @@ class Polygons(DisplayBase, VertexPointSetMixin):
         return mask
 
 
-class PolygonsCons(ConsBase):
+class PolygonsCons(ConsBase[Polygons]):
+    constructs = Polygons
     default_keys = ('xs', 'ys')
 
     @classmethod
@@ -324,7 +322,3 @@ class PolygonsCons(ConsBase):
         }
         cds = ColumnDataSource(data)
         return Polygons(cds)
-
-    @classmethod
-    def empty(cls):
-        return super().empty(Polygons)

@@ -7,7 +7,7 @@ from bokeh.models.glyphs import Text as BkText
 from .base import DisplayBase, ConsBase
 
 
-class Text(DisplayBase):
+class Text(DisplayBase[BkText]):
     glyph_map = {
         'text': [BkText],
     }
@@ -26,10 +26,6 @@ class Text(DisplayBase):
             text=text,
         )
         self._register_glyph('text', glyph)
-
-    @property
-    def glyph(self) -> BkText:
-        return self._glyphs['text'][0].glyph
 
     @classmethod
     def new(cls):
@@ -50,7 +46,8 @@ class Text(DisplayBase):
         return super().update(**data)
 
 
-class TextCons(ConsBase):
+class TextCons(ConsBase[Text]):
+    constructs = Text
     default_keys = ('x', 'y', 'text')
 
     @classmethod
@@ -68,7 +65,3 @@ class TextCons(ConsBase):
         }
         cds = ColumnDataSource(data)
         return Text(cds)
-
-    @classmethod
-    def empty(cls):
-        return super().empty(Text)

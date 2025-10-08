@@ -11,7 +11,7 @@ from bokeh.models.glyphs import Line
 from .base import DisplayBase, ConsBase
 
 
-class Curve(DisplayBase):
+class Curve(DisplayBase[Line]):
     glyph_map = {
         'curve': Line,
     }
@@ -33,10 +33,6 @@ class Curve(DisplayBase):
     def new(cls):
         return CurveCons()
 
-    @property
-    def glyph(self) -> Line:
-        return self._glyphs['curve'][0].glyph
-
     def update(
         self,
         xvals: np.ndarray | None = None,
@@ -51,7 +47,8 @@ class Curve(DisplayBase):
         return super().update(**data)
 
 
-class CurveCons(ConsBase):
+class CurveCons(ConsBase[Curve]):
+    constructs = Curve
     default_keys = ('xvals', 'yvals')
 
     @staticmethod
@@ -90,12 +87,8 @@ class CurveCons(ConsBase):
             ykey=ykey,
         )
 
-    @classmethod
-    def empty(cls):
-        return super().empty(Curve)
 
-
-class MultiCurve(DisplayBase):
+class MultiCurve(DisplayBase[Curve]):
     glyph_map = {
         'curves': [Curve],
     }
@@ -164,8 +157,8 @@ class MultiCurve(DisplayBase):
         return MultiCurveCons.array_to_dict(array, self._array_col_labels)
 
 
-class MultiCurveCons(ConsBase):
-
+class MultiCurveCons(ConsBase[MultiCurve]):
+    constructs = MultiCurve
     default_xkey = 'xvals'
 
     @staticmethod
@@ -207,7 +200,3 @@ class MultiCurveCons(ConsBase):
             xkey=xkey,
             ykeys=ykeys,
         )
-
-    @classmethod
-    def empty(cls):
-        return super().empty(MultiCurve)

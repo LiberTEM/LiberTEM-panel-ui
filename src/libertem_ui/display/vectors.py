@@ -100,7 +100,8 @@ class MultiLine(DisplayBase, VertexPointSetMixin):
         return self
 
 
-class MultiLineCons(ConsBase):
+class MultiLineCons(ConsBase[MultiLine]):
+    constructs = MultiLine
     default_keys = ('xs', 'ys')
 
     @staticmethod
@@ -113,10 +114,6 @@ class MultiLineCons(ConsBase):
         }
         cds = ColumnDataSource(data)
         return MultiLine(cds)
-
-    @classmethod
-    def empty(cls):
-        return super().empty(MultiLine)
 
 
 class VectorsOverlay(DisplayBase):

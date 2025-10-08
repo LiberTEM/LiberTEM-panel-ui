@@ -38,7 +38,7 @@ def get_point_tool(
     )
 
 
-class PointSet(DisplayBase):
+class PointSet(DisplayBase[Scatter]):
     glyph_map = {
         'points': Scatter
     }
@@ -99,7 +99,8 @@ class PointSet(DisplayBase):
         return self
 
 
-class PointSetCons(ConsBase):
+class PointSetCons(ConsBase[PointSet]):
+    constructs = PointSet
     default_keys = ('cx', 'cy')
 
     @staticmethod
@@ -119,12 +120,8 @@ class PointSetCons(ConsBase):
     ):
         raise NotImplementedError
 
-    @classmethod
-    def empty(cls):
-        return super().empty(PointSet)
 
-
-class DiskSet(DisplayBase):
+class DiskSet(DisplayBase[Circle]):
     glyph_map = {
         'disks': Circle,
     }
@@ -219,7 +216,8 @@ cds.change.emit();
         self.update(radius=e.new)
 
 
-class DiskSetCons(ConsBase):
+class DiskSetCons(ConsBase[DiskSet]):
+    constructs = DiskSet
     default_keys = ('cx', 'cy', 'r0')
 
     @staticmethod
@@ -236,14 +234,10 @@ class DiskSetCons(ConsBase):
         cds = ColumnDataSource(data)
         return DiskSet(cds)
 
-    @classmethod
-    def empty(cls):
-        return super().empty(DiskSet)
 
-
-class RingSet(DisplayBase):
+class RingSet(DisplayBase[Annulus]):
     glyph_map = {
-        'rings': Circle,
+        'rings': Annulus,
     }
 
     def __init__(
@@ -315,7 +309,8 @@ class RingSet(DisplayBase):
         return self
 
 
-class RingSetCons(ConsBase):
+class RingSetCons(ConsBase[RingSet]):
+    constructs = RingSet
     default_keys = ('cx', 'cy', 'r0', 'r1')
 
     @staticmethod
@@ -334,7 +329,3 @@ class RingSetCons(ConsBase):
         }
         cds = ColumnDataSource(data)
         return RingSet(cds)
-
-    @classmethod
-    def empty(cls):
-        return super().empty(RingSet)
