@@ -9,7 +9,9 @@ from bokeh.models.glyphs import MultiLine as BkMultiLine
 from bokeh.models.sources import ColumnDataSource
 from bokeh.models.tools import PolyEditTool, PolyDrawTool
 
-from .display_base import DisplayBase, ConsBase, Text, VertexPointSetMixin
+from .base import DisplayBase, ConsBase
+from .text import Text
+from .shapes import VertexPointSetMixin
 from .icons import line_icon
 
 
@@ -98,7 +100,8 @@ class MultiLine(DisplayBase, VertexPointSetMixin):
         return self
 
 
-class MultiLineCons(ConsBase):
+class MultiLineCons(ConsBase[MultiLine]):
+    constructs = MultiLine
     default_keys = ('xs', 'ys')
 
     @staticmethod
@@ -111,10 +114,6 @@ class MultiLineCons(ConsBase):
         }
         cds = ColumnDataSource(data)
         return MultiLine(cds)
-
-    @classmethod
-    def empty(cls):
-        return super().empty(MultiLine)
 
 
 class VectorsOverlay(DisplayBase):
