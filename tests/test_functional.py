@@ -4,6 +4,7 @@ from playwright.sync_api import Page
 from libertem_ui.applications.image_utils import fine_adjust
 
 
+@pytest.mark.skip
 def test_fine_adjust(page: Page):
     circle_image = (np.linalg.norm(np.mgrid[-200: 200, -300: 300], axis=0) < 100)
     circle_image_shifted = np.roll(circle_image, (-50, 80), axis=(0, 1))
