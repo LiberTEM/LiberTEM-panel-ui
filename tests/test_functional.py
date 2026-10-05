@@ -1,5 +1,6 @@
 import numpy as np
 import time
+import pytest
 from playwright.sync_api import Page
 from libertem_ui.applications.image_utils import fine_adjust
 
